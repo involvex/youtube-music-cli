@@ -1,0 +1,87 @@
+{
+	"files.exclude": {
+		"out": false,
+		"dist": false
+	},
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/.hg/store/**": true,
+		"**/.dart_tool": true,
+		"**/node_modules/*/**": true
+	},
+	"search.exclude": {
+		"out": true,
+		"dist": true
+	},
+	"typescript.tsc.autoDetect": "off",
+	"statusbarQuickActions.buttons": [
+		{
+			"id": "build",
+			"text": "🔨 build",
+			"tooltip": "Run build command",
+			"command": {
+				"type": "bun",
+				"script": "build"
+			},
+			"enabled": true,
+			"alignment": "left",
+			"priority": 100
+		},
+		{
+			"id": "dev",
+			"text": "👄 dev",
+			"command": {
+				"type": "bun",
+				"script": "dev"
+			},
+			"alignment": "left",
+			"enabled": true,
+			"priority": 100,
+			"colors": {
+				"background": "blue",
+				"foreground": "black"
+			},
+			"tooltip": "run dev",
+			"execution": {
+				"showProgress": true,
+				"notifications": {
+					"showError": true
+				}
+			}
+		},
+		{
+			"id": "changelog",
+			"text": "💬 Changelog",
+			"command": {
+				"type": "bun",
+				"script": "changelog"
+			},
+			"alignment": "left",
+			"enabled": true,
+			"priority": 100,
+			"colors": {
+				"background": "blue",
+				"foreground": "black"
+			},
+			"tooltip": "run changelog",
+			"execution": {
+				"showProgress": true,
+				"notifications": {
+					"showError": true,
+					"showOutput": true,
+					"showSuccess": true
+				}
+			}
+		}
+	],
+	"statusbarQuickActions.settings.icons": {
+		"library": "vscode"
+	},
+	"statusbarQuickActions.settings.theme": {
+		"darkTheme": true
+	},
+	"npmPackageManager.defaultPackageManager": "bun",
+	"npmPackageManager.debug": true,
+	"npmPackageManager.showStatusBarItem": true
+}

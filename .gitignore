@@ -1,0 +1,6 @@
+node_modules
+dist
+nul
+.mira/mira.log
+.env
+.env.local

@@ -1,0 +1,7 @@
+{
+	"permissions": {
+		"allow": ["Bash(bun:*)", "Bash(jobs:*)", "Bash(pkill:*)"],
+		"additionalDirectories": ["D:\\repos\\gtop\\"]
+	},
+	"prefersReducedMotion": true
+}

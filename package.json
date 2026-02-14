@@ -1,0 +1,82 @@
+{
+	"name": "@involvex/youtube-music-cli",
+	"version": "0.0.0",
+	"description": "- A Commandline music player for youtube-music",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/involvex/youtube-music-cli"
+	},
+	"funding": "https://github.com/sponsors/involvex",
+	"license": "MIT",
+	"author": "involvex",
+	"type": "module",
+	"bin": "dist/cli.js",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
+		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix --ignore-pattern dist",
+		"start": "bun run dist/cli.js",
+		"test": "prettier --check . && xo && ava",
+		"typecheck": "tsc --noEmit",
+		"changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
+	},
+	"xo": {
+		"extends": "xo-react",
+		"prettier": true,
+		"rules": {
+			"react/prop-types": "off"
+		}
+	},
+	"prettier": "@vdemedes/prettier-config",
+	"ava": {
+		"extensions": {
+			"ts": "module",
+			"tsx": "module"
+		},
+		"nodeArguments": [
+			"--loader=ts-node/esm"
+		]
+	},
+	"dependencies": {
+		"ink": "^4.1.0",
+		"jiti": "^2.6.1",
+		"meow": "^11.0.0",
+		"node-youtube-music": "^0.10.3",
+		"play-sound": "^1.1.0",
+		"react": "^18.2.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@sindresorhus/tsconfig": "^3.0.1",
+		"@types/react": "^18.0.32",
+		"@vdemedes/prettier-config": "^2.0.1",
+		"ava": "^5.2.0",
+		"chalk": "^5.2.0",
+		"conventional-changelog-cli": "^5.0.0",
+		"eslint": "^10.0.0",
+		"eslint-config-xo-react": "^0.27.0",
+		"eslint-plugin-react": "^7.37.5",
+		"eslint-plugin-react-hooks": "^4.6.0",
+		"globals": "^17.3.0",
+		"ink-testing-library": "^3.0.0",
+		"prettier": "^3.8.1",
+		"prettier-plugin-organize-imports": "^4.3.0",
+		"prettier-plugin-packagejson": "^3.0.0",
+		"prettier-plugin-sort-imports": "^1.8.10",
+		"ts-node": "^10.9.1",
+		"typescript": "^5.0.3",
+		"typescript-eslint": "^8.55.0",
+		"xo": "^0.53.1"
+	},
+	"engines": {
+		"node": ">=16"
+	},
+	"sponsors": "https://github.com/sponsors/involvex"
+}

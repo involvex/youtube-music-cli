@@ -1,0 +1,9 @@
+{
+	"recommendations": [
+		"dbaeumer.vscode-eslint",
+		"connor4312.esbuild-problem-matchers",
+		"ms-vscode.extension-test-runner",
+		"involvex.vscode-npm-package-manager",
+		"involvex.statusbar-quick-actions"
+	]
+}
