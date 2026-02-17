@@ -9,7 +9,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {truncate} from '../../utils/format.ts';
 import {useCallback, useEffect} from 'react';
-import useStdoutDimensions from 'ink-use-stdout-dimensions';
+import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 
 type Props = {
 	results: SearchResult[];
@@ -21,7 +21,7 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const {play} = usePlayer();
-	const [columns] = useStdoutDimensions();
+	const {columns} = useTerminalSize();
 
 	// Navigate results with arrow keys
 	const navigateUp = useCallback(() => {

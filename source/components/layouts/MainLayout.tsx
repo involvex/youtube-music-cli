@@ -12,12 +12,12 @@ import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box} from 'ink';
-import useStdoutDimensions from 'ink-use-stdout-dimensions';
+import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 
 function MainLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
-	const [columns] = useStdoutDimensions();
+	const {columns} = useTerminalSize();
 
 	// Responsive padding based on terminal size
 	const getPadding = () => (columns < 100 ? 0 : 1);

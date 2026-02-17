@@ -5,12 +5,12 @@ import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {truncate} from '../../utils/format.ts';
-import useStdoutDimensions from 'ink-use-stdout-dimensions';
+import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 
 function QueueList() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
-	const [columns] = useStdoutDimensions();
+	const {columns} = useTerminalSize();
 	const [selectedIndex, _setSelectedIndex] = useState(0);
 
 	// Calculate responsive truncation
