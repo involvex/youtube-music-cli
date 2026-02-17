@@ -27,6 +27,7 @@ class ConfigService {
 			repeat: 'off',
 			shuffle: false,
 			customTheme: undefined,
+			streamQuality: 'high',
 		};
 	}
 

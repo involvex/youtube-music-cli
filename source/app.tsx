@@ -7,7 +7,7 @@ import type {Flags} from './types/cli.types.ts';
 // Handle unmounting
 let unmount: (() => void) | null = null;
 
-export default function App({flags: _flags}: {flags?: Flags}) {
+export default function App({flags}: {flags?: Flags}) {
 	const {exit} = useApp();
 
 	// Store unmount function globally
@@ -15,5 +15,5 @@ export default function App({flags: _flags}: {flags?: Flags}) {
 		unmount = exit;
 	}
 
-	return <Main />;
+	return <Main flags={flags} />;
 }

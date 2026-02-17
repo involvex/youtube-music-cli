@@ -18,6 +18,8 @@ export const VIEW = {
 	ARTIST: 'artist',
 	ALBUM: 'album',
 	HELP: 'help',
+	SUGGESTIONS: 'suggestions',
+	SETTINGS: 'settings',
 } as const;
 
 // Search types
@@ -36,6 +38,8 @@ export const KEYBINDINGS = {
 	HELP: ['?'],
 	SEARCH: ['/'],
 	PLAYLISTS: ['p'],
+	SUGGESTIONS: ['g'],
+	SETTINGS: [','],
 
 	// Player
 	PLAY_PAUSE: [' '],

@@ -12,6 +12,7 @@ const cli = meow(
 	  $ youtube-music-cli play <track-id>
 	  $ youtube-music-cli search <query>
 	  $ youtube-music-cli playlist <playlist-id>
+	  $ youtube-music-cli suggestions
 
 	Options
 	  --theme, -t    Theme to use (dark, light, midnight, matrix)
@@ -70,6 +71,9 @@ if (command === 'play' && args[0]) {
 } else if (command === 'playlist' && args[0]) {
 	// Play specific playlist
 	(cli.flags as Flags).playPlaylist = args[0];
+} else if (command === 'suggestions') {
+	// Show suggestions
+	(cli.flags as Flags).showSuggestions = true;
 }
 
 // Render the app

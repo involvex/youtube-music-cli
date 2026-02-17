@@ -45,7 +45,7 @@ export default function SearchLayout() {
 				<Text bold color={theme.colors.primary}>
 					Search
 				</Text>
-				{' | '}
+				<Text color={theme.colors.dim}> | </Text>
 				<Text color={theme.colors.dim}>Type to search, Enter to search</Text>
 			</Box>
 

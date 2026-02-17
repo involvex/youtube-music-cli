@@ -8,7 +8,9 @@
 		"**/.git/subtree-cache/**": true,
 		"**/.hg/store/**": true,
 		"**/.dart_tool": true,
-		"**/node_modules/*/**": true
+		"**/node_modules/*/**": true,
+		"**/dist/*/**": true,
+		"**/out/*/**": true
 	},
 	"search.exclude": {
 		"out": true,

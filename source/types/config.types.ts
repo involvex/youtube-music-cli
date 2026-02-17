@@ -19,4 +19,5 @@ export interface Config {
 	repeat: RepeatMode;
 	shuffle: boolean;
 	customTheme?: Theme;
+	streamQuality?: 'low' | 'medium' | 'high';
 }

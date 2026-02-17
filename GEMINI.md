@@ -35,7 +35,7 @@ The project uses `bun` as the primary tool for development tasks.
 ### Key Commands
 
 - **Build**: `bun run build` (Runs `tsc` to compile TypeScript to `dist/`)
-- **Development**: `bun run dev` (Runs `tsc --watch`)
+- **Development**: `bun run dev` (Runs `bun source/cli.tsx`)
 - **Run**: `bun run start` (Runs the compiled CLI from `dist/source/cli.js`)
 - **Typecheck**: `bun run typecheck` (Runs `tsc --noEmit`)
 - **Lint**: `bun run lint` (Uses `eslint` and `xo`)
@@ -76,3 +76,13 @@ The application uses a set of core interfaces for YouTube Music entities, define
 - **`Artist`**: Represents an artist with `artistId` and `name`.
 - **`Playlist`**: Represents a collection of tracks with `playlistId` and `name`.
 - **`SearchResult`**: A discriminated union used for polymorphic search results.
+
+---
+
+## Recent Updates
+
+- **Fixed CLI Crash**: Resolved an Ink rendering error where text was placed outside `<Text>` components in `SearchLayout.tsx`.
+- **Improved Dev Experience**: Updated `dev` command to prevent double-instance launch in Bun.
+- **Robust Error Handling**: Added `ErrorBoundary` to catch and display runtime errors gracefully.
+- **Music Suggestions**: New `suggestions` command and view (key: `g`) to discover related tracks based on current playback.
+- **Stream Quality Settings**: Added settings view (key: `,`) to toggle between Low, Medium, and High quality.

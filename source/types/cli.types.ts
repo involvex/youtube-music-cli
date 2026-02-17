@@ -9,4 +9,5 @@ export interface Flags {
 	playTrack?: string;
 	searchQuery?: string;
 	playPlaylist?: string;
+	showSuggestions?: boolean;
 }

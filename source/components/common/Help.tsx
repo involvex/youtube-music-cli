@@ -35,6 +35,10 @@ export default function Help() {
 						<Text color={theme.colors.text}>/</Text> - Search
 						<Text> | </Text>
 						<Text color={theme.colors.text}>p</Text> - Playlists
+						<Text> | </Text>
+						<Text color={theme.colors.text}>g</Text> - Suggestions
+						<Text> | </Text>
+						<Text color={theme.colors.text}>,</Text> - Settings
 					</Text>
 				</Box>
 
