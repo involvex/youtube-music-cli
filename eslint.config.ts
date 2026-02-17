@@ -29,6 +29,7 @@ export default defineConfig([
 		files: ['**/*.jsx', '**/*.tsx'],
 		...pluginReact.configs.flat['recommended'],
 		plugins: {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			'react-hooks': hooksPlugin as any,
 		},
 		settings: {
