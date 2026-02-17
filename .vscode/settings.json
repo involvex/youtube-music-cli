@@ -83,5 +83,6 @@
 	},
 	"npmPackageManager.defaultPackageManager": "bun",
 	"npmPackageManager.debug": true,
-	"npmPackageManager.showStatusBarItem": true
+	"npmPackageManager.showStatusBarItem": true,
+	"DockerRun.DisableAutoGenerateConfig": true
 }

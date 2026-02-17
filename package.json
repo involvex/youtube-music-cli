@@ -17,7 +17,7 @@
 	"scripts": {
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
 		"build": "tsc",
-		"dev": "tsc --watch",
+		"dev": "bun run source/cli.tsx",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
