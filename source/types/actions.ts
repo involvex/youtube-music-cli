@@ -120,3 +120,8 @@ export interface SetSelectedPlaylistAction {
 	readonly category: 'SET_SELECTED_PLAYLIST';
 	index: number;
 }
+
+export interface SetHasSearchedAction {
+	readonly category: 'SET_HAS_SEARCHED';
+	hasSearched: boolean;
+}

@@ -57,25 +57,23 @@ function HeadlessLayout({flags}: {flags?: Flags}) {
 export default function Main({flags}: {flags?: Flags}) {
 	return (
 		<ErrorBoundary>
-			<Box>
-				<ThemeProvider>
-					<PlayerProvider>
-						<NavigationProvider>
-							<>
-								<KeyboardManager />
-								{flags?.headless ? (
-									<HeadlessLayout flags={flags} />
-								) : (
-									<>
-										<Initializer flags={flags} />
-										<MainLayout />
-									</>
-								)}
-							</>
-						</NavigationProvider>
-					</PlayerProvider>
-				</ThemeProvider>
-			</Box>
+			<ThemeProvider>
+				<PlayerProvider>
+					<NavigationProvider>
+						<Box flexDirection="column">
+							<KeyboardManager />
+							{flags?.headless ? (
+								<HeadlessLayout flags={flags} />
+							) : (
+								<>
+									<Initializer flags={flags} />
+									<MainLayout />
+								</>
+							)}
+						</Box>
+					</NavigationProvider>
+				</PlayerProvider>
+			</ThemeProvider>
 		</ErrorBoundary>
 	);
 }

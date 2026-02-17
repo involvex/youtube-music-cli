@@ -14,6 +14,7 @@ const initialState: NavigationState = {
 	searchType: 'all',
 	selectedResult: 0,
 	selectedPlaylist: 0,
+	hasSearched: false,
 	history: [],
 };
 
@@ -55,6 +56,9 @@ function navigationReducer(
 
 		case 'SET_SELECTED_PLAYLIST':
 			return {...state, selectedPlaylist: action.index};
+
+		case 'SET_HAS_SEARCHED':
+			return {...state, hasSearched: action.hasSearched};
 
 		default:
 			return state;

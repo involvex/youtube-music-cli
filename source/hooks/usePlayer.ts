@@ -35,7 +35,9 @@ export function usePlayer() {
 			dispatch({category: 'SET_LOADING', loading: true});
 
 			try {
-				const url = await musicService.getStreamUrl(state.currentTrack!.videoId);
+				const url = await musicService.getStreamUrl(
+					state.currentTrack!.videoId,
+				);
 
 				if (!url) {
 					throw new Error('Failed to get stream URL');

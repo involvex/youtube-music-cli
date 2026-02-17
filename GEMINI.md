@@ -89,7 +89,8 @@ The application uses a set of core interfaces for YouTube Music entities, define
 - **Stream Quality Settings**: Added settings view (key: `,`) to toggle between Low, Medium, and High quality.
 - **Headless Mode**: Added `--headless` flag to run the player without the TUI.
 - **CLI Control Subcommands**: Added `pause`, `resume`, `skip`, and `back` subcommands for CLI control.
-- **Fixed Search Input**: Resolved an issue where typing was not possible in the Search Bar.
+- **Fixed Search Input & Trigger**: Resolved an issue where typing was not possible and implemented actual search triggering on Enter.
+- **Manual Screen Refresh**: Added `Ctrl+L` shortcut to manually clear and refresh the terminal UI.
 - **Security Enhancements**: Implemented URL sanitization for audio streaming to prevent shell injection vulnerabilities.
 - **Improved Code Quality**: Resolved linting errors and removed deprecated code in `useKeyboard` hook.
 - **Real Audio Integration**: Connected the TUI to the `PlayerService` for actual audio playback using `play-sound`.

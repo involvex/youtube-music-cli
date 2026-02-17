@@ -14,9 +14,32 @@ import {Box, Text} from 'ink';
 export default function SearchLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
-	const {isLoading, error} = useYouTubeMusic();
+	const {isLoading, error, search} = useYouTubeMusic();
 	const [results, setResults] = useState<SearchResult[]>([]);
-	const [hasSearched, setHasSearched] = useState(false);
+
+	// Handle search action
+	const performSearch = useCallback(
+		async (query: string) => {
+			if (!query) return;
+
+			const response = await search(query, {
+				type: navState.searchType,
+			});
+
+			if (response) {
+				setResults(response.results);
+				dispatch({category: 'SET_HAS_SEARCHED', hasSearched: true});
+			}
+		},
+		[search, navState.searchType, dispatch],
+	);
+
+	// Initial search if query is in state
+	useEffect(() => {
+		if (navState.searchQuery && !navState.hasSearched) {
+			void performSearch(navState.searchQuery);
+		}
+	}, [navState.searchQuery, navState.hasSearched, performSearch]);
 
 	// Handle going back
 	const goBack = useCallback(() => {
@@ -29,9 +52,9 @@ export default function SearchLayout() {
 	useEffect(() => {
 		return () => {
 			setResults([]);
-			setHasSearched(false);
+			dispatch({category: 'SET_HAS_SEARCHED', hasSearched: false});
 		};
-	}, []);
+	}, [dispatch]);
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -53,6 +76,7 @@ export default function SearchLayout() {
 			<SearchBar
 				onInput={input => {
 					dispatch({category: 'SET_SEARCH_QUERY', query: input});
+					void performSearch(input);
 				}}
 			/>
 
@@ -63,7 +87,7 @@ export default function SearchLayout() {
 			{error && <Text color={theme.colors.error}>{error}</Text>}
 
 			{/* Results */}
-			{!isLoading && hasSearched && (
+			{!isLoading && navState.hasSearched && (
 				<SearchResults
 					results={results}
 					selectedIndex={navState.selectedResult}
@@ -71,7 +95,7 @@ export default function SearchLayout() {
 			)}
 
 			{/* No Results */}
-			{!isLoading && hasSearched && results.length === 0 && !error && (
+			{!isLoading && navState.hasSearched && results.length === 0 && !error && (
 				<Text color={theme.colors.dim}>No results found</Text>
 			)}
 

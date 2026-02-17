@@ -6,6 +6,7 @@ import type {
 	SetSearchCategoryAction,
 	SetSelectedResultAction,
 	SetSelectedPlaylistAction,
+	SetHasSearchedAction,
 } from './actions.ts';
 
 export interface NavigationState {
@@ -16,6 +17,7 @@ export interface NavigationState {
 	searchType: 'all' | 'songs' | 'albums' | 'artists' | 'playlists';
 	selectedResult: number;
 	selectedPlaylist: number;
+	hasSearched: boolean;
 	history: string[];
 }
 
@@ -25,4 +27,5 @@ export type NavigationAction =
 	| SetSearchQueryAction
 	| SetSearchCategoryAction
 	| SetSelectedResultAction
-	| SetSelectedPlaylistAction;
+	| SetSelectedPlaylistAction
+	| SetHasSearchedAction;

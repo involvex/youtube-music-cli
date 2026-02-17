@@ -37,9 +37,15 @@ export function useKeyBinding(
  */
 export function KeyboardManager() {
 	useInput((input, key) => {
-		// Global quit handling (Ctrl+C is handled by Ink/Node by default, but we can be explicit)
+		// Global quit handling
 		if (key.ctrl && input === 'c') {
 			process.exit(0);
+		}
+
+		// Manual screen refresh (useful if terminal gets messy)
+		if (key.ctrl && input === 'l') {
+			process.stdout.write('\x1Bc');
+			return;
 		}
 
 		// Dispatch to all registered handlers
