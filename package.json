@@ -54,7 +54,8 @@
 		"node-youtube-music": "^0.10.3",
 		"play-sound": "^1.1.6",
 		"react": "^19.2.4",
-		"youtube-ext": "^1.1.25"
+		"youtube-ext": "^1.1.25",
+		"youtubei.js": "^16.0.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
