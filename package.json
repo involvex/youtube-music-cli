@@ -17,6 +17,7 @@
 	"scripts": {
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
 		"build": "tsc",
+		"bun:build": "bun build source/cli.tsx --outfile dist/index.js --target node",
 		"dev": "bun run --bun source/cli.tsx",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
@@ -75,6 +76,7 @@
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-packagejson": "^3.0.0",
 		"prettier-plugin-sort-imports": "^1.8.11",
+		"react-devtools-core": "^7.0.1",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.56.0",

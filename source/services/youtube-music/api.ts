@@ -176,6 +176,7 @@ class MusicService {
 	}
 
 	async getStreamUrl(videoId: string): Promise<string> {
+		// Try Method 1: youtubei.js (may fail with ParsingError)
 		try {
 			const yt = await getClient();
 			const video = (await yt.getInfo(videoId)) as unknown as VideoInfo;
@@ -187,23 +188,53 @@ class MusicService {
 			});
 
 			if (streamData?.url) {
+				console.log('[Stream] Using youtubei.js');
 				return streamData.url;
 			}
-
-			throw new Error('No stream URL found');
 		} catch (error) {
-			// Log the error for debugging, but don't fail - use Invidious fallback
 			if (error instanceof Error && error.message.includes('ParsingError')) {
-				console.warn(
-					'YouTubei parser error, falling back to Invidious:',
-					error.message,
-				);
+				console.warn('[Stream] YouTubei parser error, trying fallback methods');
 			} else {
-				console.error('Failed to get stream URL:', error);
+				console.error('[Stream] YouTubei.js failed:', error);
 			}
+		}
 
-			// Fallback to Invidious API
-			return await this.getInvidiousStreamUrl(videoId);
+		// Try Method 2: youtube-ext (lightweight, no parsing needed)
+		try {
+			const {videoInfo, getFormats} = await import('youtube-ext');
+			const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+			const info = await videoInfo(videoUrl);
+
+			// Decode stream URLs first
+			const decodedFormats = await getFormats(info.stream);
+
+			// Get best audio format from decoded adaptive formats
+			const audioFormats = decodedFormats.filter(
+				f => f.mimeType?.includes('audio') && f.url,
+			);
+
+			if (audioFormats.length > 0) {
+				// Sort by bitrate descending and get best quality
+				const bestAudio = audioFormats.sort(
+					(a, b) => (b.bitrate || 0) - (a.bitrate || 0),
+				)[0];
+				if (bestAudio?.url) {
+					console.log('[Stream] Using youtube-ext');
+					return bestAudio.url;
+				}
+			}
+		} catch (error) {
+			console.error('[Stream] youtube-ext failed:', error);
+		}
+
+		// Try Method 3: Invidious API (last resort)
+		try {
+			const url = await this.getInvidiousStreamUrl(videoId);
+			console.log('[Stream] Using Invidious');
+			return url;
+		} catch (error) {
+			console.error('[Stream] Invidious failed:', error);
+			throw new Error('All stream extraction methods failed');
 		}
 	}
 
