@@ -1,5 +1,4 @@
 // Root application component
-import React from 'react';
 import {useApp} from 'ink';
 import Main from './main.tsx';
 import type {Flags} from './types/cli.types.ts';

@@ -1,5 +1,5 @@
 // Settings component
-import React, {useState, useCallback} from 'react';
+import {useState, useCallback} from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {getConfigService} from '../../services/config/config.service.ts';

@@ -1,5 +1,4 @@
 // Search view layout
-import React from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useYouTubeMusic} from '../../hooks/useYouTubeMusic.ts';
 import SearchResults from '../search/SearchResults.tsx';
@@ -106,7 +105,9 @@ export default function SearchLayout() {
 			/>
 
 			{/* Loading */}
-			{(isLoading || isSearching) && <Text color={theme.colors.accent}>Searching...</Text>}
+			{(isLoading || isSearching) && (
+				<Text color={theme.colors.accent}>Searching...</Text>
+			)}
 
 			{/* Error */}
 			{error && <Text color={theme.colors.error}>{error}</Text>}

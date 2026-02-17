@@ -1,5 +1,4 @@
 // Player controls component
-import React from 'react';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';

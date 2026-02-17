@@ -1,6 +1,11 @@
 // Theme context and provider
-import React from 'react';
-import {createContext, useContext, useState, useCallback} from 'react';
+import {
+	createContext,
+	useContext,
+	useState,
+	useCallback,
+	type ReactNode,
+} from 'react';
 import {getConfigService} from '../services/config/config.service.ts';
 import type {Theme} from '../types/theme.types.ts';
 
@@ -13,7 +18,7 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({children}: {children: React.ReactNode}) {
+export function ThemeProvider({children}: {children: ReactNode}) {
 	const [theme, setThemeState] = useState<Theme>(getConfigService().getTheme());
 	const [themeName, setThemeNameState] = useState(
 		getConfigService().get('theme') as string,

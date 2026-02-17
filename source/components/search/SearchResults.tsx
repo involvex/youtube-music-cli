@@ -1,5 +1,4 @@
 // Search results component
-import React from 'react';
 import {Box, Text} from 'ink';
 import type {SearchResult, Track} from '../../types/youtube-music.types.ts';
 import {useTheme} from '../../hooks/useTheme.ts';

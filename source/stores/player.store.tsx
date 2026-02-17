@@ -1,6 +1,5 @@
 // Player store - manages player state
-import React from 'react';
-import {createContext, useContext, useReducer} from 'react';
+import {createContext, useContext, useReducer, type ReactNode} from 'react';
 import type {PlayerState, PlayerAction} from '../types/player.types.ts';
 
 const initialState: PlayerState = {
@@ -142,6 +141,12 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 		case 'UPDATE_PROGRESS':
 			return {...state, progress: action.progress};
 
+		case 'TICK':
+			if (state.isPlaying) {
+				return {...state, progress: state.progress + 1};
+			}
+			return state;
+
 		case 'SET_LOADING':
 			return {...state, isLoading: action.loading};
 
@@ -212,7 +217,9 @@ function PlayerManager() {
 			dispatch({category: 'SET_LOADING', loading: true});
 
 			try {
-				const url = await musicService.getStreamUrl(state.currentTrack!.videoId);
+				const url = await musicService.getStreamUrl(
+					state.currentTrack!.videoId,
+				);
 
 				if (!url) {
 					throw new Error('Failed to get stream URL');
@@ -236,28 +243,17 @@ function PlayerManager() {
 	// Handle progress tracking
 	useEffect(() => {
 		if (state.isPlaying && state.currentTrack) {
-			if (!progressIntervalRef.current) {
-				progressIntervalRef.current = setInterval(() => {
-					dispatch({
-						category: 'UPDATE_PROGRESS',
-						progress: (state.progress ?? 0) + 1,
-					});
-				}, 1000);
-			}
-		} else {
-			if (progressIntervalRef.current) {
-				clearInterval(progressIntervalRef.current);
-				progressIntervalRef.current = null;
-			}
+			const interval = setInterval(() => {
+				dispatch({category: 'TICK'});
+			}, 1000);
+
+			return () => {
+				clearInterval(interval);
+			};
 		}
 
-		return () => {
-			if (progressIntervalRef.current) {
-				clearInterval(progressIntervalRef.current);
-				progressIntervalRef.current = null;
-			}
-		};
-	}, [state.isPlaying, state.currentTrack, state.progress]);
+		return undefined;
+	}, [state.isPlaying, state.currentTrack?.videoId, dispatch]);
 
 	// Handle play/pause state
 	useEffect(() => {
@@ -286,7 +282,7 @@ function PlayerManager() {
 	return null;
 }
 
-export function PlayerProvider({children}: {children: React.ReactNode}) {
+export function PlayerProvider({children}: {children: ReactNode}) {
 	const [state, dispatch] = useReducer(playerReducer, initialState);
 
 	const actions = useMemo(

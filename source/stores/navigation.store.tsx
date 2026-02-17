@@ -1,10 +1,15 @@
 // Navigation store - manages view routing and UI state
-import React from 'react';
 import type {
 	NavigationState,
 	NavigationAction,
 } from '../types/navigation.types.ts';
-import {createContext, useContext, useReducer, useMemo} from 'react';
+import {
+	createContext,
+	useContext,
+	useReducer,
+	useMemo,
+	type ReactNode,
+} from 'react';
 
 const initialState: NavigationState = {
 	currentView: 'player',
@@ -79,7 +84,7 @@ export type NavigationContextValue = {
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
 
-export function NavigationProvider({children}: {children: React.JSX.Element}) {
+export function NavigationProvider({children}: {children: ReactNode}) {
 	const [state, dispatch] = useReducer(navigationReducer, initialState);
 
 	const contextValue = useMemo(() => ({state, dispatch}), [state, dispatch]);

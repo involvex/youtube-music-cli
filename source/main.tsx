@@ -1,5 +1,4 @@
 // Main application orchestrator
-import React from 'react';
 import {NavigationProvider} from './stores/navigation.store.tsx';
 import MainLayout from './components/layouts/MainLayout.tsx';
 import {ThemeProvider} from './contexts/theme.context.tsx';

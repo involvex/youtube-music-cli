@@ -17,7 +17,7 @@
 	"scripts": {
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
 		"build": "tsc",
-		"dev": "bun source/cli.tsx",
+		"dev": "bun run --bun source/cli.tsx",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
@@ -45,39 +45,43 @@
 		]
 	},
 	"dependencies": {
-		"ink": "^4.1.0",
+		"ansi-escapes": "^7.3.0",
+		"ink": "^6.7.0",
 		"jiti": "^2.6.1",
-		"meow": "^11.0.0",
+		"meow": "^14.0.0",
 		"node-youtube-music": "^0.10.3",
-		"play-sound": "^1.1.0",
-		"react": "^18.2.0",
+		"play-sound": "^1.1.6",
+		"react": "^19.2.4",
 		"youtube-ext": "^1.1.25"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@sindresorhus/tsconfig": "^3.0.1",
-		"@types/react": "^18.0.32",
+		"@sindresorhus/tsconfig": "^8.1.0",
+		"@types/react": "^19.2.14",
 		"@vdemedes/prettier-config": "^2.0.1",
-		"ava": "^5.2.0",
-		"chalk": "^5.2.0",
+		"ava": "^6.4.1",
+		"chalk": "^5.6.2",
 		"conventional-changelog-cli": "^5.0.0",
 		"eslint": "^10.0.0",
-		"eslint-config-xo-react": "^0.27.0",
+		"eslint-config-xo-react": "^0.29.0",
 		"eslint-plugin-react": "^7.37.5",
-		"eslint-plugin-react-hooks": "^4.6.0",
+		"eslint-plugin-react-hooks": "^7.0.1",
 		"globals": "^17.3.0",
-		"ink-testing-library": "^3.0.0",
+		"ink-testing-library": "^4.0.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-packagejson": "^3.0.0",
-		"prettier-plugin-sort-imports": "^1.8.10",
-		"ts-node": "^10.9.1",
-		"typescript": "^5.0.3",
-		"typescript-eslint": "^8.55.0",
-		"xo": "^0.53.1"
+		"prettier-plugin-sort-imports": "^1.8.11",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.56.0",
+		"xo": "^1.2.3"
 	},
 	"engines": {
 		"node": ">=16"
 	},
-	"sponsors": "https://github.com/sponsors/involvex"
+	"sponsors": "https://github.com/sponsors/involvex",
+	"trustedDependencies": [
+		"unrs-resolver"
+	]
 }

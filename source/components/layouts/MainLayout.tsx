@@ -1,5 +1,5 @@
 // Main layout shell
-import React from 'react';
+import {useCallback} from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import PlaylistList from '../playlist/PlaylistList.tsx';
 import Help from '../common/Help.tsx';
@@ -11,33 +11,40 @@ import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box} from 'ink';
+import ansiEscapes from 'ansi-escapes';
+import {useEffect} from 'react';
 
 export default function MainLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 
+	// Clear terminal when view changes to prevent flooding
+	useEffect(() => {
+		process.stdout.write(ansiEscapes.clearTerminal);
+	}, [navState.currentView]);
+
 	// Navigate to different views
-	const goToSearch = React.useCallback(() => {
+	const goToSearch = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.SEARCH});
 	}, [dispatch]);
 
-	const goToPlaylists = React.useCallback(() => {
+	const goToPlaylists = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.PLAYLISTS});
 	}, [dispatch]);
 
-	const goToSuggestions = React.useCallback(() => {
+	const goToSuggestions = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.SUGGESTIONS});
 	}, [dispatch]);
 
-	const goToSettings = React.useCallback(() => {
+	const goToSettings = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.SETTINGS});
 	}, [dispatch]);
 
-	const goBack = React.useCallback(() => {
+	const goBack = useCallback(() => {
 		dispatch({category: 'GO_BACK'});
 	}, [dispatch]);
 
-	const quit = React.useCallback(() => {
+	const quit = useCallback(() => {
 		process.exit(0);
 	}, []);
 

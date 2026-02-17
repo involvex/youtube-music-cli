@@ -1,5 +1,4 @@
 // Help component for keyboard shortcuts
-import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';

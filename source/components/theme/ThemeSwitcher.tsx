@@ -1,5 +1,4 @@
 // Theme switcher component
-import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {BUILTIN_THEMES} from '../../config/themes.config.ts';

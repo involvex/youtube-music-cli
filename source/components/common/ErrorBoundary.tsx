@@ -1,5 +1,5 @@
 // Error boundary component for robust error handling
-import React, {Component, type ErrorInfo, type ReactNode} from 'react';
+import {Component, type ErrorInfo, type ReactNode} from 'react';
 import {Box, Text} from 'ink';
 
 interface Props {

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import type {Flags} from './types/cli.types.ts';
 import App from './app.tsx';
-import React from 'react';
 import {render} from 'ink';
 import meow from 'meow';
 

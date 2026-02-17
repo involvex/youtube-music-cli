@@ -1,5 +1,4 @@
 // Progress bar component
-import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';

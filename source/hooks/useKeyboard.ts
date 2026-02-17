@@ -1,6 +1,7 @@
 // Keyboard input handling hook
 import {useCallback, useEffect} from 'react';
 import {useInput} from 'ink';
+import ansiEscapes from 'ansi-escapes';
 
 type KeyHandler = () => void;
 type RegistryEntry = {
@@ -39,12 +40,13 @@ export function KeyboardManager() {
 	useInput((input, key) => {
 		// Global quit handling
 		if (key.ctrl && input === 'c') {
+			process.stdout.write(ansiEscapes.clearScreen);
 			process.exit(0);
 		}
 
 		// Manual screen refresh (useful if terminal gets messy)
 		if (key.ctrl && input === 'l') {
-			process.stdout.write('\x1Bc');
+			process.stdout.write(ansiEscapes.clearTerminal);
 			return;
 		}
 

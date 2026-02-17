@@ -1,5 +1,4 @@
 // Now playing component
-import React from 'react';
 import {Box, Text} from 'ink';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTheme} from '../../hooks/useTheme.ts';

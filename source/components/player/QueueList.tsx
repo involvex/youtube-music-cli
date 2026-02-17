@@ -1,5 +1,5 @@
 // Queue management component
-import React from 'react';
+import {useState} from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
@@ -8,7 +8,7 @@ import {truncate} from '../../utils/format.ts';
 export default function QueueList() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
-	const [selectedIndex, _setSelectedIndex] = React.useState(0);
+	const [selectedIndex, _setSelectedIndex] = useState(0);
 
 	if (playerState.queue.length === 0) {
 		return (

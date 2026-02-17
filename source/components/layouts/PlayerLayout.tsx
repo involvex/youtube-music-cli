@@ -1,4 +1,3 @@
-import React from 'react';
 import PlayerControls from '../player/PlayerControls.tsx';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import NowPlaying from '../player/NowPlaying.tsx';
@@ -9,13 +8,14 @@ import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box, Text} from 'ink';
+import {useCallback} from 'react';
 
 export default function PlayerLayout() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
 	const {dispatch} = useNavigation();
 
-	const goHelp = React.useCallback(() => {
+	const goHelp = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.HELP});
 	}, [dispatch]);
 

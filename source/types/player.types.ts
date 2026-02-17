@@ -18,6 +18,7 @@ import type {
 	ClearQueueAction,
 	SetQueuePositionAction,
 	UpdateProgressAction,
+	TickAction,
 	SetLoadingAction,
 	SetErrorAction,
 } from './actions.ts';
@@ -57,5 +58,6 @@ export type PlayerAction =
 	| ClearQueueAction
 	| SetQueuePositionAction
 	| UpdateProgressAction
+	| TickAction
 	| SetLoadingAction
 	| SetErrorAction;

@@ -1,5 +1,4 @@
 // Playlist list component
-import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {getConfigService} from '../../services/config/config.service.ts';

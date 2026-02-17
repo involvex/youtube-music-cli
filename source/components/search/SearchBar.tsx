@@ -1,5 +1,4 @@
 // Search bar component
-import React from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useState, useCallback, useEffect} from 'react';
 import {SEARCH_TYPE, KEYBINDINGS} from '../../utils/constants.ts';
@@ -30,14 +29,15 @@ export default function SearchBar({onInput, isActive = true}: Props) {
 			return;
 		}
 
-		if (key.return) {
-			onInput(input);
-			return;
-		}
-
 		// Only add printable characters
-		if (char.length === 1 && !key.escape && !key.tab) {
+		if (char.length === 1 && !key.escape && !key.tab && !key.return) {
 			setInput(prev => prev + char);
+		}
+	});
+
+	useKeyBinding(['return', 'enter'], () => {
+		if (isActive && input) {
+			onInput(input);
 		}
 	});
 

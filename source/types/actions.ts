@@ -81,6 +81,10 @@ export interface UpdateProgressAction {
 	progress: number;
 }
 
+export interface TickAction {
+	readonly category: 'TICK';
+}
+
 export interface SetLoadingAction {
 	readonly category: 'SET_LOADING';
 	loading: boolean;
