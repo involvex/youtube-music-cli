@@ -5,7 +5,7 @@ import {useState, useCallback, useEffect} from 'react';
 import {SEARCH_TYPE, KEYBINDINGS} from '../../utils/constants.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {Box, Text} from 'ink';
+import {Box, Text, useInput} from 'ink';
 
 type Props = {
 	onInput: (input: string) => void;
@@ -18,6 +18,26 @@ export default function SearchBar({onInput}: Props) {
 	const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
 
 	const searchTypes = Object.values(SEARCH_TYPE);
+
+	// Handle character input
+	useInput((char, key) => {
+		if (key.ctrl || key.meta) return;
+
+		if (key.backspace || key.delete) {
+			setInput(prev => prev.slice(0, -1));
+			return;
+		}
+
+		if (key.return) {
+			onInput(input);
+			return;
+		}
+
+		// Only add printable characters
+		if (char.length === 1 && !key.escape && !key.tab) {
+			setInput(prev => prev + char);
+		}
+	});
 
 	// Handle type switching
 	const cycleType = useCallback(() => {

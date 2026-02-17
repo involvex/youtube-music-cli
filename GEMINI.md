@@ -87,3 +87,6 @@ The application uses a set of core interfaces for YouTube Music entities, define
 - **Robust Error Handling**: Added `ErrorBoundary` to catch and display runtime errors gracefully.
 - **Music Suggestions**: New `suggestions` command and view (key: `g`) to discover related tracks based on current playback.
 - **Stream Quality Settings**: Added settings view (key: `,`) to toggle between Low, Medium, and High quality.
+- **Headless Mode**: Added `--headless` flag to run the player without the TUI.
+- **CLI Control Subcommands**: Added `pause`, `resume`, `skip`, and `back` subcommands for CLI control.
+- **Fixed Search Input**: Resolved an issue where typing was not possible in the Search Bar.

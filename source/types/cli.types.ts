@@ -10,4 +10,6 @@ export interface Flags {
 	searchQuery?: string;
 	playPlaylist?: string;
 	showSuggestions?: boolean;
+	headless?: boolean;
+	action?: 'pause' | 'resume' | 'next' | 'previous';
 }

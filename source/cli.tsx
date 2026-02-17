@@ -13,19 +13,24 @@ const cli = meow(
 	  $ youtube-music-cli search <query>
 	  $ youtube-music-cli playlist <playlist-id>
 	  $ youtube-music-cli suggestions
+	  $ youtube-music-cli pause
+	  $ youtube-music-cli resume
+	  $ youtube-music-cli skip
+	  $ youtube-music-cli back
 
 	Options
 	  --theme, -t    Theme to use (dark, light, midnight, matrix)
 	  --volume, -v   Initial volume (0-100)
 	  --shuffle, -s   Enable shuffle mode
 	  --repeat, -r   Repeat mode (off, all, one)
+	  --headless     Run without TUI (just play)
 	  --help, -h     Show this help
 
 	Examples
 	  $ youtube-music-cli
 	  $ youtube-music-cli play dQw4w9WgXcQ
 	  $ youtube-music-cli search "Rick Astley"
-	  $ youtube-music-cli --theme=matrix --shuffle
+	  $ youtube-music-cli play dQw4w9WgXcQ --headless
 `,
 	{
 		importMeta: import.meta,
@@ -47,16 +52,24 @@ const cli = meow(
 				type: 'string',
 				alias: 'r',
 			},
+			headless: {
+				type: 'boolean',
+				default: false,
+			},
 			help: {
 				type: 'boolean',
 				alias: 'h',
 				default: false,
 			},
 		},
-		autoVersion: false,
+		autoVersion: true,
 		autoHelp: false,
 	},
 );
+
+if (cli.flags.help) {
+	cli.showHelp(0);
+}
 
 // Handle direct commands
 const command = cli.input[0];
@@ -74,6 +87,14 @@ if (command === 'play' && args[0]) {
 } else if (command === 'suggestions') {
 	// Show suggestions
 	(cli.flags as Flags).showSuggestions = true;
+} else if (command === 'pause') {
+	(cli.flags as Flags).action = 'pause';
+} else if (command === 'resume') {
+	(cli.flags as Flags).action = 'resume';
+} else if (command === 'skip') {
+	(cli.flags as Flags).action = 'next';
+} else if (command === 'back') {
+	(cli.flags as Flags).action = 'previous';
 }
 
 // Render the app
