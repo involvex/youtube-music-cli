@@ -3,6 +3,7 @@ import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useYouTubeMusic} from '../../hooks/useYouTubeMusic.ts';
 import SearchResults from '../search/SearchResults.tsx';
 import {useState, useCallback, useEffect} from 'react';
+import React from 'react';
 import type {SearchResult} from '../../types/youtube-music.types.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import SearchBar from '../search/SearchBar.tsx';
@@ -10,7 +11,7 @@ import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {Box, Text} from 'ink';
 
-export default function SearchLayout() {
+function SearchLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const {isLoading, error, search} = useYouTubeMusic();
@@ -33,7 +34,8 @@ export default function SearchLayout() {
 				setResults(response.results);
 				dispatch({category: 'SET_SELECTED_RESULT', index: 0});
 				dispatch({category: 'SET_HAS_SEARCHED', hasSearched: true});
-				setIsTyping(false); // Move focus to results after search
+				// Defer focus switch to avoid consuming the same Enter key
+				setTimeout(() => setIsTyping(false), 0);
 			}
 			setIsSearching(false);
 		},
@@ -141,3 +143,5 @@ export default function SearchLayout() {
 		</Box>
 	);
 }
+
+export default React.memo(SearchLayout);

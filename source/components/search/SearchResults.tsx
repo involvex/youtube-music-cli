@@ -1,4 +1,5 @@
 // Search results component
+import React from 'react';
 import {Box, Text} from 'ink';
 import type {SearchResult, Track} from '../../types/youtube-music.types.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
@@ -8,7 +9,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {truncate} from '../../utils/format.ts';
 import {useCallback, useEffect} from 'react';
-import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
+import {useResponsive} from '../../utils/responsive.ts';
 
 type Props = {
 	results: SearchResult[];
@@ -16,15 +17,11 @@ type Props = {
 	isActive?: boolean;
 };
 
-export default function SearchResults({
-	results,
-	selectedIndex,
-	isActive = true,
-}: Props) {
+function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const {play} = usePlayer();
-	const {columns} = useTerminalSize();
+	const {getTruncateLength} = useResponsive();
 
 	// Navigate results with arrow keys
 	const navigateUp = useCallback(() => {
@@ -69,7 +66,7 @@ export default function SearchResults({
 	}
 
 	// Calculate responsive truncation
-	const maxTitleWidth = Math.max(20, columns - 25);
+	const maxTitleWidth = getTruncateLength(60);
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -116,3 +113,5 @@ export default function SearchResults({
 		</Box>
 	);
 }
+
+export default React.memo(SearchResults);

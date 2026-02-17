@@ -1,5 +1,6 @@
 // Main layout shell
 import {useCallback} from 'react';
+import React from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import PlaylistList from '../playlist/PlaylistList.tsx';
 import Help from '../common/Help.tsx';
@@ -11,10 +12,12 @@ import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box} from 'ink';
+import {useResponsive} from '../../utils/responsive.ts';
 
-export default function MainLayout() {
+function MainLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
+	const {getPadding} = useResponsive();
 
 	// Navigate to different views
 	const goToSearch = useCallback(() => {
@@ -77,7 +80,7 @@ export default function MainLayout() {
 	return (
 		<Box
 			flexDirection="column"
-			paddingX={1}
+			paddingX={getPadding()}
 			borderStyle="single"
 			borderColor={theme.colors.primary}
 		>
@@ -85,3 +88,5 @@ export default function MainLayout() {
 		</Box>
 	);
 }
+
+export default React.memo(MainLayout);

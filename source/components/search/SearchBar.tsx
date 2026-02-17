@@ -1,6 +1,7 @@
 // Search bar component
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useState, useCallback} from 'react';
+import React from 'react';
 import {SEARCH_TYPE, KEYBINDINGS} from '../../utils/constants.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
@@ -11,7 +12,7 @@ type Props = {
 	isActive?: boolean;
 };
 
-export default function SearchBar({onInput, isActive = true}: Props) {
+function SearchBar({onInput, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const [input, setInput] = useState('');
@@ -105,3 +106,5 @@ export default function SearchBar({onInput, isActive = true}: Props) {
 		</Box>
 	);
 }
+
+export default React.memo(SearchBar);

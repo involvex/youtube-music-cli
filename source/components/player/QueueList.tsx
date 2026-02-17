@@ -1,13 +1,16 @@
 // Queue management component
 import {useState} from 'react';
+import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {truncate} from '../../utils/format.ts';
+import {useResponsive} from '../../utils/responsive.ts';
 
-export default function QueueList() {
+function QueueList() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
+	const {getTruncateLength} = useResponsive();
 	const [selectedIndex, _setSelectedIndex] = useState(0);
 
 	if (playerState.queue.length === 0) {
@@ -41,7 +44,7 @@ export default function QueueList() {
 					const isSelected = index === selectedIndex;
 					const artists =
 						track.artists?.map(a => a.name).join(', ') || 'Unknown';
-					const title = truncate(track.title, 40);
+					const title = truncate(track.title, getTruncateLength(50));
 
 					return (
 						<Box
@@ -75,3 +78,5 @@ export default function QueueList() {
 		</Box>
 	);
 }
+
+export default React.memo(QueueList);
