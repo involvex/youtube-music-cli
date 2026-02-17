@@ -9,7 +9,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {truncate} from '../../utils/format.ts';
 import {useCallback, useEffect} from 'react';
-import {useResponsive} from '../../utils/responsive.ts';
+import useStdoutDimensions from 'ink-use-stdout-dimensions';
 
 type Props = {
 	results: SearchResult[];
@@ -21,7 +21,7 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const {play} = usePlayer();
-	const {getTruncateLength} = useResponsive();
+	const [columns] = useStdoutDimensions();
 
 	// Navigate results with arrow keys
 	const navigateUp = useCallback(() => {
@@ -66,7 +66,7 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	}
 
 	// Calculate responsive truncation
-	const maxTitleWidth = getTruncateLength(60);
+	const maxTitleWidth = Math.max(20, Math.floor(columns * 0.4));
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -74,9 +74,20 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 				Results ({results.length})
 			</Text>
 
+			{/* Table header */}
+			<Box paddingX={1}>
+				<Text color={theme.colors.dim} bold>
+					{'#'.padEnd(6)} {'Type'.padEnd(10)} {'Title'.padEnd(maxTitleWidth)}
+				</Text>
+			</Box>
+
+			{/* Results list */}
 			{results.map((result, index) => {
 				const isSelected = index === navState.selectedResult;
 				const data = result.data;
+
+				const title =
+					'title' in data ? data.title : 'name' in data ? data.name : 'Unknown';
 
 				return (
 					<Box
@@ -86,27 +97,25 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 						borderColor={isSelected ? theme.colors.primary : undefined}
 					>
 						<Text
+							color={isSelected ? theme.colors.primary : theme.colors.dim}
+							bold={isSelected}
+						>
+							{(isSelected ? '> ' : '  ') + (index + 1).toString().padEnd(4)}
+						</Text>
+
+						<Text
+							color={isSelected ? theme.colors.primary : theme.colors.dim}
+							bold={isSelected}
+						>
+							{result.type.toUpperCase().padEnd(10)}
+						</Text>
+
+						<Text
 							color={isSelected ? theme.colors.primary : theme.colors.text}
 							bold={isSelected}
 						>
-							[{result.type.toUpperCase()}]<Text> </Text>
+							{truncate(title, maxTitleWidth)}
 						</Text>
-
-						{'title' in data ? (
-							<Text
-								color={isSelected ? theme.colors.primary : theme.colors.text}
-							>
-								{truncate(data.title, maxTitleWidth)}
-							</Text>
-						) : 'name' in data ? (
-							<Text
-								color={isSelected ? theme.colors.primary : theme.colors.text}
-							>
-								{truncate(data.name, maxTitleWidth)}
-							</Text>
-						) : (
-							<Text color={theme.colors.dim}>Unknown</Text>
-						)}
 					</Box>
 				);
 			})}

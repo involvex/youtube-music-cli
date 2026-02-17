@@ -2,10 +2,11 @@
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useState, useCallback} from 'react';
 import React from 'react';
-import {SEARCH_TYPE, KEYBINDINGS} from '../../utils/constants.ts';
+import {SEARCH_TYPE} from '../../utils/constants.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {Box, Text, useInput} from 'ink';
+import {Box, Text} from 'ink';
+import TextInput from 'ink-text-input';
 
 type Props = {
 	onInput: (input: string) => void;
@@ -16,39 +17,14 @@ function SearchBar({onInput, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const [input, setInput] = useState('');
-	const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
 
 	const searchTypes = Object.values(SEARCH_TYPE);
-
-	// Handle character input
-	useInput((char, key) => {
-		if (!isActive) return;
-		if (key.ctrl || key.meta) return;
-
-		if (key.backspace || key.delete) {
-			setInput(prev => prev.slice(0, -1));
-			return;
-		}
-
-		if (key.return) {
-			if (input) {
-				dispatch({category: 'SET_SEARCH_QUERY', query: input});
-				onInput(input);
-			}
-			return;
-		}
-
-		// Only add printable characters
-		if (char.length === 1 && !key.escape && !key.tab) {
-			setInput(prev => prev + char);
-		}
-	});
 
 	// Handle type switching
 	const cycleType = useCallback(() => {
 		if (!isActive) return;
-		const nextIndex = (selectedTypeIndex + 1) % searchTypes.length;
-		setSelectedTypeIndex(nextIndex);
+		const currentIndex = searchTypes.indexOf(navState.searchType);
+		const nextIndex = (currentIndex + 1) % searchTypes.length;
 		const nextType = searchTypes[nextIndex];
 		if (nextType) {
 			dispatch({
@@ -56,14 +32,29 @@ function SearchBar({onInput, isActive = true}: Props) {
 				searchType: nextType,
 			});
 		}
-	}, [selectedTypeIndex, searchTypes, dispatch, isActive]);
+	}, [navState.searchType, searchTypes, dispatch, isActive]);
+
+	// Handle submit via ink-text-input's onSubmit
+	const handleSubmit = useCallback(
+		(value: string) => {
+			if (value && isActive) {
+				dispatch({category: 'SET_SEARCH_QUERY', query: value});
+				onInput(value);
+			}
+		},
+		[dispatch, onInput, isActive],
+	);
+
+	// Handle clearing search
+	const clearSearch = useCallback(() => {
+		if (isActive) {
+			setInput('');
+			onInput('');
+		}
+	}, [isActive, onInput]);
 
 	useKeyBinding(['tab'], cycleType);
-	useKeyBinding(KEYBINDINGS.CLEAR_SEARCH, () => {
-		if (!isActive) return;
-		setInput('');
-		onInput('');
-	});
+	useKeyBinding(['escape'], clearSearch);
 
 	return (
 		<Box
@@ -92,11 +83,16 @@ function SearchBar({onInput, isActive = true}: Props) {
 				<Text color={theme.colors.dim}> (Tab to switch)</Text>
 			</Box>
 
-			{/* Input */}
+			{/* Input - using ink-text-input */}
 			<Box>
 				<Text color={theme.colors.primary}>Search: </Text>
-				<Text color={theme.colors.text}>{input}</Text>
-				<Text color={theme.colors.dim}>_</Text>
+				<TextInput
+					value={input}
+					onChange={setInput}
+					onSubmit={handleSubmit}
+					placeholder="Type to search..."
+					focus={isActive}
+				/>
 			</Box>
 
 			{/* Instructions */}

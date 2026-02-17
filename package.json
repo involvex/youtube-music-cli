@@ -47,6 +47,9 @@
 	"dependencies": {
 		"ansi-escapes": "^7.3.0",
 		"ink": "^6.7.0",
+		"ink-table": "^3.1.0",
+		"ink-text-input": "^6.0.0",
+		"ink-use-stdout-dimensions": "^1.0.5",
 		"jiti": "^2.6.1",
 		"meow": "^14.0.0",
 		"node-youtube-music": "^0.10.3",

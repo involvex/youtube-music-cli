@@ -12,12 +12,15 @@ import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box} from 'ink';
-import {useResponsive} from '../../utils/responsive.ts';
+import useStdoutDimensions from 'ink-use-stdout-dimensions';
 
 function MainLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
-	const {getPadding} = useResponsive();
+	const [columns] = useStdoutDimensions();
+
+	// Responsive padding based on terminal size
+	const getPadding = () => (columns < 100 ? 0 : 1);
 
 	// Navigate to different views
 	const goToSearch = useCallback(() => {
