@@ -2,6 +2,40 @@
 
 - A Commandline music player for youtube-music
 
+## Prerequisites
+
+**Required:**
+
+- [mpv](https://mpv.io/) - Media player for audio playback
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - YouTube downloader (used by mpv)
+
+### Installing Prerequisites
+
+**Windows (with Scoop):**
+
+```bash
+scoop install mpv yt-dlp
+```
+
+**Windows (with Chocolatey):**
+
+```bash
+choco install mpv yt-dlp
+```
+
+**macOS:**
+
+```bash
+brew install mpv yt-dlp
+```
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+sudo apt install mpv
+pip install yt-dlp
+```
+
 ## Install
 
 ```bash

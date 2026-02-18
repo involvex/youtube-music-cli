@@ -1,6 +1,7 @@
 // Player store - manages player state
 import {createContext, useContext, useReducer, type ReactNode} from 'react';
 import type {PlayerState, PlayerAction} from '../types/player.types.ts';
+import {getPlayerService} from '../services/player/player.service.ts';
 
 const initialState: PlayerState = {
 	currentTrack: null,
@@ -15,6 +16,9 @@ const initialState: PlayerState = {
 	isLoading: false,
 	error: null,
 };
+
+// Get player service instance
+const playerService = getPlayerService();
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 	switch (action.category) {
@@ -85,8 +89,11 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 				progress: Math.max(0, Math.min(action.position, state.duration)),
 			};
 
-		case 'SET_VOLUME':
-			return {...state, volume: Math.max(0, Math.min(100, action.volume))};
+		case 'SET_VOLUME': {
+			const newVolume = Math.max(0, Math.min(100, action.volume));
+			playerService.setVolume(newVolume);
+			return {...state, volume: newVolume};
+		}
 
 		case 'VOLUME_UP': {
 			const newVolume = Math.min(100, state.volume + 10);
@@ -94,6 +101,7 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 				oldVolume: state.volume,
 				newVolume,
 			});
+			playerService.setVolume(newVolume);
 			return {...state, volume: newVolume};
 		}
 
@@ -103,6 +111,7 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 				oldVolume: state.volume,
 				newVolume,
 			});
+			playerService.setVolume(newVolume);
 			return {...state, volume: newVolume};
 		}
 
@@ -195,7 +204,6 @@ type PlayerContextValue = {
 
 import {getConfigService} from '../services/config/config.service.ts';
 import {getMusicService} from '../services/youtube-music/api.ts';
-import {getPlayerService} from '../services/player/player.service.ts';
 import {useEffect, useRef, useMemo} from 'react';
 import {logger} from '../services/logger/logger.service.ts';
 
@@ -219,7 +227,7 @@ function PlayerManager() {
 			}
 			playerService.stop();
 		};
-	}, [dispatch, playerService]);
+	}, [dispatch]);
 
 	// Handle track changes
 	useEffect(() => {
@@ -238,21 +246,17 @@ function PlayerManager() {
 			dispatch({category: 'SET_LOADING', loading: true});
 
 			try {
-				logger.debug('PlayerManager', 'Fetching stream URL', {
+				logger.debug('PlayerManager', 'Starting playback with mpv', {
 					videoId: track.videoId,
-				});
-				const url = await musicService.getStreamUrl(track.videoId);
-
-				if (!url) {
-					throw new Error('Failed to get stream URL');
-				}
-
-				logger.info('PlayerManager', 'Stream URL obtained, starting playback', {
-					urlLength: url.length,
-					urlPreview: url.substring(0, 50),
+					volume: state.volume,
 				});
 
-				await playerService.play(url);
+				// Pass YouTube URL directly to mpv (it handles stream extraction via yt-dlp)
+				const youtubeUrl = `https://www.youtube.com/watch?v=${track.videoId}`;
+
+				await playerService.play(youtubeUrl, {
+					volume: state.volume,
+				});
 
 				logger.info('PlayerManager', 'Playback started successfully');
 				dispatch({category: 'SET_LOADING', loading: false});
@@ -271,7 +275,9 @@ function PlayerManager() {
 		};
 
 		void loadAndPlayTrack();
-	}, [state.currentTrack, dispatch, musicService, playerService]);
+		// Note: state.volume intentionally excluded - volume changes should not restart playback
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [state.currentTrack, dispatch, musicService]);
 
 	// Handle progress tracking
 	useEffect(() => {
