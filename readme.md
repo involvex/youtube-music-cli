@@ -377,4 +377,4 @@ Made with ❤️ for music lovers
 
 **[🪙 Paypal](https://paypal.me/involvex)**
 
-**⌨️ [Github Sponsors](https://github.com/sponsors/involvex)**
+**[⌨️ Github Sponsors](https://github.com/sponsors/involvex)**
