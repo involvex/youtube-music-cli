@@ -1,3 +1,9 @@
+## [0.0.9](https://github.com/involvex/youtube-music-cli/compare/v0.0.8...v0.0.9) (2026-02-18)
+
+### Features
+
+- **search:** add dynamic mix creation from search results ([0d50231](https://github.com/involvex/youtube-music-cli/commit/0d5023168c73cec9d22dab9808e0fb2f23b5c1cc))
+
 ## [0.0.8](https://github.com/involvex/youtube-music-cli/compare/v0.0.7...v0.0.8) (2026-02-18)
 
 ### Features
