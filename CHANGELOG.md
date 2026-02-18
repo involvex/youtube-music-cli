@@ -1,3 +1,9 @@
+## [0.0.3](https://github.com/involvex/youtube-music-cli/compare/v0.0.2...v0.0.3) (2026-02-18)
+
+### Features
+
+- add playback speed control, new themes, and notifications ([426360a](https://github.com/involvex/youtube-music-cli/commit/426360adfde0a19d7cf9706371f5bc15a4e7640b))
+
 ## [0.0.2](https://github.com/involvex/youtube-music-cli/compare/v0.0.1...v0.0.2) (2026-02-18)
 
 ## [0.0.1](https://github.com/involvex/youtube-music-cli/compare/32798e7dd129656b9786fc435466203a0c913705...v0.0.1) (2026-02-18)
