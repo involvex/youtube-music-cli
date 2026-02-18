@@ -2,98 +2,119 @@
 
 ## Project Overview
 
-`youtube-music-cli` is a sophisticated Terminal User Interface (TUI) music player for YouTube Music. It leverages React and Ink to provide a rich, interactive experience directly in the terminal, featuring search capabilities, playlist management, and a full-featured playback interface.
+**@involvex/youtube-music-cli** is a high-performance, feature-rich Terminal User Interface (TUI) music player for YouTube Music. It is built with **React** and **TypeScript**, using **Ink** for terminal rendering and **Bun** as the primary runtime.
 
-### Main Technologies
+### Key Features
 
-- **UI Framework**: [Ink](https://github.com/vadimdemedes/ink) (React for CLI)
-- **Runtime & Task Runner**: [Bun](https://bun.sh/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **API Integration**: [node-youtube-music](https://github.com/Kallmerten/node-youtube-music) (Innertube)
-- **Audio Playback**: [play-sound](https://github.com/shaozhee/play-sound)
-- **CLI Parsing**: [meow](https://github.com/sindresorhus/meow)
-- **State Management**: React Context & Reducers
+- **TUI/CLI Hybrid**: Supports both a full interactive TUI and direct CLI commands (e.g., `play`, `search`).
+- **Audio Engine**: Powered by **mpv** with JSON IPC control for precise playback management.
+- **API Integration**: Uses **youtubei.js** (Innertube) for interacting with YouTube Music.
+- **Plugin System**: Extensible architecture allowing for features like adblocking, lyrics, and Discord Rich Presence.
+- **State Management**: Robust custom store pattern using React Context and `useReducer`.
+- **Persistence**: Local configuration and player state persistence (history, queue, volume).
 
-### Architecture
+### Core Tech Stack
 
-The project follows a modern React architecture adapted for the terminal:
+- **Runtime**: Bun (supports Node.js compatibility).
+- **UI**: React + Ink (Terminal UI).
+- **Language**: TypeScript (ESM).
+- **Audio**: mpv (via `spawn` and IPC socket).
+- **Extraction**: yt-dlp (via mpv integration).
 
-- **`source/cli.tsx`**: Entry point for CLI execution and flag parsing.
-- **`source/app.tsx` & `source/main.tsx`**: Application root and provider orchestration.
-- **`source/components/`**: Modular UI components organized by feature (player, search, artist, etc.).
-- **`source/services/`**: Infrastructure layer for API communication and low-level player control.
-- **`source/stores/`**: Centralized state management using React Context for Navigation and Player state.
-- **`source/hooks/`**: Custom hooks encapsulating business logic and state access.
-- **`source/types/`**: Comprehensive TypeScript definitions for API responses and application state.
+---
+
+## Architecture
+
+### 1. Entry Points
+
+- **`source/cli.tsx`**: The main entry point. Parses CLI arguments using `meow`, handles direct commands, and renders the `App` component for the TUI.
+- **`source/app.tsx`**: Root React component that sets up providers and the main UI shell.
+
+### 2. State Management (`source/stores/`)
+
+The project uses a predictable state management pattern:
+
+- **`PlayerProvider`**: Manages playback state, queue, volume, and shuffle/repeat modes.
+- **`NavigationProvider`**: Handles view transitions and navigation history.
+- **`PluginsProvider`**: Manages the lifecycle and state of loaded plugins.
+
+### 3. Service Layer (`source/services/`)
+
+Services provide a singleton-based abstraction for side effects:
+
+- **`PlayerService`**: Low-level `mpv` process management and IPC communication.
+- **`MusicService`**: High-level wrapper for YouTube Music search and metadata retrieval.
+- **`ConfigService`**: Manages user configuration stored in `~/.youtube-music-cli/config.json`.
+- **`PluginService`**: Handles plugin discovery, installation, and activation.
+
+### 4. Components (`source/components/`)
+
+UI is organized by feature:
+
+- `layouts/`: Master containers (Player, Search, Settings).
+- `player/`: Playback controls, progress bars, and queue lists.
+- `search/`: Input fields and result grids.
+- `common/`: Reusable UI primitives and help dialogs.
 
 ---
 
 ## Building and Running
 
-The project uses `bun` as the primary tool for development tasks.
+### Development Commands
 
-### Key Commands
+```bash
+bun install          # Install dependencies
+bun run dev          # Run the app in development mode (with Bun)
+bun run dev:watch    # Run with watch mode
+```
 
-- **Build**: `bun run build` (Runs `tsc` to compile TypeScript to `dist/`)
-- **Development**: `bun run dev` (Runs `bun source/cli.tsx`)
-- **Run**: `bun run start` (Runs the compiled CLI from `dist/source/cli.js`)
-- **Typecheck**: `bun run typecheck` (Runs `tsc --noEmit`)
-- **Lint**: `bun run lint` (Uses `eslint` and `xo`)
-- **Format**: `bun run format` (Uses `prettier`)
-- **Test**: `bun run test` (Uses `ava` and `ink-testing-library`)
+### Production Build
+
+```bash
+bun run build        # Compile TypeScript to dist/ (using tsc)
+bun run start        # Run the compiled CLI from dist/
+```
+
+### Code Quality & Testing
+
+```bash
+bun run typecheck    # Run TypeScript compiler (noEmit)
+bun run lint:fix     # Run ESLint and fix issues
+bun run format       # Format code with Prettier
+bun run test         # Run tests (AVA)
+```
 
 ---
 
 ## Development Conventions
 
-### Coding Styles
+### 1. Module System
 
-- **Functional React**: Use functional components and hooks exclusively.
-- **Strict Typing**: Ensure all components and services are fully typed.
-- **Surgical Logic**: Logic is separated into services and hooks; components should primarily handle rendering and layout.
-- **Key Bindings**: Global keyboard shortcuts are managed via the `useKeyBinding` hook and constants in `source/utils/constants.ts`.
+- The project is **Pure ESM**. Always use `import` and `export`.
+- TypeScript imports **MUST** include the file extension (e.g., `import {X} from './types.ts'`).
 
-### Project-Specific Patterns
+### 2. React Patterns
 
-- **TUI Layouts**: Layouts use `Box` components from `ink` for flexbox-style positioning.
-- **State Reducers**: Complex state (like the player) is managed using the `useReducer` pattern in stores.
-- **API Singleton**: The `MusicService` is implemented as a singleton accessed via `getMusicService()`. It integrates `node-youtube-music` for metadata and `youtube-ext` for high-quality audio stream extraction.
-- **Global Keyboard Management**: Keyboard shortcuts are centralized via the `KeyboardManager` component and `useKeyBinding` hook to prevent memory leaks (MaxListenersExceededWarning).
+- Prefer **Functional Components** and **Hooks**.
+- Use **Context Providers** for global state. Custom hooks (`usePlayer`, `useTheme`) should throw an error if used outside their respective providers.
+- UI should be built using Ink primitives (`Box`, `Text`, `Newline`).
 
-### Testing Practices
+### 3. Service Pattern
 
-- Tests are located in `test.tsx` (and presumably other `.test.ts/tsx` files if they exist).
-- Use `ink-testing-library` for asserting on TUI output.
-- `ava` is the test runner, configured to handle TypeScript modules.
+- Services should be implemented as **Classes** with a `getInstance()` static method or a `getService()` factory function to ensure singletons.
+- Long-running processes (like `mpv`) must be cleaned up on app exit using `process.on('exit', ...)` or React `useEffect` cleanup.
 
----
+### 4. Code Quality
 
-## Core Data Types
-
-The application uses a set of core interfaces for YouTube Music entities, defined in `source/types/youtube-music.types.ts`:
-
-- **`Track`**: Represents a song, including `videoId`, `title`, `artists`, and optional `album`.
-- **`Album`**: Represents an album with `albumId`, `name`, and associated `artists`.
-- **`Artist`**: Represents an artist with `artistId` and `name`.
-- **`Playlist`**: Represents a collection of tracks with `playlistId` and `name`.
-- **`SearchResult`**: A discriminated union used for polymorphic search results.
+- Follow **Prettier** formatting (configuration is in `package.json`).
+- Ensure all new features have corresponding types in `source/types/`.
+- Use the provided **LoggerService** (`source/services/logger/`) for debugging instead of `console.log`.
 
 ---
 
-## Recent Updates
+## File Structure Highlights
 
-- **Fixed CLI Crash**: Resolved an Ink rendering error where text was placed outside `<Text>` components in `SearchLayout.tsx`.
-- **Improved Dev Experience**: Updated `dev` command to prevent double-instance launch in Bun.
-- **Robust Error Handling**: Added `ErrorBoundary` to catch and display runtime errors gracefully.
-- **Music Suggestions**: New `suggestions` command and view (key: `g`) to discover related tracks based on current playback.
-- **Stream Quality Settings**: Added settings view (key: `,`) to toggle between Low, Medium, and High quality.
-- **Headless Mode**: Added `--headless` flag to run the player without the TUI.
-- **CLI Control Subcommands**: Added `pause`, `resume`, `skip`, and `back` subcommands for CLI control.
-- **Fixed Search Input & Trigger**: Resolved an issue where typing was not possible and implemented actual search triggering on Enter.
-- **Manual Screen Refresh**: Added `Ctrl+L` shortcut to manually clear and refresh the terminal UI. Uses `ansi-escapes` for robust clearing.
-- **Security Enhancements**: Implemented URL sanitization for audio streaming to prevent shell injection vulnerabilities.
-- **Improved Code Quality**: Resolved linting errors, removed deprecated code, and modernized React imports using `react-jsx` transform. Configured `eslint-plugin-react-hooks` for better stability.
-- **Optimized Rendering**: Centralized side effects and memoized context values to prevent terminal flooding and redundant re-renders.
-- **Unified Input Handling**: Standardized search and selection keybindings to resolve Enter key conflicts and fix the "one-letter search" bug.
-- **Responsive UI**: Implemented `useTerminalSize` to scale progress bars and truncate text based on terminal width.
-- **Real Audio Integration**: Connected the TUI to the `PlayerService` for actual audio playback using `play-sound`.
+- `plugins/`: Core plugins included with the project.
+- `templates/`: Boilerplate for creating new plugins.
+- `docs/`: Detailed guides for architecture, API, and development.
+- `tests/`: End-to-end and unit tests using `ava`.
