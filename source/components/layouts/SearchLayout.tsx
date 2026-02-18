@@ -87,23 +87,21 @@ function SearchLayout() {
 
 	return (
 		<Box flexDirection="column" gap={1}>
-			{/* Header */}
+			{/* Search Bar */}
 			<Box
-				borderStyle="double"
+				borderStyle="single"
 				borderColor={theme.colors.secondary}
 				paddingX={1}
-				marginBottom={1}
 			>
 				<Text bold color={theme.colors.primary}>
 					Search
 				</Text>
-				<Text color={theme.colors.dim}> | </Text>
 				<Text color={theme.colors.dim}>
-					Limit: {navState.searchLimit} (Use [ or ] to adjust)
+					{' '}
+					| Limit: {navState.searchLimit} (Use [ or ] to adjust)
 				</Text>
 			</Box>
 
-			{/* Search Bar */}
 			<SearchBar
 				isActive={isTyping && !isSearching}
 				onInput={input => {
@@ -134,13 +132,11 @@ function SearchLayout() {
 			)}
 
 			{/* Instructions */}
-			<Box marginTop={1}>
-				<Text color={theme.colors.dim}>
-					{isTyping
-						? 'Type to search, Enter to start'
-						: 'Arrows to navigate, Enter to play, Esc to type again'}
-				</Text>
-			</Box>
+			<Text color={theme.colors.dim}>
+				{isTyping
+					? 'Type to search, Enter to start'
+					: 'Arrows to navigate, Enter to play, Esc to type again'}
+			</Text>
 		</Box>
 	);
 }

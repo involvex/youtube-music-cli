@@ -41,8 +41,8 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.SETTINGS});
 	}, [dispatch]);
 
-	const goBack = useCallback(() => {
-		dispatch({category: 'GO_BACK'});
+	const goToHelp = useCallback(() => {
+		dispatch({category: 'NAVIGATE', view: VIEW.HELP});
 	}, [dispatch]);
 
 	const quit = useCallback(() => {
@@ -58,7 +58,7 @@ function MainLayout() {
 	useKeyBinding(KEYBINDINGS.PLAYLISTS, goToPlaylists);
 	useKeyBinding(KEYBINDINGS.SUGGESTIONS, goToSuggestions);
 	useKeyBinding(KEYBINDINGS.SETTINGS, goToSettings);
-	useKeyBinding(KEYBINDINGS.HELP, goBack);
+	useKeyBinding(KEYBINDINGS.HELP, goToHelp);
 
 	// Memoize the view component to prevent unnecessary remounts
 	// Only recreate when currentView actually changes

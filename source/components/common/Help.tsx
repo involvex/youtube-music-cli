@@ -10,10 +10,9 @@ export default function Help() {
 	return (
 		<Box flexDirection="column" gap={1} padding={1}>
 			<Box
-				borderStyle="double"
+				borderStyle="single"
 				borderColor={theme.colors.secondary}
 				paddingX={1}
-				marginBottom={1}
 			>
 				<Text bold color={theme.colors.primary}>
 					Keyboard Shortcuts
@@ -53,7 +52,7 @@ export default function Help() {
 						<Text> | </Text>
 						<Text color={theme.colors.text}>b</Text> - Previous
 						<Text> | </Text>
-						<Text color={theme.colors.text}>+</Text> - Volume Up
+						<Text color={theme.colors.text}>=</Text> - Volume Up
 						<Text> | </Text>
 						<Text color={theme.colors.text}>-</Text> - Volume Down
 						<Text> | </Text>
@@ -70,7 +69,7 @@ export default function Help() {
 				<Box paddingX={2}>
 					<Text>
 						<Text color={theme.colors.text}>Up</Text> /<Text> </Text>
-						<Text color={theme.colors.text}>Down</Text> - Move Up
+						<Text color={theme.colors.text}>k</Text> - Move Up
 						<Text> | </Text>
 						<Text color={theme.colors.text}>Down</Text> /<Text> </Text>
 						<Text color={theme.colors.text}>j</Text> - Move Down
@@ -112,11 +111,10 @@ export default function Help() {
 				</Box>
 
 				{/* Instructions */}
-				<Box marginTop={1}>
-					<Text color={theme.colors.dim}>
-						Press <Text color={theme.colors.text}>Esc</Text> to close
-					</Text>
-				</Box>
+				<Text color={theme.colors.dim}>
+					Press <Text color={theme.colors.text}>Esc</Text> or{' '}
+					<Text color={theme.colors.text}>?</Text> to close
+				</Text>
 			</Box>
 		</Box>
 	);
