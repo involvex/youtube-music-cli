@@ -1,3 +1,13 @@
+## [0.0.10](https://github.com/involvex/youtube-music-cli/compare/v0.0.9...v0.0.10) (2026-02-18)
+
+### Bug Fixes
+
+- mpv resume not working and double-process on track change ([fd04bda](https://github.com/involvex/youtube-music-cli/commit/fd04bdaa852f366eb92d265415ec18794ea5dfc3))
+
+### Features
+
+- dynamic mix playlist creation from search results ([d019048](https://github.com/involvex/youtube-music-cli/commit/d019048c4450d633003c8026ac43e92a743d87a0))
+
 ## [0.0.9](https://github.com/involvex/youtube-music-cli/compare/v0.0.8...v0.0.9) (2026-02-18)
 
 ### Features
