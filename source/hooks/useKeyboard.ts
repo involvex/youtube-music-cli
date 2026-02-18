@@ -96,10 +96,14 @@ export function KeyboardManager() {
 						const hasMeta = parts.includes('meta') || parts.includes('alt');
 						const hasShift = parts.includes('shift');
 						const mainKey = parts[parts.length - 1];
+						const uppercaseShiftInput =
+							input.length === 1 &&
+							input === input.toUpperCase() &&
+							input.toLowerCase() === mainKey;
 
 						if (hasCtrl && !key.ctrl) return false;
 						if (hasMeta && !key.meta) return false;
-						if (hasShift && !key.shift) return false;
+						if (hasShift && !key.shift && !uppercaseShiftInput) return false;
 						if (!hasShift && key.shift) return false;
 
 						// Check the actual key

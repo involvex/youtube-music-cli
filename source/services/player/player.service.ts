@@ -63,6 +63,15 @@ class PlayerService {
 		}
 	}
 
+	private getMpvCommand(): string {
+		const configuredPath = process.env['MPV_PATH']?.trim();
+		if (configuredPath) {
+			return configuredPath;
+		}
+
+		return process.platform === 'win32' ? 'mpv.exe' : 'mpv';
+	}
+
 	/**
 	 * Connect to mpv IPC socket
 	 */
@@ -300,7 +309,7 @@ class PlayerService {
 
 				// Capture process in local var so stale exit handlers from a killed
 				// process don't overwrite state belonging to a newly-spawned process.
-				const spawnedProcess = spawn('mpv', mpvArgs);
+				const spawnedProcess = spawn(this.getMpvCommand(), mpvArgs);
 				this.mpvProcess = spawnedProcess;
 
 				if (!spawnedProcess.stdout || !spawnedProcess.stderr) {
@@ -367,6 +376,15 @@ class PlayerService {
 					if (this.mpvProcess === spawnedProcess) {
 						this.isPlaying = false;
 						this.mpvProcess = null;
+					}
+
+					if ('code' in error && error.code === 'ENOENT') {
+						reject(
+							new Error(
+								"mpv executable not found. Install mpv and ensure it's in PATH (or set MPV_PATH).",
+							),
+						);
+						return;
 					}
 
 					reject(error);

@@ -58,7 +58,7 @@ export default function Help() {
 						<Text> | </Text>
 						<Text color={theme.colors.text}>-</Text> - Volume Down
 						<Text> | </Text>
-						<Text color={theme.colors.text}>s</Text> - Toggle Shuffle
+						<Text color={theme.colors.text}>Shift+S</Text> - Toggle Shuffle
 						<Text> | </Text>
 						<Text color={theme.colors.text}>r</Text> - Toggle Repeat
 					</Text>
