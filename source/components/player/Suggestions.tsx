@@ -18,7 +18,10 @@ export default function Suggestions() {
 
 	useEffect(() => {
 		if (playerState.currentTrack?.videoId) {
-			getSuggestions(playerState.currentTrack.videoId).then(setSuggestions);
+			getSuggestions(playerState.currentTrack.videoId).then(tracks => {
+				setSuggestions(tracks);
+				setSelectedIndex(0);
+			});
 		}
 	}, [playerState.currentTrack?.videoId, getSuggestions]);
 

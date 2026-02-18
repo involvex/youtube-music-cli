@@ -1,13 +1,24 @@
 // Playlist list component
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
-import {getConfigService} from '../../services/config/config.service.ts';
+import {usePlaylist} from '../../hooks/usePlaylist.ts';
+import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {KEYBINDINGS} from '../../utils/constants.ts';
+import {useState, useCallback} from 'react';
 import type {Playlist} from '../../types/youtube-music.types.ts';
 
 export default function PlaylistList() {
 	const {theme} = useTheme();
-	const config = getConfigService();
-	const playlists = config.get('playlists');
+	const {playlists, createPlaylist} = usePlaylist();
+	const [lastCreated, setLastCreated] = useState<string | null>(null);
+
+	const handleCreate = useCallback(() => {
+		const name = `Playlist ${playlists.length + 1}`;
+		createPlaylist(name);
+		setLastCreated(name);
+	}, [playlists.length, createPlaylist]);
+
+	useKeyBinding(KEYBINDINGS.CREATE_PLAYLIST, handleCreate);
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -46,6 +57,9 @@ export default function PlaylistList() {
 					<Text> | </Text>
 					<Text color={theme.colors.text}>Esc</Text> to go back
 				</Text>
+				{lastCreated && (
+					<Text color={theme.colors.accent}> Created {lastCreated}</Text>
+				)}
 			</Box>
 		</Box>
 	);

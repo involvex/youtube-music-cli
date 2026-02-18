@@ -11,6 +11,7 @@ import {truncate} from '../../utils/format.ts';
 import {useCallback, useRef, useEffect} from 'react';
 import {logger} from '../../services/logger/logger.service.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
+import {getMusicService} from '../../services/youtube-music/api.ts';
 
 // Generate unique component instance ID
 let instanceCounter = 0;
@@ -24,8 +25,9 @@ type Props = {
 function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	const {theme} = useTheme();
 	const {dispatch} = useNavigation();
-	const {play} = usePlayer();
+	const {play, dispatch: playerDispatch} = usePlayer();
 	const {columns} = useTerminalSize();
+	const musicService = getMusicService();
 
 	// Track component instance and last action time for debouncing
 	const instanceIdRef = useRef(++instanceCounter);
@@ -56,7 +58,7 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 	}, [selectedIndex, results.length, dispatch, isActive]);
 
 	// Play selected result
-	const playSelected = useCallback(() => {
+	const playSelected = useCallback(async () => {
 		logger.debug('SearchResults', 'playSelected called', {
 			isActive,
 			selectedIndex,
@@ -71,12 +73,48 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 		if (selected && selected.type === 'song') {
 			// Clear queue when playing from search results to ensure indices match
 			play(selected.data as Track, {clearQueue: true});
+		} else if (selected && selected.type === 'artist') {
+			const artistName =
+				'name' in selected.data ? (selected.data as {name: string}).name : '';
+			if (!artistName) {
+				logger.warn(
+					'SearchResults',
+					'Artist name missing, cannot search songs',
+				);
+				return;
+			}
+
+			try {
+				const response = await musicService.search(artistName, {
+					type: 'songs',
+					limit: 20,
+				});
+				const tracks = response.results
+					.filter(result => result.type === 'song')
+					.map(result => result.data as Track);
+
+				if (tracks.length === 0) {
+					logger.warn('SearchResults', 'No songs found for artist', {
+						artistName,
+					});
+					return;
+				}
+
+				// Replace queue with artist songs and start playback
+				playerDispatch({category: 'CLEAR_QUEUE'});
+				playerDispatch({category: 'SET_QUEUE', queue: tracks});
+				playerDispatch({category: 'PLAY', track: tracks[0]!});
+			} catch (error) {
+				logger.error('SearchResults', 'Failed to play artist songs', {
+					error,
+				});
+			}
 		} else {
-			logger.warn('SearchResults', 'Selected item is not a song', {
+			logger.warn('SearchResults', 'Selected item is not playable', {
 				type: selected?.type,
 			});
 		}
-	}, [selectedIndex, results, play, isActive]);
+	}, [selectedIndex, results, play, isActive, musicService, playerDispatch]);
 
 	// Play selected result handler (memoized to prevent duplicate registrations)
 	const handleSelect = useCallback(() => {

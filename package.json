@@ -15,7 +15,11 @@
 		"ymc": "dist/source/cli.js"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"README.md",
+		"CHANGELOG.md",
+		"LICENSE",
+		".github/FUNDING.yml"
 	],
 	"scripts": {
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
@@ -29,27 +33,24 @@
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
 		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix --ignore-pattern dist",
 		"start": "bun run dist/source/cli.js",
-		"test": "prettier --check . && xo && ava",
+		"test": "prettier --check . && bun run lint && ava",
 		"typecheck": "tsc --noEmit",
 		"changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
 		"clean": "rimraf dist",
 		"release": "powershell -File scripts/release.ps1"
 	},
 	"xo": {
-		"extends": "xo-react",
+		"react": true,
 		"prettier": true,
 		"rules": {
 			"react/prop-types": "off"
-		}
+		},
+		"semicolon": true
 	},
 	"prettier": "@vdemedes/prettier-config",
 	"ava": {
-		"extensions": {
-			"ts": "module",
-			"tsx": "module"
-		},
-		"nodeArguments": [
-			"--loader=ts-node/esm"
+		"files": [
+			"tests/**/*.js"
 		]
 	},
 	"dependencies": {
