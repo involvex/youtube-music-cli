@@ -1,3 +1,9 @@
+## [0.0.14](https://github.com/involvex/youtube-music-cli/compare/v0.0.13...v0.0.14) (2026-02-18)
+
+### Features
+
+- **download:** add download feature with configuration and shortcuts ([a616c4c](https://github.com/involvex/youtube-music-cli/commit/a616c4c2443cb6f7d929268fd08453708255503c))
+
 ## [0.0.13](https://github.com/involvex/youtube-music-cli/compare/v0.0.12...v0.0.13) (2026-02-18)
 
 ### Features
