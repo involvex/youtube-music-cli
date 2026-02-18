@@ -1,3 +1,14 @@
+## [0.0.7](https://github.com/involvex/youtube-music-cli/compare/v0.0.6...v0.0.7) (2026-02-18)
+
+### Features
+
+- **ui:** add plugins and enhance playlist management ([83a043c](https://github.com/involvex/youtube-music-cli/commit/83a043c0956da7023ea198468db8bbc2ce3acb0d))
+
+### BREAKING CHANGES
+
+- **ui:** The keybinding for playlists has changed from 'p' to
+  'shift+p' to accommodate the new plugins feature.
+
 ## [0.0.6](https://github.com/involvex/youtube-music-cli/compare/v0.0.5...v0.0.6) (2026-02-18)
 
 ### Features
