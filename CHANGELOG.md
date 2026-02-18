@@ -1,3 +1,14 @@
+## [0.0.4](https://github.com/involvex/youtube-music-cli/compare/v0.0.3...v0.0.4) (2026-02-18)
+
+### Bug Fixes
+
+- resolve three bugs - discord rpc, search history key, resume ([90c5306](https://github.com/involvex/youtube-music-cli/commit/90c530698f08c355e11d31048844b2e1d6a312ef))
+- **youtube:** guard suggestions parsing errors ([aca832e](https://github.com/involvex/youtube-music-cli/commit/aca832e27bb244f8b42b33060f2640f3cc003f7f))
+
+### Features
+
+- **assets:** add new icons and images ([a0d6558](https://github.com/involvex/youtube-music-cli/commit/a0d6558ed2fd42b470e7123eaac5ce0c602db051))
+
 ## [0.0.3](https://github.com/involvex/youtube-music-cli/compare/v0.0.2...v0.0.3) (2026-02-18)
 
 ### Features
