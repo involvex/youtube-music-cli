@@ -21,6 +21,7 @@ export const VIEW = {
 	SUGGESTIONS: 'suggestions',
 	SETTINGS: 'settings',
 	CONFIG: 'config',
+	PLUGINS: 'plugins',
 } as const;
 
 // Search types

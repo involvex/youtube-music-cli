@@ -8,6 +8,8 @@ import {KEYBINDINGS} from '../../utils/constants.ts';
 
 const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 
+const SETTINGS_ITEMS = ['Stream Quality', 'Manage Plugins'] as const;
+
 export default function Settings() {
 	const {theme} = useTheme();
 	const config = getConfigService();
@@ -19,7 +21,7 @@ export default function Settings() {
 	}, [setSelectedIndex]);
 
 	const navigateDown = useCallback(() => {
-		setSelectedIndex(prev => Math.min(1, prev + 1)); // Only 2 settings for now
+		setSelectedIndex(prev => Math.min(SETTINGS_ITEMS.length - 1, prev + 1));
 	}, [setSelectedIndex]);
 
 	const toggleQuality = useCallback(() => {
@@ -34,6 +36,9 @@ export default function Settings() {
 	useKeyBinding(KEYBINDINGS.SELECT, () => {
 		if (selectedIndex === 0) {
 			toggleQuality();
+		} else if (selectedIndex === 1) {
+			// TODO: Navigate to plugins management (will be implemented in next phase)
+			// dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		}
 	});
 
@@ -65,10 +70,25 @@ export default function Settings() {
 				</Text>
 			</Box>
 
+			{/* Manage Plugins */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 1 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 1 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 1}
+				>
+					Manage Plugins
+				</Text>
+			</Box>
+
 			{/* Info */}
 			<Box marginTop={1}>
 				<Text color={theme.colors.dim}>
-					Arrows to navigate, Enter to change, Esc to go back
+					Arrows to navigate, Enter to select, Esc/q to go back
 				</Text>
 			</Box>
 		</Box>

@@ -45,15 +45,17 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.HELP});
 	}, [dispatch]);
 
-	const quit = useCallback(() => {
-		// Only quit from player view, let other views handle ESC/q as BACK
+	const handleQuit = useCallback(() => {
+		// From player view, quit the app
 		if (navState.currentView === VIEW.PLAYER) {
 			process.exit(0);
 		}
-	}, [navState.currentView]);
+		// From other views, go back
+		dispatch({category: 'GO_BACK'});
+	}, [navState.currentView, dispatch]);
 
 	// Global keyboard bindings
-	useKeyBinding(KEYBINDINGS.QUIT, quit);
+	useKeyBinding(KEYBINDINGS.QUIT, handleQuit);
 	useKeyBinding(KEYBINDINGS.SEARCH, goToSearch);
 	useKeyBinding(KEYBINDINGS.PLAYLISTS, goToPlaylists);
 	useKeyBinding(KEYBINDINGS.SUGGESTIONS, goToSuggestions);
