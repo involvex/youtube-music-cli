@@ -17,6 +17,8 @@ export default function ShortcutsBar() {
 		volumeDown,
 		volumeFineUp,
 		volumeFineDown,
+		toggleShuffle,
+		toggleRepeat,
 	} = usePlayer();
 
 	// Register key bindings globally
@@ -35,6 +37,8 @@ export default function ShortcutsBar() {
 	useKeyBinding(KEYBINDINGS.VOLUME_DOWN, volumeDown);
 	useKeyBinding(KEYBINDINGS.VOLUME_FINE_UP, volumeFineUp);
 	useKeyBinding(KEYBINDINGS.VOLUME_FINE_DOWN, volumeFineDown);
+	useKeyBinding(KEYBINDINGS.SHUFFLE, toggleShuffle);
+	useKeyBinding(KEYBINDINGS.REPEAT, toggleRepeat);
 	// Note: SETTINGS keybinding handled by MainLayout to avoid double-dispatch
 
 	return (
@@ -49,27 +53,32 @@ export default function ShortcutsBar() {
 				Shortcuts: <Text color={theme.colors.text}>Space</Text> Play/Pause |{' '}
 				<Text color={theme.colors.text}>→</Text> Next |{' '}
 				<Text color={theme.colors.text}>←</Text> Prev |{' '}
-				<Text
-					color={playerState.shuffle ? theme.colors.primary : theme.colors.text}
-				>
-					Shift+S
-				</Text>{' '}
-				<Text
-					color={playerState.shuffle ? theme.colors.primary : theme.colors.dim}
-				>
-					Shuffle{playerState.shuffle ? ':ON' : ''}
-				</Text>{' '}
-				| <Text color={theme.colors.text}>Shift+P</Text> Playlists |{' '}
+				<Text color={theme.colors.text}>Shift+S</Text> 🔀 |{' '}
+				<Text color={theme.colors.text}>r</Text> 🔄 |{' '}
+				<Text color={theme.colors.text}>Shift+P</Text> Playlists |{' '}
 				<Text color={theme.colors.text}>Shift+D</Text> Download |{' '}
 				<Text color={theme.colors.text}>m</Text> Mix |{' '}
-				<Text color={theme.colors.text}>M</Text> Mini |{' '}
 				<Text color={theme.colors.text}>/</Text> Search |{' '}
 				<Text color={theme.colors.text}>?</Text> Help |{' '}
 				<Text color={theme.colors.text}>q</Text> Quit
 			</Text>
 
-			{/* Right: Volume indicator */}
+			{/* Right: Playback mode + volume indicator */}
 			<Text color={theme.colors.text}>
+				<Text
+					color={playerState.shuffle ? theme.colors.primary : theme.colors.dim}
+				>
+					🔀
+				</Text>{' '}
+				<Text
+					color={
+						playerState.repeat === 'off'
+							? theme.colors.dim
+							: theme.colors.secondary
+					}
+				>
+					{playerState.repeat === 'one' ? '🔂' : '🔄'}
+				</Text>{' '}
 				<Text color={theme.colors.dim}>[=/</Text>-
 				<Text color={theme.colors.dim}>]</Text> Vol:{' '}
 				<Text color={theme.colors.primary}>{playerState.volume}%</Text>
