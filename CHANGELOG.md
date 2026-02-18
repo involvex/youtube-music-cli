@@ -1,3 +1,9 @@
+## [0.0.18](https://github.com/involvex/youtube-music-cli/compare/v0.0.17...v0.0.18) (2026-02-18)
+
+### Bug Fixes
+
+- start playback on shuffle, reset, and next actions ([d57452b](https://github.com/involvex/youtube-music-cli/commit/d57452bc6cf49ba7cdc62910ebadf7a2dea66007))
+
 ## [0.0.17](https://github.com/involvex/youtube-music-cli/compare/v0.0.16...v0.0.17) (2026-02-18)
 
 ### Features
