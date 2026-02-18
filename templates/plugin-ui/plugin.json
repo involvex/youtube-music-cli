@@ -1,0 +1,15 @@
+{
+	"id": "{{PLUGIN_ID}}",
+	"name": "{{PLUGIN_NAME}}",
+	"version": "1.0.0",
+	"description": "A UI plugin for youtube-music-cli",
+	"author": "{{AUTHOR}}",
+	"license": "MIT",
+	"main": "index.ts",
+	"permissions": ["ui"],
+	"hooks": ["view-change"],
+	"ui": {
+		"views": ["{{PLUGIN_ID}}-view"],
+		"shortcuts": ["ctrl+shift+p"]
+	}
+}

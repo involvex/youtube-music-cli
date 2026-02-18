@@ -1,0 +1,11 @@
+{
+	"id": "{{PLUGIN_ID}}",
+	"name": "{{PLUGIN_NAME}}",
+	"version": "1.0.0",
+	"description": "A basic youtube-music-cli plugin",
+	"author": "{{AUTHOR}}",
+	"license": "MIT",
+	"main": "index.ts",
+	"permissions": [],
+	"hooks": ["play", "pause", "track-change"]
+}

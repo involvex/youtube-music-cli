@@ -142,6 +142,7 @@ export function createPluginContext(
 
 	// Audio API
 	const audioAPI: PluginContext['audio'] = {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		transformStreamUrl: async (url: string, _track: Track) => {
 			checkPermission('player');
 			// Plugins can return modified URL, null to skip, or same URL
@@ -286,12 +287,14 @@ export function createPluginContext(
 			return permissionsService.requestPermission(pluginId, permission);
 		},
 
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		registerShortcut: (_keys: string[], _handler: () => void) => {
 			checkPermission('ui');
 			// This will be implemented when we integrate with useKeyBinding
 			pluginLogger.warn('registerShortcut not yet implemented');
 		},
 
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		unregisterShortcut: (_keys: string[]) => {
 			checkPermission('ui');
 			// This will be implemented when we integrate with useKeyBinding

@@ -2,9 +2,10 @@
 import {useState, useCallback} from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {KEYBINDINGS} from '../../utils/constants.ts';
+import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 
 const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 
@@ -12,6 +13,7 @@ const SETTINGS_ITEMS = ['Stream Quality', 'Manage Plugins'] as const;
 
 export default function Settings() {
 	const {theme} = useTheme();
+	const {dispatch} = useNavigation();
 	const config = getConfigService();
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [quality, setQuality] = useState(config.get('streamQuality') || 'high');
@@ -31,16 +33,17 @@ export default function Settings() {
 		config.set('streamQuality', nextQuality);
 	}, [quality, config]);
 
-	useKeyBinding(KEYBINDINGS.UP, navigateUp);
-	useKeyBinding(KEYBINDINGS.DOWN, navigateDown);
-	useKeyBinding(KEYBINDINGS.SELECT, () => {
+	const handleSelect = useCallback(() => {
 		if (selectedIndex === 0) {
 			toggleQuality();
 		} else if (selectedIndex === 1) {
-			// TODO: Navigate to plugins management (will be implemented in next phase)
-			// dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
+			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		}
-	});
+	}, [selectedIndex, toggleQuality, dispatch]);
+
+	useKeyBinding(KEYBINDINGS.UP, navigateUp);
+	useKeyBinding(KEYBINDINGS.DOWN, navigateDown);
+	useKeyBinding(KEYBINDINGS.SELECT, handleSelect);
 
 	return (
 		<Box flexDirection="column" gap={1}>

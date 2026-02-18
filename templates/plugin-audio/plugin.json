@@ -1,0 +1,11 @@
+{
+	"id": "{{PLUGIN_ID}}",
+	"name": "{{PLUGIN_NAME}}",
+	"version": "1.0.0",
+	"description": "An audio processing plugin for youtube-music-cli",
+	"author": "{{AUTHOR}}",
+	"license": "MIT",
+	"main": "index.ts",
+	"permissions": ["player"],
+	"hooks": ["stream-request", "stream-start", "stream-end"]
+}

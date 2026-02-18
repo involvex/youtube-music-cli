@@ -8,6 +8,7 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import SearchLayout from './SearchLayout.tsx';
 import PlayerLayout from './PlayerLayout.tsx';
+import PluginsLayout from './PluginsLayout.tsx';
 import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
 import ConfigLayout from '../config/ConfigLayout.tsx';
@@ -80,6 +81,9 @@ function MainLayout() {
 
 			case 'settings':
 				return <Settings key="settings" />;
+
+			case 'plugins':
+				return <PluginsLayout key="plugins" />;
 
 			case 'config':
 				return <ConfigLayout key="config" />;
