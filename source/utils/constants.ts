@@ -45,8 +45,8 @@ export const KEYBINDINGS = {
 	PLAY_PAUSE: [' '],
 	NEXT: ['n', 'right'],
 	PREVIOUS: ['b', 'left'],
-	VOLUME_UP: ['=', '+'],
-	VOLUME_DOWN: ['-', '_'],
+	VOLUME_UP: ['='], // Only '=' without shift, since '+' requires shift and causes issues
+	VOLUME_DOWN: ['-'], // Only '-' without shift
 	SHUFFLE: ['s'],
 	REPEAT: ['r'],
 	SEEK_FORWARD: ['shift+right'],
