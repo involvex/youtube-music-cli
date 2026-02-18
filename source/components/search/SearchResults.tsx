@@ -69,7 +69,8 @@ function SearchResults({results, selectedIndex, isActive = true}: Props) {
 			title: selected?.type === 'song' ? (selected.data as Track).title : 'N/A',
 		});
 		if (selected && selected.type === 'song') {
-			play(selected.data as Track);
+			// Clear queue when playing from search results to ensure indices match
+			play(selected.data as Track, {clearQueue: true});
 		} else {
 			logger.warn('SearchResults', 'Selected item is not a song', {
 				type: selected?.type,

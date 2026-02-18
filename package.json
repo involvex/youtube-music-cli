@@ -10,7 +10,10 @@
 	"license": "MIT",
 	"author": "involvex",
 	"type": "module",
-	"bin": "dist/source/cli.js",
+	"bin": {
+		"youtube-music-cli": "dist/source/cli.js",
+		"ymc": "dist/source/cli.js"
+	},
 	"files": [
 		"dist"
 	],

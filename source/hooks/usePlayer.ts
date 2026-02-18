@@ -8,7 +8,12 @@ export function usePlayer() {
 	const {state, dispatch, ...playerStore} = usePlayerStore();
 
 	const play = useCallback(
-		(track: Track) => {
+		(track: Track, options?: {clearQueue?: boolean}) => {
+			// Clear queue if requested (e.g., playing from search results)
+			if (options?.clearQueue) {
+				dispatch({category: 'CLEAR_QUEUE'});
+			}
+
 			// Add to queue if not already there
 			const isInQueue = state.queue.some(t => t.videoId === track.videoId);
 
