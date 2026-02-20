@@ -11,7 +11,11 @@ import {getWebServerManager} from './services/web/web-server-manager.ts';
 import {getWebStreamingService} from './services/web/web-streaming.service.ts';
 import {getVersionCheckService} from './services/version-check/version-check.service.ts';
 import {getConfigService} from './services/config/config.service.ts';
+import {getPlayerService} from './services/player/player.service.ts';
 import {APP_VERSION} from './utils/constants.ts';
+import {ensurePlaybackDependencies} from './services/player/dependency-check.service.ts';
+import {getMusicService} from './services/youtube-music/api.ts';
+import type {Track} from './types/youtube-music.types.ts';
 
 const cli = meow(
 	`
@@ -123,6 +127,82 @@ if (cli.flags.help) {
 // Handle plugin commands
 const command = cli.input[0];
 const args = cli.input.slice(1);
+
+const isInteractiveTerminal = Boolean(
+	process.stdin.isTTY && process.stdout.isTTY,
+);
+
+function requiresImmediatePlayback(flags: Flags): boolean {
+	return Boolean(flags.playTrack || flags.searchQuery || flags.playPlaylist);
+}
+
+function shouldCheckPlaybackDependencies(
+	commandName: string | undefined,
+	flags: Flags,
+): boolean {
+	if (flags.webOnly) {
+		return false;
+	}
+
+	if (requiresImmediatePlayback(flags)) {
+		return true;
+	}
+
+	return (
+		commandName === undefined ||
+		commandName === 'suggestions' ||
+		Boolean(flags.web)
+	);
+}
+
+async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
+	const musicService = getMusicService();
+	const playerService = getPlayerService();
+	const config = getConfigService();
+	const playbackOptions = {
+		volume: flags.volume ?? config.get('volume'),
+		audioNormalization: config.get('audioNormalization'),
+	};
+
+	let track: Track | null | undefined;
+	if (flags.playTrack) {
+		track = await musicService.getTrack(flags.playTrack);
+		if (!track) {
+			throw new Error(`Track not found: ${flags.playTrack}`);
+		}
+	} else if (flags.searchQuery) {
+		const response = await musicService.search(flags.searchQuery, {
+			type: 'songs',
+			limit: 1,
+		});
+		const firstSong = response.results.find(result => result.type === 'song');
+		if (!firstSong) {
+			throw new Error(`No playable tracks found for: "${flags.searchQuery}"`);
+		}
+
+		track = firstSong.data as Track;
+	} else if (flags.playPlaylist) {
+		const playlist = await musicService.getPlaylist(flags.playPlaylist);
+		track = playlist.tracks[0];
+		if (!track) {
+			throw new Error(
+				`No playable tracks found in playlist: ${flags.playPlaylist}`,
+			);
+		}
+	}
+
+	if (!track) {
+		throw new Error('No track resolved for playback command.');
+	}
+
+	const artists =
+		track.artists.length > 0
+			? track.artists.map(artist => artist.name).join(', ')
+			: 'Unknown Artist';
+	console.log(`Playing: ${track.title} — ${artists}`);
+	const youtubeUrl = `https://www.youtube.com/watch?v=${track.videoId}`;
+	await playerService.play(youtubeUrl, playbackOptions);
+}
 
 if (command === 'plugins') {
 	const subCommand = args[0];
@@ -292,6 +372,33 @@ if (command === 'plugins') {
 		(cli.flags as Flags).action = 'next';
 	} else if (command === 'back') {
 		(cli.flags as Flags).action = 'previous';
+	}
+
+	const flags = cli.flags as Flags;
+	const shouldRunDirectPlayback =
+		requiresImmediatePlayback(flags) &&
+		(flags.headless || !isInteractiveTerminal);
+
+	if (shouldRunDirectPlayback) {
+		void (async () => {
+			const dependencyCheck = await ensurePlaybackDependencies({
+				interactive: isInteractiveTerminal,
+			});
+			if (!dependencyCheck.ready) {
+				process.exit(1);
+				return;
+			}
+
+			try {
+				await runDirectPlaybackCommand(flags);
+				process.exit(0);
+			} catch (error) {
+				console.error(
+					`✗ Playback failed: ${error instanceof Error ? error.message : String(error)}`,
+				);
+				process.exit(1);
+			}
+		})();
 	} else if (command === 'import') {
 		// Handle import commands
 		void (async () => {
@@ -349,6 +456,16 @@ if (command === 'plugins') {
 			const webManager = getWebServerManager();
 
 			try {
+				if (shouldCheckPlaybackDependencies(command, flags)) {
+					const dependencyCheck = await ensurePlaybackDependencies({
+						interactive: isInteractiveTerminal,
+					});
+					if (!dependencyCheck.ready && requiresImmediatePlayback(flags)) {
+						process.exit(1);
+						return;
+					}
+				}
+
 				await webManager.start({
 					enabled: true,
 					host: cli.flags.webHost ?? 'localhost',
@@ -377,7 +494,7 @@ if (command === 'plugins') {
 					});
 				} else {
 					// Also render the CLI UI
-					render(<App flags={cli.flags as Flags} />);
+					render(<App flags={flags} />);
 				}
 			} catch (error) {
 				console.error(
@@ -387,9 +504,19 @@ if (command === 'plugins') {
 			}
 		})();
 	} else {
-		// Check for updates before rendering the app (skip in web-only mode)
-		if (!cli.flags.webOnly) {
-			void (async () => {
+		void (async () => {
+			if (shouldCheckPlaybackDependencies(command, flags)) {
+				const dependencyCheck = await ensurePlaybackDependencies({
+					interactive: isInteractiveTerminal,
+				});
+				if (!dependencyCheck.ready && requiresImmediatePlayback(flags)) {
+					process.exit(1);
+					return;
+				}
+			}
+
+			// Check for updates before rendering the app (skip in web-only mode)
+			if (!cli.flags.webOnly) {
 				const versionCheck = getVersionCheckService();
 				const config = getConfigService();
 				const lastCheck = config.getLastVersionCheck();
@@ -407,10 +534,10 @@ if (command === 'plugins') {
 						console.log('');
 					}
 				}
-			})();
-		}
+			}
 
-		// Render the app
-		render(<App flags={cli.flags as Flags} />);
+			// Render the app
+			render(<App flags={flags} />);
+		})();
 	}
 }

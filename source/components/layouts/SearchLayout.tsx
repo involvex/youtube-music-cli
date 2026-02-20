@@ -20,6 +20,7 @@ function SearchLayout() {
 	const [isSearching, setIsSearching] = useState(false);
 	const [actionMessage, setActionMessage] = useState<string | null>(null);
 	const actionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const lastAutoSearchedQueryRef = useRef<string | null>(null);
 
 	// Handle search action
 	const performSearch = useCallback(
@@ -68,12 +69,20 @@ function SearchLayout() {
 
 	// Initial search if query is in state (usually from CLI flags)
 	useEffect(() => {
-		if (navState.searchQuery && !navState.hasSearched) {
-			void performSearch(navState.searchQuery);
+		const query = navState.searchQuery.trim();
+		if (!query || navState.hasSearched) {
+			return;
 		}
-		// We only want this to run once on mount or when searchQuery changes initially
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+
+		if (lastAutoSearchedQueryRef.current === query) {
+			return;
+		}
+
+		lastAutoSearchedQueryRef.current = query;
+		queueMicrotask(() => {
+			void performSearch(query);
+		});
+	}, [navState.searchQuery, navState.hasSearched, performSearch]);
 
 	// Handle going back
 	const goBack = useCallback(() => {
@@ -123,6 +132,7 @@ function SearchLayout() {
 			setResults([]);
 			dispatch({category: 'SET_HAS_SEARCHED', hasSearched: false});
 			dispatch({category: 'SET_SEARCH_QUERY', query: ''});
+			lastAutoSearchedQueryRef.current = null;
 		};
 	}, [dispatch]);
 

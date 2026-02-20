@@ -322,6 +322,8 @@ Ensure mpv is installed and in your PATH:
 mpv --version
 ```
 
+On startup, the CLI now checks for `mpv` and `yt-dlp`. In interactive terminals it can prompt to run an install command automatically (with explicit confirmation first).
+
 ### No audio
 
 1. Check volume isn't muted (`=` to increase)

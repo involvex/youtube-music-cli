@@ -16,6 +16,7 @@ import {useYouTubeMusic} from './hooks/useYouTubeMusic.ts';
 import {VIEW} from './utils/constants.ts';
 import {getConfigService} from './services/config/config.service.ts';
 import {getNotificationService} from './services/notification/notification.service.ts';
+import type {Track} from './types/youtube-music.types.ts';
 
 function Initializer({flags}: {flags?: Flags}) {
 	const {dispatch} = useNavigation();
@@ -62,20 +63,75 @@ function Initializer({flags}: {flags?: Flags}) {
 
 function HeadlessLayout({flags}: {flags?: Flags}) {
 	const {play, pause, resume, next, previous} = usePlayer();
-	const {getTrack} = useYouTubeMusic();
+	const {getTrack, getPlaylist, search} = useYouTubeMusic();
 
 	useEffect(() => {
-		if (flags?.playTrack) {
-			void getTrack(flags.playTrack).then(track => {
-				if (track) play(track);
-			});
-		}
+		void (async () => {
+			if (flags?.playTrack) {
+				const track = await getTrack(flags.playTrack);
+				if (!track) {
+					console.error(`Track not found: ${flags.playTrack}`);
+					process.exitCode = 1;
+					return;
+				}
 
-		if (flags?.action === 'pause') pause();
-		if (flags?.action === 'resume') resume();
-		if (flags?.action === 'next') next();
-		if (flags?.action === 'previous') previous();
-	}, [flags, play, pause, resume, next, previous, getTrack]);
+				play(track);
+				console.log(`Playing: ${track.title}`);
+				return;
+			}
+
+			if (flags?.searchQuery) {
+				const response = await search(flags.searchQuery, {
+					type: 'songs',
+					limit: 1,
+				});
+				const songResult = response?.results.find(
+					result => result.type === 'song',
+				);
+				if (!songResult) {
+					console.error(`No playable tracks found for: "${flags.searchQuery}"`);
+					process.exitCode = 1;
+					return;
+				}
+
+				const track = songResult.data as Track;
+				play(track, {clearQueue: true});
+				console.log(`Playing: ${track.title}`);
+				return;
+			}
+
+			if (flags?.playPlaylist) {
+				const playlist = await getPlaylist(flags.playPlaylist);
+				const firstTrack = playlist?.tracks[0];
+				if (!firstTrack) {
+					console.error(
+						`No playable tracks found in playlist: ${flags.playPlaylist}`,
+					);
+					process.exitCode = 1;
+					return;
+				}
+
+				play(firstTrack, {clearQueue: true});
+				console.log(`Playing playlist "${playlist.name}": ${firstTrack.title}`);
+				return;
+			}
+
+			if (flags?.action === 'pause') pause();
+			if (flags?.action === 'resume') resume();
+			if (flags?.action === 'next') next();
+			if (flags?.action === 'previous') previous();
+		})();
+	}, [
+		flags,
+		play,
+		pause,
+		resume,
+		next,
+		previous,
+		getTrack,
+		getPlaylist,
+		search,
+	]);
 
 	return (
 		<Box padding={1}>
