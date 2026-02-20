@@ -131,7 +131,7 @@ youtube-music-cli
 
 ```bash
 # Play a specific track
-youtube-music-cli play <video-id>
+youtube-music-cli play <video-id|youtube-url>
 
 # Search for music
 youtube-music-cli search "artist or song name"

@@ -1,5 +1,6 @@
 name: Copilot Setup Steps
-
+permissions:
+  contents: read
 on:
   workflow_call:
   workflow_dispatch:

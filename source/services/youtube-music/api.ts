@@ -14,15 +14,151 @@ import type {
 	ChannelSearchResult,
 	SearchResponse as YoutubeiSearchResponse,
 } from '../../types/youtubei.types.ts';
-import {Innertube} from 'youtubei.js';
+import {Innertube, Log} from 'youtubei.js';
 import {logger} from '../logger/logger.service.ts';
 import {getSearchCache} from '../cache/cache.service.ts';
 
 // Initialize YouTube client
 let ytClient: Innertube | null = null;
 
+type MusicSearchItem = {
+	id?: string;
+	item_type?: string;
+	title?: string;
+	name?: string;
+	duration?: {seconds?: number} | number;
+	artists?: Array<{name?: string; channel_id?: string; id?: string}>;
+	author?: {name?: string; channel_id?: string; id?: string};
+};
+
+type MusicSearchLike = {
+	songs?: {contents?: unknown[]};
+	videos?: {contents?: unknown[]};
+	albums?: {contents?: unknown[]};
+	artists?: {contents?: unknown[]};
+	playlists?: {contents?: unknown[]};
+};
+
+function toMusicSearchType(
+	searchType: SearchOptions['type'] | undefined,
+): 'all' | 'song' | 'album' | 'artist' | 'playlist' {
+	switch (searchType) {
+		case 'songs': {
+			return 'song';
+		}
+
+		case 'albums': {
+			return 'album';
+		}
+
+		case 'artists': {
+			return 'artist';
+		}
+
+		case 'playlists': {
+			return 'playlist';
+		}
+
+		default: {
+			return 'all';
+		}
+	}
+}
+
+function getMusicShelfItems(shelf: unknown): MusicSearchItem[] {
+	if (!shelf || typeof shelf !== 'object') {
+		return [];
+	}
+
+	const contents = (shelf as {contents?: unknown[]}).contents;
+	if (!Array.isArray(contents)) {
+		return [];
+	}
+
+	return contents.filter(
+		(item): item is MusicSearchItem => !!item && typeof item === 'object',
+	);
+}
+
+function parseVideoId(value: string): string | null {
+	const trimmedValue = value.trim();
+	if (!trimmedValue) {
+		return null;
+	}
+
+	if (!trimmedValue.includes('://') && !trimmedValue.includes('/')) {
+		return trimmedValue;
+	}
+
+	try {
+		const parsedUrl = new URL(trimmedValue);
+		const vParam = parsedUrl.searchParams.get('v');
+		if (vParam) {
+			return vParam;
+		}
+
+		const host = parsedUrl.hostname.toLowerCase();
+		const isYouTubeHost =
+			host === 'youtu.be' ||
+			host === 'youtube.com' ||
+			host.endsWith('.youtube.com') ||
+			host === 'music.youtube.com';
+		if (!isYouTubeHost) {
+			return null;
+		}
+
+		if (host === 'youtu.be') {
+			const pathId = parsedUrl.pathname.split('/').filter(Boolean)[0];
+			if (pathId) {
+				return pathId;
+			}
+		}
+
+		const pathId = parsedUrl.pathname
+			.split('/')
+			.filter(Boolean)
+			.find(part => part.length >= 8);
+		return pathId ?? null;
+	} catch {
+		return null;
+	}
+}
+
+function toTrack(item: MusicSearchItem): Track | null {
+	const rawId = item.id?.trim() ?? '';
+	const videoId = rawId ? parseVideoId(rawId) : null;
+	if (!videoId) {
+		return null;
+	}
+
+	const artists =
+		item.artists && item.artists.length > 0
+			? item.artists.map(artist => ({
+					artistId: artist.channel_id || artist.id || '',
+					name: artist.name ?? 'Unknown',
+				}))
+			: [
+					{
+						artistId: item.author?.channel_id || item.author?.id || '',
+						name: item.author?.name ?? 'Unknown',
+					},
+				];
+
+	return {
+		videoId,
+		title: item.title || item.name || 'Unknown',
+		artists,
+		duration:
+			typeof item.duration === 'number'
+				? item.duration
+				: (item.duration?.seconds ?? 0),
+	};
+}
+
 async function getClient() {
 	if (!ytClient) {
+		// Suppress noisy youtubei.js parser warnings in TUI output.
+		Log.setLevel(Log.Level.ERROR);
 		ytClient = await Innertube.create();
 	}
 	return ytClient;
@@ -36,7 +172,8 @@ class MusicService {
 		options: SearchOptions = {},
 	): Promise<SearchResponse> {
 		const searchType = options.type || 'all';
-		const cacheKey = `search:${searchType}:${options.limit ?? 20}:${query}`;
+		const resultLimit = options.limit ?? 20;
+		const cacheKey = `search:${searchType}:${resultLimit}:${query}`;
 
 		// Return cached result if available
 		const cached = this.searchCache.get(cacheKey) as SearchResponse | null;
@@ -52,20 +189,112 @@ class MusicService {
 
 		try {
 			const yt = await getClient();
-			const search = (await yt.search(
-				query,
-			)) as unknown as YoutubeiSearchResponse;
+			const musicSearch = (await yt.music.search(query, {
+				type: toMusicSearchType(searchType),
+			})) as unknown as MusicSearchLike;
 
-			// Process search results based on type
 			if (searchType === 'all' || searchType === 'songs') {
-				const videos = search.videos as VideoSearchResult[] | undefined;
-				if (videos) {
-					for (const video of videos) {
-						if (video.type === 'Video' || video.id) {
+				const songItems = [
+					...getMusicShelfItems(musicSearch.songs),
+					...getMusicShelfItems(musicSearch.videos),
+				];
+				for (const item of songItems) {
+					const track = toTrack(item);
+					if (!track) {
+						continue;
+					}
+
+					results.push({
+						type: 'song',
+						data: track,
+					});
+				}
+			}
+
+			if (searchType === 'all' || searchType === 'playlists') {
+				for (const playlist of getMusicShelfItems(musicSearch.playlists)) {
+					const playlistId = playlist.id?.trim();
+					if (!playlistId) {
+						continue;
+					}
+
+					results.push({
+						type: 'playlist',
+						data: {
+							playlistId,
+							name: playlist.title || playlist.name || 'Unknown Playlist',
+							tracks: [],
+						},
+					});
+				}
+			}
+
+			if (searchType === 'all' || searchType === 'artists') {
+				for (const artist of getMusicShelfItems(musicSearch.artists)) {
+					const artistId =
+						artist.id?.trim() ||
+						artist.author?.channel_id ||
+						artist.author?.id ||
+						'';
+					if (!artistId) {
+						continue;
+					}
+
+					results.push({
+						type: 'artist',
+						data: {
+							artistId,
+							name:
+								artist.name ||
+								artist.title ||
+								artist.author?.name ||
+								'Unknown Artist',
+						},
+					});
+				}
+			}
+
+			if (searchType === 'all' || searchType === 'albums') {
+				for (const album of getMusicShelfItems(musicSearch.albums)) {
+					const albumId = album.id?.trim();
+					if (!albumId) {
+						continue;
+					}
+
+					results.push({
+						type: 'album',
+						data: {
+							albumId,
+							name: album.title || album.name || 'Unknown Album',
+							artists: (album.artists ?? []).map(artist => ({
+								artistId: artist.channel_id || artist.id || '',
+								name: artist.name ?? 'Unknown',
+							})),
+							tracks: [],
+						},
+					});
+				}
+			}
+
+			if (results.length === 0) {
+				const search = (await yt.search(
+					query,
+				)) as unknown as YoutubeiSearchResponse;
+
+				if (searchType === 'all' || searchType === 'songs') {
+					const videos = search.videos as VideoSearchResult[] | undefined;
+					if (videos) {
+						for (const video of videos) {
+							const rawVideoId = video.id || video.video_id || '';
+							const videoId = parseVideoId(rawVideoId);
+							if ((!video.type && !rawVideoId) || !videoId) {
+								continue;
+							}
+
 							results.push({
 								type: 'song',
 								data: {
-									videoId: video.id || video.video_id || '',
+									videoId,
 									title:
 										(typeof video.title === 'string'
 											? video.title
@@ -88,52 +317,56 @@ class MusicService {
 						}
 					}
 				}
-			}
 
-			if (searchType === 'all' || searchType === 'playlists') {
-				const playlists = search.playlists as
-					| PlaylistSearchResult[]
-					| undefined;
-				if (playlists) {
-					for (const playlist of playlists) {
-						results.push({
-							type: 'playlist',
-							data: {
-								playlistId: playlist.id || '',
-								name:
-									(typeof playlist.title === 'string'
-										? playlist.title
-										: playlist.title?.text) || 'Unknown Playlist',
-								tracks: [],
-							},
-						});
+				if (searchType === 'all' || searchType === 'playlists') {
+					const playlists = search.playlists as
+						| PlaylistSearchResult[]
+						| undefined;
+					if (playlists) {
+						for (const playlist of playlists) {
+							results.push({
+								type: 'playlist',
+								data: {
+									playlistId: playlist.id || '',
+									name:
+										(typeof playlist.title === 'string'
+											? playlist.title
+											: playlist.title?.text) || 'Unknown Playlist',
+									tracks: [],
+								},
+							});
+						}
 					}
 				}
-			}
 
-			if (searchType === 'all' || searchType === 'artists') {
-				const channels = search.channels as ChannelSearchResult[] | undefined;
-				if (channels) {
-					for (const channel of channels) {
-						results.push({
-							type: 'artist',
-							data: {
-								artistId: channel.id || channel.channelId || '',
-								name:
-									(typeof channel.author === 'string'
-										? channel.author
-										: channel.author?.name) || 'Unknown Artist',
-							},
-						});
+				if (searchType === 'all' || searchType === 'artists') {
+					const channels = search.channels as ChannelSearchResult[] | undefined;
+					if (channels) {
+						for (const channel of channels) {
+							results.push({
+								type: 'artist',
+								data: {
+									artistId: channel.id || channel.channelId || '',
+									name:
+										(typeof channel.author === 'string'
+											? channel.author
+											: channel.author?.name) || 'Unknown Artist',
+								},
+							});
+						}
 					}
 				}
 			}
 		} catch (error) {
-			console.error('Search failed:', error);
+			logger.error('MusicService', 'Search failed', {
+				query,
+				searchType,
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
 
 		const response: SearchResponse = {
-			results,
+			results: results.slice(0, resultLimit),
 			hasMore: false,
 		};
 
@@ -144,8 +377,14 @@ class MusicService {
 	}
 
 	async getTrack(videoId: string): Promise<Track | null> {
+		const normalizedVideoId = parseVideoId(videoId);
+		if (!normalizedVideoId) {
+			logger.warn('MusicService', 'Invalid track id/url provided', {videoId});
+			return null;
+		}
+
 		return {
-			videoId,
+			videoId: normalizedVideoId,
 			title: 'Unknown Track',
 			artists: [],
 		};

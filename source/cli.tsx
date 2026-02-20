@@ -17,7 +17,7 @@ const cli = meow(
 	`
 	Usage
 	  $ youtube-music-cli
-	  $ youtube-music-cli play <track-id>
+	  $ youtube-music-cli play <track-id|youtube-url>
 	  $ youtube-music-cli search <query>
 	  $ youtube-music-cli playlist <playlist-id>
 	  $ youtube-music-cli suggestions
