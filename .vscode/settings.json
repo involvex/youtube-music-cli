@@ -86,5 +86,7 @@
 	"npmPackageManager.defaultPackageManager": "bun",
 	"npmPackageManager.debug": true,
 	"npmPackageManager.showStatusBarItem": true,
-	"DockerRun.DisableAutoGenerateConfig": true
+	"DockerRun.DisableAutoGenerateConfig": true,
+	"snyk.advanced.organization": "d20b9212-7c2e-4cf5-9fbd-bd394b0b616f",
+	"snyk.advanced.autoSelectOrganization": true
 }

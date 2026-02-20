@@ -93,6 +93,20 @@ npm install -g @involvex/youtube-music-cli
 bun install -g @involvex/youtube-music-cli
 ```
 
+### Homebrew
+
+```bash
+brew install involvex/youtube-music-cli/youtube-music-cli
+```
+
+### Winget
+
+```bash
+winget install Involvex.YoutubeMusicCLI
+```
+
+> Maintainers: tag pushes trigger `.github/workflows/homebrew-publish.yml` and `.github/workflows/winget-publish.yml`. Set `WINGETCREATE_TOKEN` and make sure `Involvex.YoutubeMusicCLI` exists in winget-pkgs for automated updates.
+
 ### From Source
 
 ```bash

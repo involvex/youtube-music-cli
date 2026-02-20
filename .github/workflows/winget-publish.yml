@@ -1,0 +1,73 @@
+name: Publish to Winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z)
+        required: true
+      package_identifier:
+        description: Winget package identifier
+        required: false
+        default: Involvex.YoutubeMusicCLI
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  update-winget:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      TAG_NAME: ${{ inputs.tag || github.ref_name }}
+      PACKAGE_IDENTIFIER: ${{ inputs.package_identifier || 'Involvex.YoutubeMusicCLI' }}
+    steps:
+      - name: Install wingetcreate
+        shell: pwsh
+        run: winget install --id Microsoft.WingetCreate --exact --accept-package-agreements --accept-source-agreements --silent
+
+      - name: Resolve release asset URL
+        id: release-asset
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tagName = '${{ env.TAG_NAME }}'
+          $repo = '${{ github.repository }}'
+          $assetName = 'youtube-music-cli.exe'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          for ($attempt = 1; $attempt -le 30; $attempt++) {
+            try {
+              $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/tags/$tagName" -Headers $headers
+              $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+
+              if ($null -ne $asset) {
+                "installer_url=$($asset.browser_download_url)" >> $env:GITHUB_OUTPUT
+                exit 0
+              }
+            } catch {
+              Write-Host "Release asset not ready yet (attempt $attempt/30)."
+            }
+
+            Start-Sleep -Seconds 20
+          }
+
+          throw "Timed out waiting for $assetName on tag $tagName."
+
+      - name: Update Winget package
+        shell: pwsh
+        env:
+          WINGETCREATE_TOKEN: ${{ secrets.WINGETCREATE_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINGETCREATE_TOKEN)) {
+            throw 'WINGETCREATE_TOKEN secret is required.'
+          }
+
+          $version = '${{ env.TAG_NAME }}'.TrimStart('v')
+          wingetcreate update $env:PACKAGE_IDENTIFIER --version $version --urls '${{ steps.release-asset.outputs.installer_url }}' --token $env:WINGETCREATE_TOKEN --submit

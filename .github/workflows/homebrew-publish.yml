@@ -1,0 +1,72 @@
+name: Publish Homebrew Formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z)
+        required: true
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG_NAME: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Build Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG_NAME#v}"
+          PACKAGE_URL="https://registry.npmjs.org/@involvex/youtube-music-cli/-/youtube-music-cli-${VERSION}.tgz"
+
+          curl --fail --location --silent --show-error "${PACKAGE_URL}" --output package.tgz
+          SHA256="$(sha256sum package.tgz | awk '{print $1}')"
+
+          mkdir -p Formula
+          cat > Formula/youtube-music-cli.rb <<EOF
+          class YoutubeMusicCli < Formula
+            desc "Terminal YouTube Music player"
+            homepage "https://github.com/involvex/youtube-music-cli"
+            url "${PACKAGE_URL}"
+            sha256 "${SHA256}"
+            license "MIT"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", *std_npm_args
+            end
+
+            test do
+              assert_match "youtube-music-cli", shell_output("#{bin}/youtube-music-cli --help")
+            end
+          end
+          EOF
+
+      - name: Commit and push formula update
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- Formula/youtube-music-cli.rb; then
+            echo "No formula changes detected."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/youtube-music-cli.rb
+          git commit -m "chore(homebrew): update formula for ${TAG_NAME}"
+          git push origin "${{ github.event.repository.default_branch }}"

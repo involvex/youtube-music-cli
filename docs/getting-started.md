@@ -87,6 +87,18 @@ npm install -g @involvex/youtube-music-cli
 bun install -g @involvex/youtube-music-cli
 ```
 
+### Homebrew
+
+```bash
+brew install involvex/youtube-music-cli/youtube-music-cli
+```
+
+### Winget
+
+```bash
+winget install Involvex.YoutubeMusicCLI
+```
+
 ### From Source
 
 ```bash
