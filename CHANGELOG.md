@@ -1,3 +1,9 @@
+## [0.0.20](https://github.com/involvex/youtube-music-cli/compare/v0.0.19...v0.0.20) (2026-02-20)
+
+### Bug Fixes
+
+- keyboard shortcut conflicts and web UI TypeScript errors ([af01f16](https://github.com/involvex/youtube-music-cli/commit/af01f16a151416c15891e44bb1eee3696a1ddc0e))
+
 ## [0.0.19](https://github.com/involvex/youtube-music-cli/compare/v0.0.18...v0.0.19) (2026-02-20)
 
 ## [0.0.18](https://github.com/involvex/youtube-music-cli/compare/v0.0.17...v0.0.18) (2026-02-18)
