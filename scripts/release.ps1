@@ -48,4 +48,5 @@ Write-Host "Running project build..."
 bun run build
 
 Write-Host "Release process complete for version $NEW_VERSION."
-Write-Host "You can now push your changes with: git push --follow-tags"
+Write-Host "Now Running: git push && git push --tags"
+git push && git push --tags
