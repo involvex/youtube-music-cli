@@ -58,7 +58,7 @@ function SearchBar({onInput, isActive = true}: Props) {
 	}, [isActive, onInput]);
 
 	useKeyBinding(['tab'], cycleType);
-	useKeyBinding(['escape'], clearSearch);
+	useKeyBinding(['escape'], clearSearch, {bypassBlock: true});
 	useKeyboardBlocker(isActive);
 
 	return (

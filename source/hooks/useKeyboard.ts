@@ -8,6 +8,7 @@ type KeyHandler = () => void;
 type RegistryEntry = {
 	keys: readonly string[];
 	handler: KeyHandler;
+	bypassBlock?: boolean;
 };
 
 // Global registry for key handlers
@@ -21,18 +22,23 @@ const registry: Set<RegistryEntry> = new Set();
 export function useKeyBinding(
 	keys: readonly string[],
 	handler: () => void,
+	options?: {bypassBlock?: boolean},
 ): void {
 	const handlerRef = useRef(handler);
 	handlerRef.current = handler;
 
 	useEffect(() => {
-		const entry: RegistryEntry = {keys, handler: () => handlerRef.current()};
+		const entry: RegistryEntry = {
+			keys,
+			handler: () => handlerRef.current(),
+			bypassBlock: options?.bypassBlock,
+		};
 		registry.add(entry);
 
 		return () => {
 			registry.delete(entry);
 		};
-	}, [keys]); // keys is the only dep; handlerRef is a stable ref
+	}, [keys, options?.bypassBlock]); // keys and bypassBlock are deps; handlerRef is a stable ref
 }
 
 /**
@@ -44,7 +50,65 @@ export function KeyboardManager() {
 	useInput((input, key) => {
 		if (blockCount > 0) {
 			// When keyboard input is blocked (e.g., within a focused text input),
-			// we deliberately skip executing global shortcuts.
+			// check if any entry has bypassBlock flag and matches this key.
+			for (const entry of registry) {
+				if (entry.bypassBlock) {
+					for (const binding of entry.keys) {
+						const lowerBinding = binding.toLowerCase();
+
+						// Check for ESC key (most common bypass case)
+						if (lowerBinding === 'escape' && key.escape) {
+							entry.handler();
+							return;
+						}
+
+						// Handle other bypass keys
+						const isMatch =
+							((lowerBinding === 'return' || lowerBinding === 'enter') &&
+								key.return) ||
+							(lowerBinding === 'backspace' && key.backspace) ||
+							(lowerBinding === 'tab' && key.tab) ||
+							(lowerBinding === 'up' && key.upArrow) ||
+							(lowerBinding === 'down' && key.downArrow) ||
+							(lowerBinding === 'left' && key.leftArrow) ||
+							(lowerBinding === 'right' && key.rightArrow) ||
+							(lowerBinding === 'pageup' && key.pageUp) ||
+							(lowerBinding === 'pagedown' && key.pageDown) ||
+							(() => {
+								const parts = lowerBinding.split('+');
+								const hasCtrl = parts.includes('ctrl');
+								const hasMeta = parts.includes('meta') || parts.includes('alt');
+								const hasShift = parts.includes('shift');
+								const mainKey = parts[parts.length - 1];
+
+								if (hasCtrl && !key.ctrl) return false;
+								if (hasMeta && !key.meta) return false;
+								if (hasShift && !key.shift) return false;
+
+								// Check arrow keys
+								if (mainKey === 'up' && key.upArrow) return true;
+								if (mainKey === 'down' && key.downArrow) return true;
+								if (mainKey === 'left' && key.leftArrow) return true;
+								if (mainKey === 'right' && key.rightArrow) return true;
+
+								// Handle '=' and '+'
+								if (mainKey === '=' && input === '=') return true;
+								if (mainKey === '+' && input === '+') return true;
+								if (mainKey === '+' && key.shift && input === '=') return true;
+
+								return (
+									input.toLowerCase() === mainKey && !key.ctrl && !key.meta
+								);
+							})();
+
+						if (isMatch) {
+							entry.handler();
+							return;
+						}
+					}
+				}
+			}
+			// If no bypass handler matched, skip all global shortcuts
 			return;
 		}
 

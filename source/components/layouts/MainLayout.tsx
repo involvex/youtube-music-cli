@@ -148,7 +148,7 @@ function MainLayout() {
 	}, [dispatch]);
 
 	// Global keyboard bindings
-	useKeyBinding(KEYBINDINGS.QUIT, handleQuit);
+	useKeyBinding(KEYBINDINGS.QUIT, handleQuit, {bypassBlock: true});
 	useKeyBinding(KEYBINDINGS.SEARCH, goToSearch);
 	useKeyBinding(KEYBINDINGS.PLAYLISTS, goToPlaylists);
 	useKeyBinding(KEYBINDINGS.PLUGINS, goToPlugins);
