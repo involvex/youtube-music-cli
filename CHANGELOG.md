@@ -1,3 +1,9 @@
+## [0.0.35](https://github.com/involvex/youtube-music-cli/compare/v0.0.34...v0.0.35) (2026-02-22)
+
+### Features
+
+- add history layout for recently played tracks ([a33c93c](https://github.com/involvex/youtube-music-cli/commit/a33c93c485e8e0e42a4d233cb60b06f4c08452cb))
+
 ## [0.0.34](https://github.com/involvex/youtube-music-cli/compare/v0.0.33...v0.0.34) (2026-02-22)
 
 ### Features
