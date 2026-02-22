@@ -13,6 +13,61 @@ export type PlayOptions = {
 	equalizerPreset?: EqualizerPreset;
 };
 
+export type MpvArgsOptions = PlayOptions & {
+	volume: number;
+};
+
+export function buildMpvArgs(
+	url: string,
+	ipcPath: string,
+	options: MpvArgsOptions,
+): string[] {
+	const gapless = options.gaplessPlayback ?? true;
+	const crossfadeDuration = Math.max(0, options.crossfadeDuration ?? 0);
+	const eqPreset = options.equalizerPreset ?? 'flat';
+	const audioFilters: string[] = [];
+
+	if (options.audioNormalization) {
+		audioFilters.push('dynaudnorm');
+	}
+
+	if (crossfadeDuration > 0) {
+		audioFilters.push(`acrossfade=d=${crossfadeDuration}`);
+	}
+
+	const presetFilters = EQUALIZER_PRESET_FILTERS[eqPreset] ?? [];
+	if (presetFilters.length > 0) {
+		audioFilters.push(...presetFilters);
+	}
+
+	const mpvArgs = [
+		'--no-video',
+		'--no-terminal',
+		`--volume=${options.volume}`,
+		'--no-audio-display',
+		'--really-quiet',
+		'--msg-level=all=error',
+		`--input-ipc-server=${ipcPath}`,
+		'--idle=yes',
+		'--cache=yes',
+		'--cache-secs=30',
+		'--network-timeout=10',
+		`--gapless-audio=${gapless ? 'yes' : 'no'}`,
+	];
+
+	if (audioFilters.length > 0) {
+		mpvArgs.push(`--af=${audioFilters.join(',')}`);
+	}
+
+	if (options.proxy) {
+		mpvArgs.push(`--http-proxy=${options.proxy}`);
+	}
+
+	mpvArgs.push(url);
+
+	return mpvArgs;
+}
+
 const EQUALIZER_PRESET_FILTERS: Record<EqualizerPreset, string[]> = {
 	flat: [],
 	bass_boost: ['equalizer=f=60:width_type=o:width=2:g=5'],
@@ -300,49 +355,14 @@ class PlayerService {
 					ipcPath: this.ipcPath,
 				});
 
-				const gapless = options?.gaplessPlayback ?? true;
-				const crossfadeDuration = Math.max(0, options?.crossfadeDuration ?? 0);
-				const eqPreset = options?.equalizerPreset ?? 'flat';
-				const audioFilters: string[] = [];
-
-				if (options?.audioNormalization) {
-					audioFilters.push('dynaudnorm');
-				}
-
-				if (crossfadeDuration > 0) {
-					audioFilters.push(`acrossfade=d=${crossfadeDuration}`);
-				}
-
-				const presetFilters = EQUALIZER_PRESET_FILTERS[eqPreset] ?? [];
-				if (presetFilters.length > 0) {
-					audioFilters.push(...presetFilters);
-				}
-
-				// Spawn mpv with JSON IPC for better control
-				const mpvArgs = [
-					'--no-video', // Audio only
-					'--no-terminal', // Don't read from stdin
-					`--volume=${this.currentVolume}`,
-					'--no-audio-display', // Don't show album art in terminal
-					'--really-quiet', // Minimal output
-					'--msg-level=all=error', // Only show errors
-					`--input-ipc-server=${this.ipcPath}`, // Enable IPC
-					'--idle=yes', // Keep mpv running after playback ends
-					'--cache=yes', // Enable cache for network streams
-					'--cache-secs=30', // Buffer 30 seconds ahead
-					'--network-timeout=10', // 10s network timeout
-					`--gapless-audio=${gapless ? 'yes' : 'no'}`,
-				];
-
-				if (audioFilters.length > 0) {
-					mpvArgs.push(`--af=${audioFilters.join(',')}`);
-				}
-
-				if (options?.proxy) {
-					mpvArgs.push(`--http-proxy=${options.proxy}`);
-				}
-
-				mpvArgs.push(playUrl);
+				const mpvArgs = buildMpvArgs(playUrl, this.ipcPath!, {
+					volume: this.currentVolume,
+					audioNormalization: options?.audioNormalization,
+					proxy: options?.proxy,
+					gaplessPlayback: options?.gaplessPlayback,
+					crossfadeDuration: options?.crossfadeDuration,
+					equalizerPreset: options?.equalizerPreset,
+				});
 
 				// Capture process in local var so stale exit handlers from a killed
 				// process don't overwrite state belonging to a newly-spawned process.
