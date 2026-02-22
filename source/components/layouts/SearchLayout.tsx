@@ -10,10 +10,12 @@ import SearchBar from '../search/SearchBar.tsx';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box, Text} from 'ink';
+import {usePlayer} from '../../hooks/usePlayer.ts';
 
 function SearchLayout() {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
+	const {state: playerState} = usePlayer();
 	const {isLoading, error, search} = useYouTubeMusic();
 	const [results, setResults] = useState<SearchResult[]>([]);
 	const [isTyping, setIsTyping] = useState(true);
@@ -138,6 +140,25 @@ function SearchLayout() {
 
 	return (
 		<Box flexDirection="column">
+			{/* Now Playing indicator */}
+			{playerState.currentTrack && (
+				<Box>
+					<Text color={theme.colors.dim}>
+						{playerState.isPlaying ? '▶ ' : '⏸ '}
+					</Text>
+					<Text color={theme.colors.primary} bold>
+						{playerState.currentTrack.title}
+					</Text>
+					{playerState.currentTrack.artists &&
+						playerState.currentTrack.artists.length > 0 && (
+							<Text color={theme.colors.secondary}>
+								{' • '}
+								{playerState.currentTrack.artists.map(a => a.name).join(', ')}
+							</Text>
+						)}
+				</Box>
+			)}
+
 			<Text color={theme.colors.dim}>
 				Limit: {navState.searchLimit} (Use [ or ] to adjust)
 			</Text>

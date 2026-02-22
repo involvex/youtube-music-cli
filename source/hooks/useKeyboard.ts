@@ -1,5 +1,5 @@
 // Keyboard input handling hook
-import {useCallback, useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 import {useInput} from 'ink';
 import {logger} from '../services/logger/logger.service.ts';
 import {useKeyboardBlockContext} from './useKeyboardBlocker.tsx';
@@ -16,21 +16,23 @@ const registry: Set<RegistryEntry> = new Set();
 /**
  * Hook to bind keyboard shortcuts.
  * This uses a centralized manager to avoid multiple useInput calls and memory leaks.
+ * Uses a ref-based approach to always call the latest handler without stale closures.
  */
 export function useKeyBinding(
 	keys: readonly string[],
 	handler: () => void,
 ): void {
-	const memoizedHandler = useCallback(handler, [handler]);
+	const handlerRef = useRef(handler);
+	handlerRef.current = handler;
 
 	useEffect(() => {
-		const entry: RegistryEntry = {keys, handler: memoizedHandler};
+		const entry: RegistryEntry = {keys, handler: () => handlerRef.current()};
 		registry.add(entry);
 
 		return () => {
 			registry.delete(entry);
 		};
-	}, [keys, memoizedHandler]);
+	}, [keys]); // keys is the only dep; handlerRef is a stable ref
 }
 
 /**
@@ -104,7 +106,18 @@ export function KeyboardManager() {
 						if (hasCtrl && !key.ctrl) return false;
 						if (hasMeta && !key.meta) return false;
 						if (hasShift && !key.shift && !uppercaseShiftInput) return false;
-						if (!hasShift && key.shift) return false;
+						// Block lowercase-only bindings when shift is active or the input is
+						// an uppercase letter (which implies Shift was held).
+						// Example: the 'p' (Plugins) binding must not fire when the user
+						// presses Shift+P, which should only trigger 'shift+p' (Playlists).
+						// Note: `input !== input.toLowerCase()` is true only for uppercase
+						// alphabetical characters, avoiding false positives on symbols/digits.
+						if (
+							!hasShift &&
+							(key.shift ||
+								(input.length === 1 && input !== input.toLowerCase()))
+						)
+							return false;
 
 						// Check the actual key
 						if (mainKey === 'up' && key.upArrow) return true;
