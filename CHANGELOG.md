@@ -1,3 +1,5 @@
+## [0.0.37](https://github.com/involvex/youtube-music-cli/compare/v0.0.36...v0.0.37) (2026-02-22)
+
 ## [0.0.36](https://github.com/involvex/youtube-music-cli/compare/v0.0.35...v0.0.36) (2026-02-22)
 
 ### Features
