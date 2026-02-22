@@ -1,3 +1,9 @@
+## [0.0.36](https://github.com/involvex/youtube-music-cli/compare/v0.0.35...v0.0.36) (2026-02-22)
+
+### Features
+
+- update Homebrew installation instructions and add Formula for easier macOS installation ([c07fb9e](https://github.com/involvex/youtube-music-cli/commit/c07fb9e6650ddfb193b183bc708ebd495688979a))
+
 ## [0.0.35](https://github.com/involvex/youtube-music-cli/compare/v0.0.34...v0.0.35) (2026-02-22)
 
 ### Features
