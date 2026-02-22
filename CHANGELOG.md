@@ -1,4 +1,8 @@
-## [0.0.37](https://github.com/involvex/youtube-music-cli/compare/v0.0.36...v0.0.37) (2026-02-22)
+## [0.0.38](https://github.com/involvex/youtube-music-cli/compare/v0.0.36...v0.0.38) (2026-02-22)
+
+### Bug Fixes
+
+- **search:** prevent 'q' key from triggering quit when typing in search bar ([32cd888](https://github.com/involvex/youtube-music-cli/commit/32cd888afcabc30d10988491da12c653cb5175d5))
 
 ## [0.0.36](https://github.com/involvex/youtube-music-cli/compare/v0.0.35...v0.0.36) (2026-02-22)
 
