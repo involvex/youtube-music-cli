@@ -7,5 +7,5 @@
 		"jsx": "react-jsx",
 		"types": ["node"]
 	},
-	"include": ["source", "test.tsx", "eslint.config.ts"]
+	"include": ["source", "test.tsx", "eslint.config.ts", "scripts/build-cli.ts"]
 }

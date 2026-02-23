@@ -39,7 +39,7 @@
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
 		"build": "tsc",
 		"bun:build": "bun build source/cli.tsx --outfile dist/index.js --target node --footer \"//Copyright (c) 2026 involvex\"",
-		"compile": "bun build --compile source/cli.tsx --outfile dist/youtube-music-cli.exe --footer '//Copyright (c) 2026 involvex' --windows-title \"YouTube Music CLI\" --windows-publisher 'involvex' --windows-icon assets/icon.ico --windows-copyright \"Copyright (c) 2026 involvex\" --windows-description \"A Commandline music player for youtube-music\"",
+		"compile": "bun scripts/build-cli.ts",
 		"dev": "bun run --bun source/cli.tsx",
 		"dev:watch": "bun run --bun --watch source/cli.tsx",
 		"format": "prettier --write .",
@@ -65,6 +65,7 @@
 	},
 	"dependencies": {
 		"@distube/ytdl-core": "^4.16.12",
+		"@types/bun": "^1.3.9",
 		"ansi-escapes": "^7.3.0",
 		"discord-rpc": "^4.0.1",
 		"ink": "^6.8.0",
