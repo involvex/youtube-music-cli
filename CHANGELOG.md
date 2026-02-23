@@ -1,3 +1,15 @@
+## [0.0.41](https://github.com/involvex/youtube-music-cli/compare/v0.0.40...v0.0.41) (2026-02-23)
+
+### Features
+
+- add shell completions for bash, zsh, powershell, and fish ([5adecc3](https://github.com/involvex/youtube-music-cli/commit/5adecc3af1cf6dae5a188c24c598e67c8260c844))
+
+## [0.0.40](https://github.com/involvex/youtube-music-cli/compare/v0.0.39...v0.0.40) (2026-02-23)
+
+### Features
+
+- enable MSIX packaging for Windows distribution ([14eafbf](https://github.com/involvex/youtube-music-cli/commit/14eafbf522f1d2fbacf7ed1243df035cd254891b))
+
 ## [0.0.39](https://github.com/involvex/youtube-music-cli/compare/v0.0.38...v0.0.39) (2026-02-23)
 
 ### Features
