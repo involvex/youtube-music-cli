@@ -1,3 +1,9 @@
+## [0.0.45](https://github.com/involvex/youtube-music-cli/compare/v0.0.44...v0.0.45) (2026-02-24)
+
+### Features
+
+- add volume fade duration setting for smoother playback transitions ([936e3e2](https://github.com/involvex/youtube-music-cli/commit/936e3e2c7ae043b26dd48a1cd6f2d26cb11b0ae2))
+
 ## [0.0.44](https://github.com/involvex/youtube-music-cli/compare/v0.0.43...v0.0.44) (2026-02-23)
 
 ### Features

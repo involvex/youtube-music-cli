@@ -1,6 +1,6 @@
 {
 	"name": "@involvex/youtube-music-cli",
-	"version": "0.0.44",
+	"version": "0.0.45",
 	"description": "- A Commandline music player for youtube-music",
 	"repository": {
 		"type": "git",
