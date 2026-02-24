@@ -514,6 +514,7 @@ function PlayerManager() {
 						gaplessPlayback: config.get('gaplessPlayback') ?? true,
 						crossfadeDuration: config.get('crossfadeDuration') ?? 0,
 						equalizerPreset: config.get('equalizerPreset') ?? 'flat',
+						volumeFadeDuration: config.get('volumeFadeDuration') ?? 0,
 					});
 
 					logger.info('PlayerManager', 'Playback started successfully', {

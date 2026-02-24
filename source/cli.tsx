@@ -182,6 +182,7 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 	const playbackOptions = {
 		volume: flags.volume ?? config.get('volume'),
 		audioNormalization: config.get('audioNormalization'),
+		volumeFadeDuration: config.get('volumeFadeDuration'),
 	};
 
 	let track: Track | null | undefined;

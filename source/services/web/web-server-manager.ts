@@ -172,6 +172,7 @@ class WebServerManager {
 		logger.debug('WebServerManager', 'Executing command from client', {action});
 
 		const playerService = getPlayerService();
+		const config = getConfigService();
 
 		// Execute command and update internal state
 		switch (action.category) {
@@ -185,6 +186,7 @@ class WebServerManager {
 					const youtubeUrl = `https://www.youtube.com/watch?v=${action.track.videoId}`;
 					void playerService.play(youtubeUrl, {
 						volume: this.internalState.volume,
+						volumeFadeDuration: config.get('volumeFadeDuration'),
 					});
 				}
 				break;
@@ -237,6 +239,7 @@ class WebServerManager {
 					const youtubeUrl = `https://www.youtube.com/watch?v=${this.internalState.currentTrack.videoId}`;
 					void playerService.play(youtubeUrl, {
 						volume: this.internalState.volume,
+						volumeFadeDuration: config.get('volumeFadeDuration'),
 					});
 				}
 				break;

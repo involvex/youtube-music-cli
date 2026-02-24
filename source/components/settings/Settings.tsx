@@ -25,12 +25,14 @@ const EQUALIZER_PRESETS: EqualizerPreset[] = [
 	'bright',
 	'warm',
 ];
+const VOLUME_FADE_PRESETS = [0, 1, 2, 3, 5];
 
 const SETTINGS_ITEMS = [
 	'Stream Quality',
 	'Audio Normalization',
 	'Gapless Playback',
 	'Crossfade Duration',
+	'Volume Fade Duration',
 	'Equalizer Preset',
 	'Notifications',
 	'Discord Rich Presence',
@@ -58,6 +60,9 @@ export default function Settings() {
 	);
 	const [crossfadeDuration, setCrossfadeDuration] = useState(
 		config.get('crossfadeDuration') ?? 0,
+	);
+	const [volumeFadeDuration, setVolumeFadeDuration] = useState(
+		config.get('volumeFadeDuration') ?? 0,
 	);
 	const [equalizerPreset, setEqualizerPreset] = useState<EqualizerPreset>(
 		config.get('equalizerPreset') ?? 'flat',
@@ -125,6 +130,15 @@ export default function Settings() {
 		config.set('crossfadeDuration', next);
 	};
 
+	const cycleVolumeFadeDuration = () => {
+		const currentIndex = VOLUME_FADE_PRESETS.indexOf(volumeFadeDuration);
+		const nextIndex =
+			currentIndex === -1 ? 0 : (currentIndex + 1) % VOLUME_FADE_PRESETS.length;
+		const next = VOLUME_FADE_PRESETS[nextIndex] ?? 0;
+		setVolumeFadeDuration(next);
+		config.set('volumeFadeDuration', next);
+	};
+
 	const cycleEqualizerPreset = () => {
 		const currentIndex = EQUALIZER_PRESETS.indexOf(equalizerPreset);
 		const nextPreset =
@@ -188,26 +202,28 @@ export default function Settings() {
 		} else if (selectedIndex === 3) {
 			cycleCrossfadeDuration();
 		} else if (selectedIndex === 4) {
-			cycleEqualizerPreset();
+			cycleVolumeFadeDuration();
 		} else if (selectedIndex === 5) {
-			toggleNotifications();
+			cycleEqualizerPreset();
 		} else if (selectedIndex === 6) {
-			toggleDiscordRpc();
+			toggleNotifications();
 		} else if (selectedIndex === 7) {
-			toggleDownloadsEnabled();
+			toggleDiscordRpc();
 		} else if (selectedIndex === 8) {
-			setIsEditingDownloadDirectory(true);
+			toggleDownloadsEnabled();
 		} else if (selectedIndex === 9) {
-			cycleDownloadFormat();
+			setIsEditingDownloadDirectory(true);
 		} else if (selectedIndex === 10) {
-			cycleSleepTimer();
+			cycleDownloadFormat();
 		} else if (selectedIndex === 11) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
+			cycleSleepTimer();
 		} else if (selectedIndex === 12) {
-			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
+			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
 		} else if (selectedIndex === 13) {
-			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
+			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
 		} else if (selectedIndex === 14) {
+			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
+		} else if (selectedIndex === 15) {
 			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		}
 	};
@@ -294,7 +310,7 @@ export default function Settings() {
 				</Text>
 			</Box>
 
-			{/* Equalizer Preset */}
+			{/* Volume Fade Duration */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -305,11 +321,12 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 4}
 				>
-					Equalizer: {formatEqualizerLabel(equalizerPreset)}
+					Volume Fade:{' '}
+					{volumeFadeDuration === 0 ? 'Off' : `${volumeFadeDuration}s`}
 				</Text>
 			</Box>
 
-			{/* Notifications */}
+			{/* Equalizer Preset */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -320,11 +337,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 5}
 				>
-					Desktop Notifications: {notifications ? 'ON' : 'OFF'}
+					Equalizer: {formatEqualizerLabel(equalizerPreset)}
 				</Text>
 			</Box>
 
-			{/* Discord Rich Presence */}
+			{/* Notifications */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -335,11 +352,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 6}
 				>
-					Discord Rich Presence: {discordRpc ? 'ON' : 'OFF'}
+					Desktop Notifications: {notifications ? 'ON' : 'OFF'}
 				</Text>
 			</Box>
 
-			{/* Downloads Enabled */}
+			{/* Discord Rich Presence */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -350,13 +367,28 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 7}
 				>
+					Discord Rich Presence: {discordRpc ? 'ON' : 'OFF'}
+				</Text>
+			</Box>
+
+			{/* Downloads Enabled */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 8 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 8 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 8}
+				>
 					Download Feature: {downloadsEnabled ? 'ON' : 'OFF'}
 				</Text>
 			</Box>
 
 			{/* Download Folder */}
 			<Box paddingX={1}>
-				{isEditingDownloadDirectory && selectedIndex === 8 ? (
+				{isEditingDownloadDirectory && selectedIndex === 9 ? (
 					<TextInput
 						value={downloadDirectory}
 						onChange={setDownloadDirectory}
@@ -376,12 +408,12 @@ export default function Settings() {
 				) : (
 					<Text
 						backgroundColor={
-							selectedIndex === 8 ? theme.colors.primary : undefined
+							selectedIndex === 9 ? theme.colors.primary : undefined
 						}
 						color={
-							selectedIndex === 8 ? theme.colors.background : theme.colors.text
+							selectedIndex === 9 ? theme.colors.background : theme.colors.text
 						}
-						bold={selectedIndex === 8}
+						bold={selectedIndex === 9}
 					>
 						Download Folder: {downloadDirectory}
 					</Text>
@@ -392,12 +424,12 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 9 ? theme.colors.primary : undefined
+						selectedIndex === 10 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 9 ? theme.colors.background : theme.colors.text
+						selectedIndex === 10 ? theme.colors.background : theme.colors.text
 					}
-					bold={selectedIndex === 9}
+					bold={selectedIndex === 10}
 				>
 					Download Format: {downloadFormat.toUpperCase()}
 				</Text>
@@ -407,37 +439,22 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 10 ? theme.colors.primary : undefined
+						selectedIndex === 11 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 10
+						selectedIndex === 11
 							? theme.colors.background
 							: isActive
 								? theme.colors.accent
 								: theme.colors.text
 					}
-					bold={selectedIndex === 10}
+					bold={selectedIndex === 11}
 				>
 					{sleepTimerLabel}
 				</Text>
 			</Box>
 
 			{/* Import Playlists */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 11 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 11 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 11}
-				>
-					Import Playlists →
-				</Text>
-			</Box>
-
-			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -448,11 +465,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 12}
 				>
-					Export Playlists →
+					Import Playlists →
 				</Text>
 			</Box>
 
-			{/* Custom Keybindings */}
+			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -463,11 +480,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 13}
 				>
-					Custom Keybindings →
+					Export Playlists →
 				</Text>
 			</Box>
 
-			{/* Manage Plugins */}
+			{/* Custom Keybindings */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -477,6 +494,21 @@ export default function Settings() {
 						selectedIndex === 14 ? theme.colors.background : theme.colors.text
 					}
 					bold={selectedIndex === 14}
+				>
+					Custom Keybindings →
+				</Text>
+			</Box>
+
+			{/* Manage Plugins */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 15 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 15 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 15}
 				>
 					Manage Plugins
 				</Text>

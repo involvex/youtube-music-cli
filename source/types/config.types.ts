@@ -41,6 +41,7 @@ export interface Config {
 	audioNormalization?: boolean;
 	gaplessPlayback?: boolean;
 	crossfadeDuration?: number;
+	volumeFadeDuration?: number;
 	equalizerPreset?: EqualizerPreset;
 	notifications?: boolean;
 	scrobbling?: {

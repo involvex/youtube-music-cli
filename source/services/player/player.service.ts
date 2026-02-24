@@ -11,6 +11,7 @@ export type PlayOptions = {
 	gaplessPlayback?: boolean;
 	crossfadeDuration?: number;
 	equalizerPreset?: EqualizerPreset;
+	volumeFadeDuration?: number;
 };
 
 export type MpvArgsOptions = PlayOptions & {
@@ -24,11 +25,17 @@ export function buildMpvArgs(
 ): string[] {
 	const gapless = options.gaplessPlayback ?? true;
 	const crossfadeDuration = Math.max(0, options.crossfadeDuration ?? 0);
+	const fadeDuration = Math.max(0, options.volumeFadeDuration ?? 0);
 	const eqPreset = options.equalizerPreset ?? 'flat';
 	const audioFilters: string[] = [];
 
 	if (options.audioNormalization) {
 		audioFilters.push('dynaudnorm');
+	}
+
+	if (fadeDuration > 0) {
+		audioFilters.push(`afade=t=in:st=0:d=${fadeDuration}`);
+		audioFilters.push(`afade=t=out:d=${fadeDuration}`);
 	}
 
 	if (crossfadeDuration > 0) {
