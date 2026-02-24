@@ -1,3 +1,9 @@
+## [0.0.46](https://github.com/involvex/youtube-music-cli/compare/v0.0.45...v0.0.46) (2026-02-24)
+
+### Bug Fixes
+
+- keep autoplay running and document completions ([9356c5d](https://github.com/involvex/youtube-music-cli/commit/9356c5db6583cd926a78af15302cdac5bde65aab))
+
 ## [0.0.45](https://github.com/involvex/youtube-music-cli/compare/v0.0.44...v0.0.45) (2026-02-24)
 
 ### Features

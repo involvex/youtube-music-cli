@@ -2,7 +2,7 @@
 	"appName": "youtube-music-cli",
 	"displayName": "YouTube Music CLI",
 	"publisher": "CN=involvex",
-	"version": "0.0.45.0",
+	"version": "0.0.46.0",
 	"description": "A command-line music player for YouTube Music",
 	"executable": "youtube-music-cli.exe",
 	"prebuiltExecutablePath": "./dist/youtube-music-cli.exe",
