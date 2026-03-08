@@ -1,3 +1,9 @@
+## [0.0.50](https://github.com/involvex/youtube-music-cli/compare/v0.0.49...v0.0.50) (2026-03-08)
+
+### Features
+
+- **ui:** add genres and new releases navigation ([f0400d2](https://github.com/involvex/youtube-music-cli/commit/f0400d2e2927cddb6fb441d35e37a2903c5de890))
+
 ## [0.0.49](https://github.com/involvex/youtube-music-cli/compare/v0.0.48...v0.0.49) (2026-03-08)
 
 ### Features
