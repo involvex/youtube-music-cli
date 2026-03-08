@@ -1,5 +1,6 @@
 // Plugin system type definitions
 import type {Track} from './youtube-music.types.ts';
+export type {Track};
 import type {ReactElement} from 'react';
 
 /**
@@ -104,7 +105,9 @@ export interface PluginManifest {
 	permissions: PluginPermission[];
 
 	// Supported hooks
-	hooks?: Array<PlayerEvent['type'] | NavigationEvent['type']>;
+	hooks?: Array<
+		PlayerEvent['type'] | NavigationEvent['type'] | AudioStreamEvent['type']
+	>;
 
 	// UI extensions
 	ui?: {
@@ -202,7 +205,10 @@ export interface PluginAudioAPI {
 		track: Track,
 	) => Promise<string> | string | null;
 	onStreamRequest: (
-		handler: (url: string, track: Track) => Promise<string> | string | null,
+		handler: (
+			url: string,
+			track: Track,
+		) => Promise<string | null> | string | null,
 	) => void;
 }
 

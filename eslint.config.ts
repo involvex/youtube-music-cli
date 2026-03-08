@@ -7,7 +7,7 @@ import js from '@eslint/js';
 
 export default defineConfig([
 	{
-		ignores: ['templates/**/*', 'plugins/**/*', 'scripts/**/*'],
+		ignores: ['templates/**/*', 'plugins/**/*', 'scripts/**/*', 'dist/**/*'],
 	},
 	{
 		files: ['**/*.{js,mjs,cjs}'],
