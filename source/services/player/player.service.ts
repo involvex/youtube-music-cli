@@ -390,15 +390,36 @@ class PlayerService {
 				}
 
 				this.isPlaying = true;
+				let isResolved = false;
+
+				const handleSuccess = () => {
+					if (!isResolved) {
+						isResolved = true;
+						resolve();
+					}
+				};
+
+				const handleError = (err: Error) => {
+					if (!isResolved) {
+						isResolved = true;
+						reject(err);
+					}
+				};
 
 				// Connect to IPC socket after a short delay (let mpv start)
 				setTimeout(() => {
-					void this.connectIpc().catch(error => {
-						logger.warn('PlayerService', 'Failed to connect IPC', {
-							error: error.message,
+					this.connectIpc()
+						.then(() => {
+							// IPC connected successfully - we consider playback started
+							handleSuccess();
+						})
+						.catch(error => {
+							logger.warn('PlayerService', 'Failed to connect IPC', {
+								error: error.message,
+							});
+							// Continue without IPC - basic playback will still work
+							handleSuccess();
 						});
-						// Continue without IPC - basic playback will still work
-					});
 				}, 200);
 
 				// Handle stdout (should be minimal with --really-quiet)
@@ -432,10 +453,10 @@ class PlayerService {
 
 					if (code === 0) {
 						// Normal exit (track finished)
-						resolve();
+						handleSuccess();
 					} else if (code !== null && code > 0) {
 						// Error exit
-						reject(new Error(`mpv exited with code ${code}`));
+						handleError(new Error(`mpv exited with code ${code}`));
 					}
 					// If killed by signal, don't reject (user stopped it)
 				});
@@ -452,7 +473,7 @@ class PlayerService {
 					}
 
 					if ('code' in error && error.code === 'ENOENT') {
-						reject(
+						handleError(
 							new Error(
 								"mpv executable not found. Install mpv and ensure it's in PATH (or set MPV_PATH).",
 							),
@@ -460,7 +481,7 @@ class PlayerService {
 						return;
 					}
 
-					reject(error);
+					handleError(error);
 				});
 
 				logger.info('PlayerService', 'mpv process started successfully');

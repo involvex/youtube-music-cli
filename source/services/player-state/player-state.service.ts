@@ -35,12 +35,25 @@ const defaultState: PersistedPlayerState = {
 	lastUpdated: new Date().toISOString(),
 };
 
+let saveLock = Promise.resolve();
+
 /**
  * Saves player state to disk
  */
 export async function savePlayerState(
 	state: Partial<PersistedPlayerState>,
 ): Promise<void> {
+	// Mutex: Wait for previous save to finish
+	const currentLock = saveLock;
+	let releaseLock: () => void = () => {};
+	const newLock = new Promise<void>(resolve => {
+		releaseLock = resolve;
+	});
+	saveLock = newLock;
+
+	// Wait for the previous operation to complete
+	await currentLock.catch(() => {});
+
 	try {
 		// Ensure config directory exists
 		if (!existsSync(CONFIG_DIR)) {
@@ -84,6 +97,8 @@ export async function savePlayerState(
 			error: error instanceof Error ? error.message : String(error),
 			stack: error instanceof Error ? error.stack : undefined,
 		});
+	} finally {
+		releaseLock();
 	}
 }
 
