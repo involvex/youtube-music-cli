@@ -1,3 +1,9 @@
+## [0.0.57](https://github.com/involvex/youtube-music-cli/compare/v0.0.56...v0.0.57) (2026-03-09)
+
+### Bug Fixes
+
+- **autoplay:** prevent infinite skip loop by adding progress and playing guards to track completion effect ([b06de96](https://github.com/involvex/youtube-music-cli/commit/b06de96a76c8fb18481eba33917515e042cdec61))
+
 ## [0.0.56](https://github.com/involvex/youtube-music-cli/compare/v0.0.55...v0.0.56) (2026-03-09)
 
 ### Bug Fixes
