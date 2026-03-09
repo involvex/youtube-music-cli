@@ -647,7 +647,14 @@ function PlayerManager() {
 	// Handle track completion
 	const autoAdvanceRef = useRef(false);
 	useEffect(() => {
-		if (state.duration <= 0) {
+		// Guard: Don't advance if duration not loaded or not currently playing
+		if (state.duration <= 0 || !state.isPlaying) {
+			autoAdvanceRef.current = false;
+			return;
+		}
+
+		// Guard: Only advance if near the very end of the track (within 2s)
+		if (state.progress < state.duration - 2) {
 			autoAdvanceRef.current = false;
 			return;
 		}
@@ -680,6 +687,7 @@ function PlayerManager() {
 	}, [
 		state.duration,
 		state.progress,
+		state.isPlaying,
 		state.repeat,
 		state.queue.length,
 		state.queuePosition,

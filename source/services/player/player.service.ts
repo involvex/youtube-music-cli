@@ -196,13 +196,20 @@ class PlayerService {
 						attempt: this.ipcConnectRetries + 1,
 					});
 
-					if (this.ipcConnectRetries < this.maxIpcRetries) {
+					const maxRetries =
+						process.platform === 'win32'
+							? this.maxIpcRetries * 2
+							: this.maxIpcRetries;
+					if (this.ipcConnectRetries < maxRetries) {
 						this.ipcConnectRetries++;
-						setTimeout(attemptConnect, 100); // Retry after 100ms
+						setTimeout(
+							attemptConnect,
+							process.platform === 'win32' ? 250 : 100,
+						);
 					} else {
 						reject(
 							new Error(
-								`Failed to connect to IPC socket after ${this.maxIpcRetries} attempts`,
+								`Failed to connect to IPC socket after ${maxRetries} attempts`,
 							),
 						);
 					}
@@ -406,7 +413,8 @@ class PlayerService {
 					}
 				};
 
-				// Connect to IPC socket after a short delay (let mpv start)
+				// Connect to IPC socket after a delay (longer on Windows)
+				const ipcDelay = process.platform === 'win32' ? 500 : 200;
 				setTimeout(() => {
 					this.connectIpc()
 						.then(() => {
@@ -420,7 +428,7 @@ class PlayerService {
 							// Continue without IPC - basic playback will still work
 							handleSuccess();
 						});
-				}, 200);
+				}, ipcDelay);
 
 				// Handle stdout (should be minimal with --really-quiet)
 				spawnedProcess.stdout.on('data', (data: Buffer) => {
@@ -515,7 +523,7 @@ class PlayerService {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
-		} else if (!this.isPlaying && this.currentUrl) {
+		} else if (!this.isPlaying && !this.mpvProcess && this.currentUrl) {
 			void this.play(this.currentUrl, {volume: this.currentVolume});
 		}
 	}
