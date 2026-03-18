@@ -47,7 +47,44 @@ export function useKeyBinding(
  */
 export function KeyboardManager() {
 	const {blockCount} = useKeyboardBlockContext();
+
+	useEffect(() => {
+		// Explicitly disable various terminal mouse reporting modes to prevent
+		// interference from mouse clicks/scrolls being misinterpreted as keyboard input.
+		// Standard, VT200, Any-event, SGR, and URXVT modes.
+		process.stdout.write(
+			'\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l',
+		);
+	}, []);
+
 	useInput((input, key) => {
+		// 1. Filter out mouse sequences and other non-keyboard input.
+		// Special keys recognized by Ink (Arrows, Return, etc.) are allowed even if they start with \x1b.
+		const isKnownSpecialKey =
+			key.upArrow ||
+			key.downArrow ||
+			key.leftArrow ||
+			key.rightArrow ||
+			key.return ||
+			key.escape ||
+			key.backspace ||
+			key.delete ||
+			key.tab ||
+			key.pageUp ||
+			key.pageDown ||
+			key.home ||
+			key.end;
+
+		// Ignore ANSI sequences that Ink didn't recognize as special keys.
+		if (input.startsWith('\x1b') && !isKnownSpecialKey) {
+			return;
+		}
+
+		// Ignore multi-character input that isn't recognized (likely mouse chunks or paste).
+		if (input.length > 1 && !isKnownSpecialKey) {
+			return;
+		}
+
 		if (blockCount > 0) {
 			// When keyboard input is blocked (e.g., within a focused text input),
 			// check if any entry has bypassBlock flag and matches this key.
@@ -79,7 +116,18 @@ export function KeyboardManager() {
 								const hasCtrl = parts.includes('ctrl');
 								const hasMeta = parts.includes('meta') || parts.includes('alt');
 								const hasShift = parts.includes('shift');
-								const mainKey = parts[parts.length - 1];
+
+								// Robust main key detection (handles '+' correctly)
+								let mainKey = '';
+								if (lowerBinding === '+') {
+									mainKey = '+';
+								} else if (lowerBinding.endsWith('++')) {
+									mainKey = '+';
+								} else if (lowerBinding.endsWith('+') && parts.length > 1) {
+									mainKey = '+';
+								} else {
+									mainKey = parts[parts.length - 1]!;
+								}
 
 								if (hasCtrl && !key.ctrl) return false;
 								if (hasMeta && !key.meta) return false;
@@ -108,11 +156,10 @@ export function KeyboardManager() {
 					}
 				}
 			}
-			// If no bypass handler matched, skip all global shortcuts
 			return;
 		}
 
-		// Debug logging for key presses (helps diagnose binding issues)
+		// Debug logging for key presses
 		if (input || key.ctrl || key.meta || key.shift) {
 			logger.debug('KeyboardManager', 'Key pressed', {
 				input,
@@ -128,79 +175,88 @@ export function KeyboardManager() {
 
 		// Global quit handling
 		if (key.ctrl && input === 'c') {
-			// Exit cleanly without clearing screen (let Ink handle cleanup)
 			process.exit(0);
 		}
 
-		// Note: Ctrl+L refresh removed to fix scroll-to-top issue
-		// Direct ANSI escapes bypass Ink's rendering and cause scrolling problems
-
-		// Dispatch to all registered handlers
+		// Dispatch to registered handlers
 		for (const entry of registry) {
 			const {keys, handler} = entry;
 
 			for (const binding of keys) {
 				const lowerBinding = binding.toLowerCase();
 
-				// Handle special keys
-				const isMatch =
-					(lowerBinding === 'escape' && key.escape) ||
-					((lowerBinding === 'return' || lowerBinding === 'enter') &&
-						key.return) ||
-					(lowerBinding === 'backspace' && key.backspace) ||
-					(lowerBinding === 'tab' && key.tab) ||
+				// A. Match Special Keys (Highest precedence)
+				const isSpecialMatch =
 					(lowerBinding === 'up' && key.upArrow) ||
 					(lowerBinding === 'down' && key.downArrow) ||
 					(lowerBinding === 'left' && key.leftArrow) ||
 					(lowerBinding === 'right' && key.rightArrow) ||
+					(lowerBinding === 'escape' && key.escape) ||
+					(lowerBinding === 'return' && key.return) ||
+					(lowerBinding === 'enter' && key.return) ||
+					(lowerBinding === 'tab' && key.tab) ||
+					(lowerBinding === 'backspace' && key.backspace) ||
 					(lowerBinding === 'pageup' && key.pageUp) ||
-					(lowerBinding === 'pagedown' && key.pageDown) ||
-					// Handle combinations
-					(() => {
-						const parts = lowerBinding.split('+');
-						const hasCtrl = parts.includes('ctrl');
-						const hasMeta = parts.includes('meta') || parts.includes('alt');
-						const hasShift = parts.includes('shift');
-						const mainKey = parts[parts.length - 1];
-						const uppercaseShiftInput =
-							input.length === 1 &&
-							input === input.toUpperCase() &&
-							input.toLowerCase() === mainKey;
+					(lowerBinding === 'pagedown' && key.pageDown);
 
-						if (hasCtrl && !key.ctrl) return false;
-						if (hasMeta && !key.meta) return false;
-						if (hasShift && !key.shift && !uppercaseShiftInput) return false;
-						// Block lowercase-only bindings when shift is active or the input is
-						// an uppercase letter (which implies Shift was held).
-						// Example: the 'p' (Plugins) binding must not fire when the user
-						// presses Shift+P, which should only trigger 'shift+p' (Playlists).
-						// Note: `input !== input.toLowerCase()` is true only for uppercase
-						// alphabetical characters, avoiding false positives on symbols/digits.
-						if (
-							!hasShift &&
-							(key.shift ||
-								(input.length === 1 && input !== input.toLowerCase()))
-						)
-							return false;
-
-						// Check the actual key
-						if (mainKey === 'up' && key.upArrow) return true;
-						if (mainKey === 'down' && key.downArrow) return true;
-						if (mainKey === 'left' && key.leftArrow) return true;
-						if (mainKey === 'right' && key.rightArrow) return true;
-
-						// Handle '=' and '+' specially (+ is shift+=)
-						if (mainKey === '=' && input === '=') return true;
-						if (mainKey === '+' && input === '+') return true;
-						if (mainKey === '+' && key.shift && input === '=') return true; // shift+= produces '+'
-
-						return input.toLowerCase() === mainKey && !key.ctrl && !key.meta;
-					})();
-
-				if (isMatch) {
+				if (isSpecialMatch) {
 					handler();
-					// We don't break here because multiple handlers might want to react
-					// but usually only one does.
+					return; // STOP: prevent double-dispatch
+				}
+
+				// B. Match Combination and Character keys
+				const parts = lowerBinding.split('+');
+				const hasCtrl = parts.includes('ctrl');
+				const hasMeta = parts.includes('meta') || parts.includes('alt');
+				const hasShift = parts.includes('shift');
+
+				// Robust main key detection (handles '+')
+				let mainKey = '';
+				if (lowerBinding === '+') {
+					mainKey = '+';
+				} else if (lowerBinding.endsWith('++')) {
+					mainKey = '+';
+				} else if (lowerBinding.endsWith('+') && parts.length > 1) {
+					mainKey = '+';
+				} else {
+					mainKey = parts[parts.length - 1]!;
+				}
+
+				// Check modifiers
+				if (hasCtrl && !key.ctrl) continue;
+				if (hasMeta && !key.meta) continue;
+
+				// Shift handling: block lowercase letter bindings when shift is active,
+				// but allow symbol keys like '+' or '=' to work regardless.
+				const isLetter = /^[a-z]$/.test(mainKey);
+				if (hasShift) {
+					const uppercaseMatch =
+						input.length === 1 &&
+						input === input.toUpperCase() &&
+						input.toLowerCase() === mainKey;
+					if (!key.shift && !uppercaseMatch) continue;
+				} else if (
+					isLetter &&
+					(key.shift || (input.length === 1 && input !== input.toLowerCase()))
+				) {
+					// Block 'p' if user typed 'P'
+					continue;
+				}
+
+				// Check for symbol/char match
+				const inputLower = input.toLowerCase();
+				const isSymbolMatch =
+					(mainKey === '=' && input === '=') ||
+					(mainKey === '+' && input === '+') ||
+					(mainKey === '+' && key.shift && input === '=') ||
+					(mainKey === '-' && input === '-');
+
+				if (
+					isSymbolMatch ||
+					(inputLower === mainKey && !key.ctrl && !key.meta)
+				) {
+					handler();
+					return; // STOP: prevent double-dispatch
 				}
 			}
 		}

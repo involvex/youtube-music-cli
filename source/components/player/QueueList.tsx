@@ -46,7 +46,7 @@ function QueueList() {
 				const title = truncate(track.title, getTruncateLength(40));
 
 				return (
-					<Box key={track.videoId}>
+					<Box key={`${track.videoId}-${index}`}>
 						<Text color={theme.colors.dim}>{index + 1}. </Text>
 						<Text color={isSelected ? theme.colors.primary : theme.colors.text}>
 							{title}

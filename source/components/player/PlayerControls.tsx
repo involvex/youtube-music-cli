@@ -63,14 +63,6 @@ export default function PlayerControls() {
 		config.get('equalizerPreset') ?? 'flat',
 	);
 
-	// DEBUG: Log when callbacks change (detect instability)
-	useEffect(() => {
-		// Temporarily output to stderr to debug without triggering Ink re-render
-		process.stderr.write(
-			`[PlayerControls] volumeUp callback: ${typeof volumeUp}\n`,
-		);
-	}, [volumeUp, instanceId]);
-
 	const handlePlayPause = () => {
 		if (playerState.isPlaying) {
 			pause();
@@ -118,8 +110,10 @@ export default function PlayerControls() {
 	useKeyBinding(KEYBINDINGS.PLAY_PAUSE, handlePlayPause);
 	useKeyBinding(KEYBINDINGS.NEXT, next);
 	useKeyBinding(KEYBINDINGS.PREVIOUS, previous);
-	useKeyBinding(KEYBINDINGS.VOLUME_UP, volumeUp);
-	useKeyBinding(KEYBINDINGS.VOLUME_DOWN, volumeDown);
+	useKeyBinding(['up'], volumeUp);
+	useKeyBinding(['down'], volumeDown);
+	useKeyBinding(['left'], previous);
+	useKeyBinding(['right'], next);
 	useKeyBinding(KEYBINDINGS.SPEED_UP, speedUp);
 	useKeyBinding(KEYBINDINGS.SPEED_DOWN, speedDown);
 	useKeyBinding(KEYBINDINGS.SHUFFLE, toggleShuffle);
