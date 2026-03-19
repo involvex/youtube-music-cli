@@ -4,6 +4,7 @@ import {PluginsProvider} from './stores/plugins.store.tsx';
 import MainLayout from './components/layouts/MainLayout.tsx';
 import {ThemeProvider} from './contexts/theme.context.tsx';
 import {PlayerProvider} from './stores/player.store.tsx';
+import {FavoritesProvider} from './stores/favorites.store.tsx';
 import {HistoryProvider} from './stores/history.store.tsx';
 import {ErrorBoundary} from './components/common/ErrorBoundary.tsx';
 import {KeyboardManager} from './hooks/useKeyboard.ts';
@@ -19,10 +20,17 @@ import {getConfigService} from './services/config/config.service.ts';
 import {getNotificationService} from './services/notification/notification.service.ts';
 import type {Track} from './types/youtube-music.types.ts';
 
+import {useKeyBinding} from './hooks/useKeyboard.ts';
+import {KEYBINDINGS} from './utils/constants.ts';
+
 function Initializer({flags}: {flags?: Flags}) {
 	const {dispatch} = useNavigation();
 	const {play} = usePlayer();
 	const {getTrack, getPlaylist} = useYouTubeMusic();
+
+	useKeyBinding(KEYBINDINGS.FAVORITES_VIEW, () => {
+		dispatch({category: 'NAVIGATE', view: VIEW.FAVORITES});
+	});
 
 	useEffect(() => {
 		// Check for background playback state on startup
@@ -146,25 +154,27 @@ export default function Main({flags}: {flags?: Flags}) {
 		<ErrorBoundary>
 			<ThemeProvider>
 				<PlayerProvider>
-					<HistoryProvider>
-						<NavigationProvider>
-							<PluginsProvider>
-								<KeyboardBlockProvider>
-									<Box flexDirection="column">
-										<KeyboardManager />
-										{flags?.headless ? (
-											<HeadlessLayout flags={flags} />
-										) : (
-											<>
-												<Initializer flags={flags} />
-												<MainLayout />
-											</>
-										)}
-									</Box>
-								</KeyboardBlockProvider>
-							</PluginsProvider>
-						</NavigationProvider>
-					</HistoryProvider>
+					<FavoritesProvider>
+						<HistoryProvider>
+							<NavigationProvider>
+								<PluginsProvider>
+									<KeyboardBlockProvider>
+										<Box flexDirection="column">
+											<KeyboardManager />
+											{flags?.headless ? (
+												<HeadlessLayout flags={flags} />
+											) : (
+												<>
+													<Initializer flags={flags} />
+													<MainLayout />
+												</>
+											)}
+										</Box>
+									</KeyboardBlockProvider>
+								</PluginsProvider>
+							</NavigationProvider>
+						</HistoryProvider>
+					</FavoritesProvider>
 				</PlayerProvider>
 			</ThemeProvider>
 		</ErrorBoundary>

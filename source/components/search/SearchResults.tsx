@@ -6,8 +6,10 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useFavorites} from '../../stores/favorites.store.tsx';
 import {usePlaylist} from '../../hooks/usePlaylist.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
+import {ICONS} from '../../utils/icons.ts';
 import {truncate} from '../../utils/format.ts';
 import {useCallback, useRef, useEffect, useState} from 'react';
 import {logger} from '../../services/logger/logger.service.ts';
@@ -36,6 +38,7 @@ function SearchResults({
 	const {theme} = useTheme();
 	const {dispatch} = useNavigation();
 	const {play, dispatch: playerDispatch} = usePlayer();
+	const {isFavorite, toggleFavorite} = useFavorites();
 	const {columns} = useTerminalSize();
 	const musicService = getMusicService();
 	const downloadService = getDownloadService();
@@ -311,6 +314,13 @@ function SearchResults({
 	useKeyBinding(KEYBINDINGS.DOWNLOAD, () => {
 		void downloadSelected();
 	});
+	useKeyBinding(KEYBINDINGS.TOGGLE_FAVORITE, () => {
+		if (!isActive) return;
+		const selected = results[selectedIndex];
+		if (selected && selected.type === 'song') {
+			toggleFavorite(selected.data as Track);
+		}
+	});
 
 	// Note: Removed redundant useEffect that was syncing selectedIndex to dispatch
 	// This was causing unnecessary re-renders. The selectedIndex is already managed
@@ -332,6 +342,11 @@ function SearchResults({
 
 				const title =
 					'title' in data ? data.title : 'name' in data ? data.name : 'Unknown';
+
+				const isFav =
+					result.type === 'song' && 'videoId' in data
+						? isFavorite((data as Track).videoId)
+						: false;
 
 				return (
 					<Box
@@ -357,6 +372,7 @@ function SearchResults({
 							color={isSelected ? theme.colors.primary : theme.colors.text}
 							bold={isSelected}
 						>
+							{isFav ? `${ICONS.HEART} ` : ''}
 							{truncate(title, maxTitleWidth)}
 						</Text>
 					</Box>

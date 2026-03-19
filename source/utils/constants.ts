@@ -65,6 +65,7 @@ export const VIEW = {
 	HISTORY: 'history',
 	GENRES: 'genres',
 	NEW_RELEASES: 'new_releases',
+	FAVORITES: 'favorites',
 } as const;
 
 // Search types
@@ -83,6 +84,8 @@ export const KEYBINDINGS = {
 	HELP: ['?'],
 	SEARCH: ['/'],
 	PLAYLISTS: ['shift+p'],
+	FAVORITES_VIEW: ['shift+f'],
+	TOGGLE_FAVORITE: ['f'],
 	SUGGESTIONS: ['g'],
 	HISTORY: ['shift+h'],
 	SETTINGS: [','],

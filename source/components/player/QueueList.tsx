@@ -4,12 +4,15 @@ import React from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useFavorites} from '../../stores/favorites.store.tsx';
+import {ICONS} from '../../utils/icons.ts';
 import {truncate} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 
 function QueueList() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
+	const {isFavorite} = useFavorites();
 	const {columns} = useTerminalSize();
 	const [selectedIndex, _setSelectedIndex] = useState(0);
 
@@ -49,6 +52,7 @@ function QueueList() {
 					<Box key={`${track.videoId}-${index}`}>
 						<Text color={theme.colors.dim}>{index + 1}. </Text>
 						<Text color={isSelected ? theme.colors.primary : theme.colors.text}>
+							{isFavorite(track.videoId) ? `${ICONS.HEART} ` : ''}
 							{title}
 						</Text>
 						<Text color={theme.colors.dim}> • {artists}</Text>

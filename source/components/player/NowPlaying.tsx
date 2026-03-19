@@ -1,6 +1,7 @@
 // Now playing component
 import {Box, Text} from 'ink';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useFavorites} from '../../stores/favorites.store.tsx';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {formatTime} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
@@ -11,6 +12,7 @@ import {ICONS} from '../../utils/icons.ts';
 export default function NowPlaying() {
 	const {theme} = useTheme();
 	const {state: playerState} = usePlayer();
+	const {isFavorite} = useFavorites();
 	const {columns} = useTerminalSize();
 	const sleepTimer = getSleepTimerService();
 	const [sleepRemaining, setSleepRemaining] = useState<number | null>(null);
@@ -66,6 +68,7 @@ export default function NowPlaying() {
 			{/* Title & Artist on same line if space allows */}
 			<Box>
 				<Text bold color={theme.colors.primary}>
+					{isFavorite(track.videoId) ? `${ICONS.HEART} ` : ''}
 					{track.title}
 				</Text>
 				<Text color={theme.colors.dim}> • </Text>

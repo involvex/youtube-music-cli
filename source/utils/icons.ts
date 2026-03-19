@@ -28,6 +28,7 @@ export const ICONS = {
 
 	// Status
 	VOLUME: '♪', // U+266A
+	HEART: '♥', // U+2665
 
 	// Autoplay / radio
 	AUTOPLAY: '∞', // U+221E

@@ -9,6 +9,7 @@ import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import SearchLayout from './SearchLayout.tsx';
 import PlayerLayout from './PlayerLayout.tsx';
 import MiniPlayerLayout from './MiniPlayerLayout.tsx';
+import FavoritesLayout from './FavoritesLayout.tsx';
 import PluginsLayout from './PluginsLayout.tsx';
 import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
@@ -212,6 +213,9 @@ function MainLayout() {
 
 			case 'settings':
 				return <Settings key="settings" />;
+
+			case 'favorites':
+				return <FavoritesLayout key="favorites" />;
 
 			case 'plugins':
 				return <PluginsLayout key="plugins" />;
