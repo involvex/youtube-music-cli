@@ -280,6 +280,7 @@ export function playerReducer(
 				repeat: action.repeat,
 				autoplay: action.autoplay ?? true,
 				isPlaying: false, // Don't auto-play restored state
+				progress: action.progress ?? 0,
 				abLoop: {a: null, b: null},
 			};
 
@@ -530,6 +531,7 @@ function PlayerManager() {
 						equalizerPreset: config.get('equalizerPreset') ?? 'flat',
 						volumeFadeDuration: config.get('volumeFadeDuration') ?? 0,
 						duration: track.duration,
+						startPosition: state.progress > 0 ? state.progress : undefined,
 					});
 
 					logger.info('PlayerManager', 'Playback started successfully', {
