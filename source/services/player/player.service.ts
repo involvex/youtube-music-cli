@@ -13,6 +13,7 @@ export type PlayOptions = {
 	equalizerPreset?: EqualizerPreset;
 	volumeFadeDuration?: number;
 	duration?: number;
+	startPosition?: number;
 };
 
 export type MpvArgsOptions = PlayOptions & {
@@ -72,6 +73,10 @@ export function buildMpvArgs(
 
 	if (options.proxy) {
 		mpvArgs.push(`--http-proxy=${options.proxy}`);
+	}
+
+	if (options.startPosition && options.startPosition > 0) {
+		mpvArgs.push(`--start=${Math.floor(options.startPosition)}`);
 	}
 
 	mpvArgs.push(url);
@@ -332,11 +337,11 @@ class PlayerService {
 		const videoIdMatch = url.match(/[?&]v=([^&]+)/);
 		const videoId = videoIdMatch ? videoIdMatch[1] : null;
 
-		// Guard: Don't spawn if same track already playing
-		if (this.currentTrackId === videoId && this.mpvProcess && this.isPlaying) {
+		// Guard: Don't spawn if same track already loaded
+		if (this.currentTrackId === videoId && this.mpvProcess) {
 			logger.info(
 				'PlayerService',
-				'Same track already playing, skipping spawn',
+				'Same track already loaded, skipping spawn',
 				{
 					videoId,
 				},
@@ -381,6 +386,7 @@ class PlayerService {
 					gaplessPlayback: options?.gaplessPlayback,
 					crossfadeDuration: options?.crossfadeDuration,
 					equalizerPreset: options?.equalizerPreset,
+					startPosition: options?.startPosition,
 				});
 
 				// Capture process in local var so stale exit handlers from a killed
@@ -514,8 +520,8 @@ class PlayerService {
 
 	resume(): void {
 		logger.debug('PlayerService', 'resume() called');
-		this.isPlaying = true;
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
+			this.isPlaying = true;
 			this.sendIpcCommand(['set_property', 'pause', false]);
 			// Reapply volume after resume to ensure audio isn't muted
 			if (this.currentVolume !== undefined) {
@@ -523,7 +529,7 @@ class PlayerService {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
-		} else if (!this.isPlaying && !this.mpvProcess && this.currentUrl) {
+		} else if (!this.mpvProcess && this.currentUrl) {
 			void this.play(this.currentUrl, {volume: this.currentVolume});
 		}
 	}
