@@ -2,6 +2,7 @@
 import type {Playlist} from './youtube-music.types.ts';
 import type {Theme} from './theme.types.ts';
 import type {WebServerConfig} from './web.types.ts';
+import type {LLMConfig, LLMUsage, ChatMessage} from './llm.types.ts';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 export type DownloadFormat = 'mp3' | 'm4a';
@@ -66,4 +67,8 @@ export interface Config {
 		timestamp?: string;
 	};
 	lastVersionCheck?: string;
+	llmEnabled?: boolean;
+	llm?: LLMConfig;
+	llmUsage?: LLMUsage;
+	llmChatHistory?: ChatMessage[];
 }

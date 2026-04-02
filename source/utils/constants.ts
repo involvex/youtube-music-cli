@@ -67,6 +67,8 @@ export const VIEW = {
 	NEW_RELEASES: 'new_releases',
 	FAVORITES: 'favorites',
 	HOME: 'home',
+	AI_CHAT: 'ai_chat',
+	AI_RECOMMENDATIONS: 'ai_recommendations',
 } as const;
 
 // Search types
@@ -94,6 +96,8 @@ export const KEYBINDINGS = {
 	PLUGINS: ['p'],
 	DETACH: ['shift+q'],
 	RESUME_BACKGROUND: ['shift+r'],
+	AI_CHAT: ['a'],
+	AI_RECOMMENDATIONS: ['shift+a'],
 
 	// Player
 	PLAY_PAUSE: [' '],

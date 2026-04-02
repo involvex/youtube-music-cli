@@ -222,6 +222,52 @@ class ConfigService {
 	getLastVersionCheck(): string | undefined {
 		return this.config.lastVersionCheck;
 	}
+
+	setLLMApiKey(apiKey: string): void {
+		this.config.llm = {
+			...this.config.llm,
+			apiKey,
+		};
+		this.save();
+	}
+
+	getLLMApiKey(): string | undefined {
+		return this.config.llm?.apiKey;
+	}
+
+	setLLMEnabled(enabled: boolean): void {
+		this.config.llmEnabled = enabled;
+		this.save();
+	}
+
+	getLLMEnabled(): boolean {
+		return this.config.llmEnabled ?? false;
+	}
+
+	getLLMConfig():
+		| {
+				provider?: 'gemini' | 'openai' | 'anthropic';
+				apiKey?: string;
+				model?: string;
+				temperature?: number;
+				maxTokens?: number;
+				maxMessagesInContext?: number;
+		  }
+		| undefined {
+		return this.config.llm;
+	}
+
+	setLLMConfig(config: {
+		provider?: 'gemini' | 'openai' | 'anthropic';
+		apiKey?: string;
+		model?: string;
+		temperature?: number;
+		maxTokens?: number;
+		maxMessagesInContext?: number;
+	}): void {
+		this.config.llm = config;
+		this.save();
+	}
 }
 
 // Singleton instance

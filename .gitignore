@@ -5,3 +5,6 @@ nul
 .env
 .env.local
 .mcp
+firebase-debug.log
+source/services/config/config.service.ts
+.kilo/plans/1775169198539-calm-sailor.md

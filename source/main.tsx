@@ -22,6 +22,7 @@ import type {Track} from './types/youtube-music.types.ts';
 
 import {useKeyBinding} from './hooks/useKeyboard.ts';
 import {KEYBINDINGS} from './utils/constants.ts';
+import {ChatProvider} from './stores/chat.store.tsx';
 
 function Initializer({flags}: {flags?: Flags}) {
 	const {dispatch} = useNavigation();
@@ -30,6 +31,10 @@ function Initializer({flags}: {flags?: Flags}) {
 
 	useKeyBinding(KEYBINDINGS.FAVORITES_VIEW, () => {
 		dispatch({category: 'NAVIGATE', view: VIEW.FAVORITES});
+	});
+
+	useKeyBinding(KEYBINDINGS.AI_CHAT, () => {
+		dispatch({category: 'NAVIGATE', view: VIEW.AI_CHAT});
 	});
 
 	useEffect(() => {
@@ -157,21 +162,23 @@ export default function Main({flags}: {flags?: Flags}) {
 					<FavoritesProvider>
 						<HistoryProvider>
 							<NavigationProvider>
-								<PluginsProvider>
-									<KeyboardBlockProvider>
-										<Box flexDirection="column">
-											<KeyboardManager />
-											{flags?.headless ? (
-												<HeadlessLayout flags={flags} />
-											) : (
-												<>
-													<Initializer flags={flags} />
-													<MainLayout />
-												</>
-											)}
-										</Box>
-									</KeyboardBlockProvider>
-								</PluginsProvider>
+								<ChatProvider>
+									<PluginsProvider>
+										<KeyboardBlockProvider>
+											<Box flexDirection="column">
+												<KeyboardManager />
+												{flags?.headless ? (
+													<HeadlessLayout flags={flags} />
+												) : (
+													<>
+														<Initializer flags={flags} />
+														<MainLayout />
+													</>
+												)}
+											</Box>
+										</KeyboardBlockProvider>
+									</PluginsProvider>
+								</ChatProvider>
 							</NavigationProvider>
 						</HistoryProvider>
 					</FavoritesProvider>

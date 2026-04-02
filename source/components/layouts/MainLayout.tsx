@@ -26,6 +26,7 @@ import ImportLayout from '../import/ImportLayout.tsx';
 import ExportLayout from '../export/ExportLayout.tsx';
 import NewReleasesLayout from './NewReleasesLayout.tsx';
 import GenresLayout from './GenresLayout.tsx';
+import AIChatView from '../ai/AIChatView.tsx';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {Box} from 'ink';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
@@ -258,6 +259,9 @@ function MainLayout() {
 
 			case 'help':
 				return <Help key="help" />;
+
+			case 'ai_chat':
+				return <AIChatView key="ai_chat" />;
 
 			default:
 				return <PlayerLayout key="player-default" />;
