@@ -359,11 +359,10 @@ class PlayerService {
 			return;
 		}
 
-		this.currentTrackId = videoId || null;
-
 		// Stop any existing playback
 		this.stop();
 
+		this.currentTrackId = videoId || null;
 		this.currentUrl = url;
 		if (options?.volume !== undefined) {
 			this.currentVolume = options.volume;
@@ -530,17 +529,20 @@ class PlayerService {
 
 	resume(): void {
 		logger.debug('PlayerService', 'resume() called');
-		this.isPlaying = true;
-		if (this.ipcSocket && !this.ipcSocket.destroyed) {
+		if (!!this.ipcSocket && !this.ipcSocket.destroyed) {
 			this.sendIpcCommand(['set_property', 'pause', false]);
-			// Reapply volume after resume to ensure audio isn't muted
+			this.isPlaying = true;
 			if (this.currentVolume !== undefined) {
 				setTimeout(() => {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
-		} else if (!this.isPlaying && !this.mpvProcess && this.currentUrl) {
+			return;
+		}
+
+		if (!this.mpvProcess && this.currentUrl) {
 			void this.play(this.currentUrl, {volume: this.currentVolume});
+			return;
 		}
 	}
 
