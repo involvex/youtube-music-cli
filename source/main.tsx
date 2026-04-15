@@ -18,6 +18,7 @@ import {useYouTubeMusic} from './hooks/useYouTubeMusic.ts';
 import {VIEW} from './utils/constants.ts';
 import {getConfigService} from './services/config/config.service.ts';
 import {getNotificationService} from './services/notification/notification.service.ts';
+import {loadPlayerState} from './services/player-state/player-state.service.ts';
 import type {Track} from './types/youtube-music.types.ts';
 
 import {useKeyBinding} from './hooks/useKeyboard.ts';
@@ -26,7 +27,7 @@ import {ChatProvider} from './stores/chat.store.tsx';
 
 function Initializer({flags}: {flags?: Flags}) {
 	const {dispatch} = useNavigation();
-	const {play} = usePlayer();
+	const {play, dispatch: playerDispatch} = usePlayer();
 	const {getTrack, getPlaylist} = useYouTubeMusic();
 
 	useKeyBinding(KEYBINDINGS.FAVORITES_VIEW, () => {
@@ -69,8 +70,36 @@ function Initializer({flags}: {flags?: Flags}) {
 					dispatch({category: 'SET_SELECTED_PLAYLIST', index: 0});
 				}
 			});
+		} else if (flags?.continue) {
+			void loadPlayerState().then(persistedState => {
+				if (!persistedState?.currentTrack) {
+					getNotificationService().notify(
+						'No previous playback to resume',
+						'Play a track first',
+					);
+					return;
+				}
+
+				// Restore the queue and start playback
+				playerDispatch({
+					category: 'RESTORE_STATE',
+					currentTrack: persistedState.currentTrack,
+					queue: persistedState.queue,
+					queuePosition: persistedState.queuePosition,
+					progress: persistedState.progress,
+					volume: persistedState.volume,
+					shuffle: persistedState.shuffle,
+					repeat: persistedState.repeat,
+					autoplay: true,
+				});
+
+				getNotificationService().notify(
+					'Resuming playback',
+					persistedState.currentTrack?.title ?? 'Unknown',
+				);
+			});
 		}
-	}, [flags, dispatch, play, getTrack, getPlaylist]);
+	}, [flags, dispatch, play, playerDispatch, getTrack, getPlaylist]);
 
 	return null;
 }
@@ -134,6 +163,31 @@ function HeadlessLayout({flags}: {flags?: Flags}) {
 			if (flags?.action === 'resume') resume();
 			if (flags?.action === 'next') next();
 			if (flags?.action === 'previous') previous();
+
+			if (flags?.continue) {
+				const persistedState = await loadPlayerState();
+				if (!persistedState?.currentTrack) {
+					console.error('No previous playback to resume');
+					process.exitCode = 1;
+					return;
+				}
+
+				const track = persistedState.currentTrack;
+				play(track, {clearQueue: true});
+
+				// Restore queue after playing first track
+				if (persistedState.queue.length > 1) {
+					for (let i = 1; i < persistedState.queue.length; i++) {
+						const queueTrack = persistedState.queue[i];
+						if (queueTrack) {
+							play(queueTrack);
+						}
+					}
+				}
+
+				console.log(`Resuming: ${track.title}`);
+				return;
+			}
 		})();
 	}, [
 		flags,

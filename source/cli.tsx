@@ -59,6 +59,7 @@ const cli = meow(
 	  --volume, -v         Initial volume (0-100)
 	  --shuffle, -s        Enable shuffle mode
 	  --repeat, -r         Repeat mode (off, all, one)
+	  --continue, -c       Resume last played track/playlist
 	  --headless           Run without TUI (just play)
 	  --web                Enable web UI server
 	  --web-host           Web server host (default: localhost)
@@ -99,6 +100,11 @@ const cli = meow(
 			shuffle: {
 				type: 'boolean',
 				shortFlag: 's',
+				default: false,
+			},
+			continue: {
+				type: 'boolean',
+				shortFlag: 'c',
 				default: false,
 			},
 			repeat: {

@@ -802,15 +802,15 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 	// Load persisted state on mount
 	useEffect(() => {
 		void loadPlayerState().then(persistedState => {
-			if (persistedState && !isInitializedRef.current) {
+			// Mark as initialized after attempting load (even if no saved state)
+			isInitializedRef.current = true;
+
+			if (persistedState) {
 				logger.info('PlayerProvider', 'Restoring persisted state', {
 					hasTrack: !!persistedState.currentTrack,
 					queueLength: persistedState.queue.length,
 					progress: persistedState.progress,
 				});
-
-				// Mark as initialized BEFORE dispatch to prevent re-triggers
-				isInitializedRef.current = true;
 
 				// Restore all state atomically with single dispatch
 				dispatch({
@@ -874,8 +874,12 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 	// Save immediately on unmount/quit
 	useEffect(() => {
 		const stateRef = {current: state}; // Capture state in ref for exit handler
+		const isInitialized = isInitializedRef.current;
 
 		const handleExit = () => {
+			// Only save if initialized (has attempted to load or restore state)
+			if (!isInitialized) return;
+
 			const currentState = stateRef.current;
 			void savePlayerState({
 				currentTrack: currentState.currentTrack,
