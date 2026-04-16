@@ -49,15 +49,15 @@ minify = false
 sourcemap = false
 
 # Target environment
-target = "node"
+target = "bun"
 
 [package]
 # Package.json field order
 fields = ["name", "version", "description"]
 
 [run]
-# Node.js compatibility mode
-compat = "node"
+# Bun native mode
+compat = "bun"
 
 # Loader configuration for file types
 loader = {

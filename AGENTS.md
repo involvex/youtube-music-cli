@@ -159,7 +159,7 @@ Services provide abstraction over external dependencies:
 - Use getter functions: `getPlayerService()`
 - Located in `source/services/`
 
-### Testing
+## ! Testing
 
 - **Framework**: AVA
 - **Location**: `tests/*.test.js`

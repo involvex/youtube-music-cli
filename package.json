@@ -40,7 +40,7 @@
 	],
 	"scripts": {
 		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
-		"build": "bun build source/cli.tsx --outfile dist/source/cli.js --target node --external jiti --footer \"//Copyright (c) 2026 involvex\"",
+		"build": "bun build source/cli.tsx --outfile dist/source/cli.js --target bun --footer \"//Copyright (c) 2026 involvex\" --production",
 		"compile": "bun scripts/build-cli.ts",
 		"dev": "bun run --bun source/cli.tsx",
 		"dev:watch": "bun run --bun --watch source/cli.tsx",
@@ -86,8 +86,8 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@sindresorhus/tsconfig": "^8.1.0",
+		"@tsconfig/bun": "^1.0.10",
 		"@types/node": "^25.6.0",
-		"@types/node-notifier": "^8.0.5",
 		"@types/react": "^19.2.14",
 		"@types/ws": "^8.18.1",
 		"@vdemedes/prettier-config": "^2.0.1",
@@ -105,12 +105,11 @@
 		"prettier-plugin-sort-imports": "^1.8.11",
 		"react-devtools-core": "^7.0.1",
 		"rimraf": "^6.1.3",
-		"ts-node": "^10.9.2",
 		"typescript": "^6.0.2",
 		"typescript-eslint": "^8.58.2"
 	},
 	"engines": {
-		"node": ">=16"
+		"bun": ">=1.0"
 	},
 	"sponsors": "https://github.com/sponsors/involvex",
 	"overrides": {
