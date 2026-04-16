@@ -34,6 +34,7 @@ const SETTINGS_ITEMS = [
 	'Crossfade Duration',
 	'Volume Fade Duration',
 	'Equalizer Preset',
+	'Subtitles',
 	'Notifications',
 	'Discord Rich Presence',
 	'LLM Enabled',
@@ -70,6 +71,9 @@ export default function Settings() {
 	);
 	const [equalizerPreset, setEqualizerPreset] = useState<EqualizerPreset>(
 		config.get('equalizerPreset') ?? 'flat',
+	);
+	const [subtitlesEnabled, setSubtitlesEnabled] = useState(
+		config.get('subtitlesEnabled') ?? false,
 	);
 	const [notifications, setNotifications] = useState(
 		config.get('notifications') ?? false,
@@ -161,6 +165,12 @@ export default function Settings() {
 		config.set('equalizerPreset', nextPreset);
 	};
 
+	const toggleSubtitles = () => {
+		const next = !subtitlesEnabled;
+		setSubtitlesEnabled(next);
+		config.set('subtitlesEnabled', next);
+	};
+
 	const formatEqualizerLabel = (preset: EqualizerPreset) =>
 		preset
 			.split('_')
@@ -246,27 +256,27 @@ export default function Settings() {
 		} else if (selectedIndex === 5) {
 			cycleEqualizerPreset();
 		} else if (selectedIndex === 6) {
-			toggleNotifications();
+			toggleSubtitles();
 		} else if (selectedIndex === 7) {
-			toggleDiscordRpc();
+			toggleNotifications();
 		} else if (selectedIndex === 8) {
-			toggleLLMEnabled();
+			toggleDiscordRpc();
 		} else if (selectedIndex === 9) {
-			setIsEditingApiKey(true);
+			toggleLLMEnabled();
 		} else if (selectedIndex === 10) {
-			cycleLLMModel();
+			setIsEditingApiKey(true);
 		} else if (selectedIndex === 11) {
-			cycleLLMTemperature();
+			cycleLLMModel();
 		} else if (selectedIndex === 12) {
-			toggleDownloadsEnabled();
+			cycleLLMTemperature();
 		} else if (selectedIndex === 13) {
-			setIsEditingDownloadDirectory(true);
+			toggleDownloadsEnabled();
 		} else if (selectedIndex === 14) {
-			cycleDownloadFormat();
+			setIsEditingDownloadDirectory(true);
 		} else if (selectedIndex === 15) {
-			cycleSleepTimer();
+			cycleDownloadFormat();
 		} else if (selectedIndex === 16) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
+			cycleSleepTimer();
 		} else if (selectedIndex === 17) {
 			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
 		} else if (selectedIndex === 18) {
@@ -386,6 +396,21 @@ export default function Settings() {
 					bold={selectedIndex === 5}
 				>
 					Equalizer: {formatEqualizerLabel(equalizerPreset)}
+				</Text>
+			</Box>
+
+			{/* Subtitles */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 6 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 6 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 6}
+				>
+					Subtitles: {subtitlesEnabled ? 'ON' : 'OFF'}
 				</Text>
 			</Box>
 

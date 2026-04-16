@@ -3,6 +3,7 @@ import {spawn, type ChildProcess} from 'node:child_process';
 import {connect, type Socket} from 'node:net';
 import {logger} from '../logger/logger.service.ts';
 import type {EqualizerPreset} from '../../types/config.types.ts';
+import {getConfigService} from '../config/config.service.ts';
 
 export type PlayOptions = {
 	volume?: number;
@@ -17,6 +18,7 @@ export type PlayOptions = {
 
 export type MpvArgsOptions = PlayOptions & {
 	volume: number;
+	subtitlesEnabled?: boolean;
 };
 
 export function buildMpvArgs(
@@ -76,6 +78,10 @@ export function buildMpvArgs(
 		mpvArgs.push(`--http-proxy=${options.proxy}`);
 	}
 
+	if (options.subtitlesEnabled) {
+		mpvArgs.push('--sub-lang=en', '--sub-scale=1.3');
+	}
+
 	return mpvArgs;
 }
 
@@ -98,6 +104,7 @@ export type PlayerEventCallback = (event: {
 	duration?: number;
 	paused?: boolean;
 	eof?: boolean;
+	subtitle?: string | null;
 }) => void;
 
 class PlayerService {
@@ -182,6 +189,12 @@ class PlayerService {
 					this.sendIpcCommand(['observe_property', 2, 'duration']);
 					this.sendIpcCommand(['observe_property', 3, 'pause']);
 					this.sendIpcCommand(['observe_property', 4, 'eof-reached']);
+
+					// Observe subtitles if enabled
+					const config = getConfigService();
+					if (config.get('subtitlesEnabled')) {
+						this.sendIpcCommand(['observe_property', 5, 'sub-text']);
+					}
 
 					// Load the URL via IPC after socket is connected.
 					// This ensures mpv is fully ready before we ask it to
@@ -289,10 +302,7 @@ class PlayerService {
 	/**
 	 * Handle property change events from mpv
 	 */
-	private handlePropertyChange(message: {
-		name: string;
-		data: number | boolean;
-	}): void {
+	private handlePropertyChange(message: {name: string; data: unknown}): void {
 		if (!this.eventCallback) return;
 
 		const event: {
@@ -300,6 +310,7 @@ class PlayerService {
 			duration?: number;
 			paused?: boolean;
 			eof?: boolean;
+			subtitle?: string | null;
 		} = {};
 
 		switch (message.name) {
@@ -329,6 +340,14 @@ class PlayerService {
 				if (event.eof) {
 					this.isPlaying = false;
 					logger.info('PlayerService', 'End of file reached');
+				}
+				break;
+
+			case 'sub-text':
+				if (typeof message.data === 'string' && message.data.trim()) {
+					event.subtitle = message.data;
+				} else {
+					event.subtitle = null;
 				}
 				break;
 		}
@@ -396,6 +415,7 @@ class PlayerService {
 					gaplessPlayback: options?.gaplessPlayback,
 					crossfadeDuration: options?.crossfadeDuration,
 					equalizerPreset: options?.equalizerPreset,
+					subtitlesEnabled: getConfigService().get('subtitlesEnabled'),
 				});
 
 				// Capture process in local var so stale exit handlers from a killed

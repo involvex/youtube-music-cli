@@ -37,6 +37,7 @@ const initialState: PlayerState = {
 	error: null,
 	playRequestId: 0,
 	abLoop: {a: null, b: null},
+	subtitle: null,
 };
 
 // Get player service instance
@@ -266,6 +267,9 @@ export function playerReducer(
 			return {...state, abLoop: {a: action.a, b: action.b}};
 		}
 
+		case 'SET_SUBTITLE':
+			return {...state, subtitle: action.subtitle};
+
 		case 'RESTORE_STATE':
 			logger.info('PlayerReducer', 'RESTORE_STATE', {
 				hasTrack: !!action.currentTrack,
@@ -383,6 +387,10 @@ function PlayerManager() {
 				} else {
 					dispatch({category: 'RESUME'});
 				}
+			}
+
+			if (event.subtitle !== undefined) {
+				dispatch({category: 'SET_SUBTITLE', subtitle: event.subtitle});
 			}
 		});
 	}, [playerService, dispatch, next]);

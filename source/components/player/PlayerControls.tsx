@@ -1,5 +1,6 @@
 // Player controls component
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
@@ -8,7 +9,6 @@ import {Box, Text} from 'ink';
 import {useEffect, useState} from 'react';
 import {logger} from '../../services/logger/logger.service.ts';
 import {ICONS} from '../../utils/icons.ts';
-import {getConfigService} from '../../services/config/config.service.ts';
 import type {EqualizerPreset} from '../../types/config.types.ts';
 import {formatTime} from '../../utils/format.ts';
 
@@ -129,6 +129,10 @@ export default function PlayerControls() {
 		if (playerState.currentTrack) {
 			toggleFavorite(playerState.currentTrack);
 		}
+	});
+	useKeyBinding(KEYBINDINGS.TOGGLE_SUBTITLES, () => {
+		const current = config.get('subtitlesEnabled') ?? false;
+		config.set('subtitlesEnabled', !current);
 	});
 
 	return (

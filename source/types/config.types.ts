@@ -59,6 +59,7 @@ export interface Config {
 	downloadsEnabled?: boolean;
 	downloadDirectory?: string;
 	downloadFormat?: DownloadFormat;
+	subtitlesEnabled?: boolean;
 	webServer?: WebServerConfig;
 	backgroundPlayback?: {
 		enabled: boolean;

@@ -129,6 +129,11 @@ export interface SetSpeedAction {
 	speed: number;
 }
 
+export interface SetSubtitleAction {
+	readonly category: 'SET_SUBTITLE';
+	subtitle: string | null;
+}
+
 export interface SetABLoopAction {
 	readonly category: 'SET_AB_LOOP';
 	a: number | null;

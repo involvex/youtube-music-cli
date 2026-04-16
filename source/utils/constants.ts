@@ -135,6 +135,7 @@ export const KEYBINDINGS = {
 	CLEAR_SEARCH: ['escape'],
 	INCREASE_RESULTS: ['ctrl+m'],
 	DECREASE_RESULTS: ['ctrl+l'],
+	TOGGLE_SUBTITLES: ['u'],
 	SEARCH_FILTER_ARTIST: ['ctrl+a'],
 	SEARCH_FILTER_ALBUM: ['ctrl+l'],
 	SEARCH_FILTER_YEAR: ['ctrl+y'],

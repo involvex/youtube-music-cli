@@ -47,6 +47,7 @@ export interface PlayerState {
 	error: string | null;
 	playRequestId: number;
 	abLoop: {a: number | null; b: number | null};
+	subtitle: string | null;
 }
 
 export type PlayerAction =
@@ -77,4 +78,6 @@ export type PlayerAction =
 	| SetErrorAction
 	| RestoreStateAction
 	| SetSpeedAction
-	| import('./actions.ts').SetABLoopAction;
+	| SetSpeedAction
+	| import('./actions.ts').SetABLoopAction
+	| import('./actions.ts').SetSubtitleAction;

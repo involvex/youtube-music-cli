@@ -6,6 +6,7 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {formatTime} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {getSleepTimerService} from '../../services/sleep-timer/sleep-timer.service.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {useState, useEffect} from 'react';
 import {ICONS} from '../../utils/icons.ts';
 
@@ -15,6 +16,8 @@ export default function NowPlaying() {
 	const {isFavorite} = useFavorites();
 	const {columns} = useTerminalSize();
 	const sleepTimer = getSleepTimerService();
+	const config = getConfigService();
+	const subtitlesEnabled = config.get('subtitlesEnabled') ?? false;
 	const [sleepRemaining, setSleepRemaining] = useState<number | null>(null);
 
 	// Poll sleep timer remaining every second
@@ -113,6 +116,20 @@ export default function NowPlaying() {
 			{/* Error */}
 			{playerState.error && (
 				<Text color={theme.colors.error}>{playerState.error}</Text>
+			)}
+
+			{/* Subtitle Display */}
+			{subtitlesEnabled && playerState.subtitle && (
+				<Box
+					marginTop={1}
+					borderStyle="round"
+					borderColor={theme.colors.secondary}
+					paddingX={1}
+				>
+					<Text color={theme.colors.text} italic>
+						{playerState.subtitle}
+					</Text>
+				</Box>
 			)}
 		</Box>
 	);

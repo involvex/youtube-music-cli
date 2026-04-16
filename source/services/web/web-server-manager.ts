@@ -31,6 +31,7 @@ class WebServerManager {
 		error: null,
 		playRequestId: 0,
 		abLoop: {a: null, b: null},
+		subtitle: null,
 	};
 
 	constructor() {
