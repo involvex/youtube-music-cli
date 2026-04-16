@@ -7,4 +7,7 @@ nul
 .mcp
 firebase-debug.log
 source/services/config/config.service.ts
-.kilo/plans/1775169198539-calm-sailor.md
+.kilo/plans
+*.log
+.claude/settings.local.json
+.mira

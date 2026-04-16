@@ -8,3 +8,5 @@ node_modules
 .agents
 .mcp
 .mira
+.kilo
+.kilocode
