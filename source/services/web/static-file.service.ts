@@ -75,9 +75,15 @@ class StaticFileService {
 		const relativePath = normalize(decodedPath).replace(/^[\\/]+/, '');
 		const rootPath = resolve(this.webDistDir);
 		const resolvedPath = resolve(rootPath, relativePath);
-		const rootPrefix = rootPath.endsWith(sep) ? rootPath : `${rootPath}${sep}`;
 
-		if (resolvedPath !== rootPath && !resolvedPath.startsWith(rootPrefix)) {
+		// Normalize path separators for cross-platform comparison
+		const normalizedRoot = rootPath.replace(/[\\/]+/g, sep);
+		const normalizedResolved = resolvedPath.replace(/[\\/]+/g, sep);
+
+		if (
+			resolvedPath !== rootPath &&
+			!normalizedResolved.startsWith(normalizedRoot)
+		) {
 			return null;
 		}
 
