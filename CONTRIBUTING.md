@@ -34,6 +34,7 @@ provides guidelines and instructions for contributing to the project.
    ```
 
 4. Run in development mode:
+
    ```bash
    bun run dev
    ```

@@ -20,12 +20,12 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 🔍 Discovery & Search
 
-### High Priority
+## : High Priority
 
 - Implemented **Advanced Search Filters** - Filter by artist, album, year, duration
 - Planned **Smart Recommendations** - AI/ML-based track suggestions beyond YouTube's built-in algorithm
 
-### Medium Priority
+## : Medium Priority
 
 - Planned **Genre Browsing** - Browse music by genre or mood
 - Planned **New Releases** - Dedicated view for newly released music
@@ -35,13 +35,13 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 📋 Playlist Management
 
-### High Priority
+## ! High Priority
 
 - Implemented **Favorites** - Persistence for favorite tracks, toggle with `f`, view with `Shift+F`
 - Planned **Playlist Sync** - Two-way sync with YouTube Music account playlists
 - Planned **Smart Playlists** - Auto-generated playlists based on listening history and habits
 
-### Medium Priority
+## ! Medium Priority
 
 - Planned **Collaborative Playlists** - Share playlists with others via a shareable link or file
 - Planned **Playlist Folders** - Organize playlists into named folders/groups
@@ -52,14 +52,14 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 🎨 User Interface
 
-### High Priority
+### !High Priority
 
 - Planned **Visualizer** - ASCII/ANSI audio visualizer rendered in the terminal
 - Planned **Album Art** - Display album artwork using terminal graphics protocols (sixel, kitty)
 - Planned **Mini Player Mode** - Compact single-line player for use alongside other terminal work
 - Planned **Split View** - Side-by-side panels for queue and search results
 
-### Medium Priority
+### !!Medium Priority
 
 - Planned **Mouse Support** - Click and scroll interactions for modern terminal emulators
 - Planned **More Themes** - Additional color schemes: Dracula, Nord, Solarized, Catppuccin
@@ -68,13 +68,13 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 🔧 Technical Improvements
 
-### High Priority
+### !!!High Priority
 
 - Planned **Multiple Audio Backends** - Support VLC and ffplay as alternatives to mpv
 - Implemented **Shell Completions** - Tab-completion scripts for Bash, Zsh, Powershell and Fish
 - Planned **Custom mpv Config Passthrough** - Allow extra mpv flags to be specified in config or via CLI
 
-### Medium Priority
+### !Medium Priority
 
 - Planned **Configurable Audio Output Device** - Select audio output device (useful for DACs, multi-monitor setups)
 - Planned **Auto-Update Mechanism** - Built-in self-update command (`youtube-music-cli update`)
@@ -89,12 +89,12 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 🔐 Security & Privacy
 
-### High Priority
+### !!High Priority
 
 - Planned **TOR Support** - Route all traffic through the TOR network for anonymity
 - Planned **No Tracking Mode** - Prevent YouTube from logging listening history via account linkage
 
-### Medium Priority
+### !!!Medium Priority
 
 - Planned **Encrypted Config** - Encrypt stored preferences and session tokens at rest
 - Planned **Audit Logging** - Structured log of all outbound network requests
@@ -103,7 +103,7 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ## 📱 Platform & Integration
 
-### Medium Priority
+### !! Medium Priority
 
 - Implemented **Homebrew Formula** - Easy installation on macOS via `brew install`
 - Planned **AUR Package** - Arch Linux package for `yay`/`paru` users
@@ -111,7 +111,7 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Windows MSIX Package** - MSIX installer for Windows users via `bun run msix` (requires self-signed cert for dev installs; see `msix-config.json`)
 - Planned **NixOS / Nix Flake** - Reproducible Nix package for NixOS and `nix profile install`
 
-### Low Priority
+### ! Low Priority
 
 - Planned **Mobile Companion App** - Remote control playback from a mobile device
 - Planned **Alfred/Raycast Extension** - macOS launcher integration for quick search and playback
