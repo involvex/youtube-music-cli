@@ -272,6 +272,19 @@ export function KeyboardManager() {
 					continue;
 				}
 
+				// Handle Ctrl+letter (control characters)
+				if (hasCtrl && isLetter && input.length === 1) {
+					const charCode = input.charCodeAt(0);
+					// Control codes for A-Z are 1-26 (SOH to Z)
+					if (charCode >= 1 && charCode <= 26) {
+						const derived = String.fromCharCode(charCode + 64); // 'A'-'Z'
+						if (derived.toLowerCase() === mainKey) {
+							handler();
+							return;
+						}
+					}
+				}
+
 				// Check for symbol/char match
 				const inputLower = input.toLowerCase();
 				const isSymbolMatch =

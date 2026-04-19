@@ -57,6 +57,17 @@ export default function HomeLayout() {
 			.catch(() => {});
 	};
 
+	const handlePlayRandomFavorite = () => {
+		if (favorites.length === 0) {
+			return;
+		}
+		const randomIndex = Math.floor(Math.random() * favorites.length);
+		const track = favorites[randomIndex];
+		if (track) {
+			play(track, {clearQueue: true});
+		}
+	};
+
 	type QuickLink =
 		| {label: string; view: (typeof VIEW)[keyof typeof VIEW]; action?: never}
 		| {label: string; view?: never; action: () => void};
@@ -70,6 +81,7 @@ export default function HomeLayout() {
 		{label: '❤️ Favorites', view: VIEW.FAVORITES},
 		{label: '🕒 History', view: VIEW.HISTORY},
 		{label: '🎲 Play Random Song', action: handlePlayRandom},
+		{label: '🎵 Play Random Favorite', action: handlePlayRandomFavorite},
 	];
 
 	const recentHistory = history.slice(0, 5);

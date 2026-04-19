@@ -45,9 +45,13 @@ function SearchResults({
 	const {createPlaylist} = usePlaylist();
 	const [isDownloading, setIsDownloading] = useState(false);
 	const mixCreatedRef = useRef<Props['onMixCreated']>(onMixCreated);
-	mixCreatedRef.current = onMixCreated;
+	useEffect(() => {
+		mixCreatedRef.current = onMixCreated;
+	}, [onMixCreated]);
 	const downloadStatusRef = useRef<Props['onDownloadStatus']>(onDownloadStatus);
-	downloadStatusRef.current = onDownloadStatus;
+	useEffect(() => {
+		downloadStatusRef.current = onDownloadStatus;
+	}, [onDownloadStatus]);
 
 	// Track component instance and last action time for debouncing
 	const instanceIdRef = useRef(++instanceCounter);

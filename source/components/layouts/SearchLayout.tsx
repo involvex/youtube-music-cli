@@ -259,7 +259,7 @@ function SearchLayout() {
 			)}
 
 			<Text color={theme.colors.dim}>
-				Limit: {navState.searchLimit} (Use Ctrl+M/L to adjust)
+				Limit: {navState.searchLimit} (Use Ctrl+M/Ctrl+, to adjust)
 			</Text>
 
 			<SearchBar
@@ -329,7 +329,7 @@ function SearchLayout() {
 			<Text color={theme.colors.dim}>
 				{isTyping
 					? 'Type to search, Enter to start, Esc to clear'
-					: `Arrows to navigate, Enter to play, M mix, Shift+D download, Ctrl+M/L more/fewer results (${navState.searchLimit}), H history, Esc to type`}
+					: `Arrows to navigate, Enter to play, M mix, Shift+D download, Ctrl+M/Ctrl+, more/fewer results (${navState.searchLimit}), H history, Esc to type`}
 			</Text>
 		</Box>
 	);
