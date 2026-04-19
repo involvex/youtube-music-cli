@@ -572,7 +572,9 @@ class PlayerService {
 	}
 
 	stop(): void {
-		logger.debug('PlayerService', 'stop() called');
+		logger.debug('PlayerService', 'stop() called', {
+			stack: new Error().stack,
+		});
 
 		// Close IPC socket
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {

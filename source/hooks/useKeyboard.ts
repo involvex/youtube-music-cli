@@ -53,10 +53,25 @@ export function useKeyBinding(
 			handler: () => handlerRef.current(),
 			bypassBlock: options?.bypassBlock,
 		};
+
+		// Log registration of volume down key for debugging
+		if (keys.includes('-') || keys.some(k => k.includes('-'))) {
+			logger.debug('KeyboardManager', 'Registered keybinding for "-"', {
+				keys,
+				bypassBlock: options?.bypassBlock,
+				stack: new Error().stack,
+			});
+		}
+
 		registry.add(entry);
 
 		return () => {
 			registry.delete(entry);
+			if (keys.includes('-') || keys.some(k => k.includes('-'))) {
+				logger.debug('KeyboardManager', 'Unregistered keybinding for "-"', {
+					keys,
+				});
+			}
 		};
 	}, [keys, options?.bypassBlock]); // keys and bypassBlock are deps; handlerRef is a stable ref
 }
@@ -297,6 +312,16 @@ export function KeyboardManager() {
 					isSymbolMatch ||
 					(inputLower === mainKey && !key.ctrl && !key.meta)
 				) {
+					// Log if this is the volume down binding
+					if (mainKey === '-') {
+						logger.debug('KeyboardManager', 'Volume down handler triggered', {
+							binding,
+							mainKey,
+							input,
+							keyShifts: {ctrl: key.ctrl, meta: key.meta, shift: key.shift},
+							stack: new Error().stack,
+						});
+					}
 					handler();
 					return; // STOP: prevent double-dispatch
 				}

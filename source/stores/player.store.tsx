@@ -65,6 +65,9 @@ export function playerReducer(
 			return {...state, isPlaying: true};
 
 		case 'STOP':
+			logger.debug('PlayerReducer', 'STOP action received', {
+				stack: new Error().stack,
+			});
 			return {
 				...state,
 				isPlaying: false,
@@ -405,6 +408,13 @@ function PlayerManager() {
 			if (currentInterval) {
 				clearInterval(currentInterval);
 			}
+			logger.debug(
+				'PlayerProvider',
+				'cleanup effect running - calling playerService.stop()',
+				{
+					stack: new Error().stack,
+				},
+			);
 			playerService.stop();
 		};
 	}, [dispatch, playerService]);
