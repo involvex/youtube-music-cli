@@ -4,6 +4,7 @@ import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlugins} from '../../stores/plugins.store.tsx';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import PluginsList from '../plugins/PluginsList.tsx';
 import PluginInstallDialog from '../plugins/PluginInstallDialog.tsx';
@@ -21,6 +22,7 @@ export default function PluginsLayout() {
 		updatePlugin,
 	} = usePlugins();
 	const [viewMode, setViewMode] = useState<ViewMode>('list');
+	const {dispatch: navDispatch} = useNavigation();
 
 	const {installedPlugins, selectedIndex, isLoading, error, lastAction} = state;
 
@@ -77,6 +79,14 @@ export default function PluginsLayout() {
 		setViewMode('list');
 	}, []);
 
+	const handleEscape = useCallback(() => {
+		if (viewMode === 'install') {
+			closeInstall();
+		} else {
+			navDispatch({category: 'GO_BACK'});
+		}
+	}, [viewMode, closeInstall, navDispatch]);
+
 	// Key bindings
 	useKeyBinding(KEYBINDINGS.UP, navigateUp);
 	useKeyBinding(KEYBINDINGS.DOWN, navigateDown);
@@ -84,6 +94,7 @@ export default function PluginsLayout() {
 	useKeyBinding(['r'], removePlugin);
 	useKeyBinding(['u'], handleUpdate);
 	useKeyBinding(['i'], openInstall);
+	useKeyBinding(['escape'], handleEscape, {bypassBlock: true});
 
 	// Show install dialog
 	if (viewMode === 'install') {

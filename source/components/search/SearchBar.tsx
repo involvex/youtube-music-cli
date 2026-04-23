@@ -49,13 +49,15 @@ function SearchBar({onInput, isActive = true}: Props) {
 		[dispatch, onInput, isActive, config],
 	);
 
-	// Handle clearing search
+	// Clear search text, or navigate back if already empty
 	const clearSearch = useCallback(() => {
-		if (isActive) {
+		if (isActive && input !== '') {
 			setInput('');
 			onInput('');
+		} else {
+			dispatch({category: 'GO_BACK'});
 		}
-	}, [isActive, onInput]);
+	}, [isActive, onInput, input, dispatch]);
 
 	useKeyBinding(['tab'], cycleType, {bypassBlock: true});
 	useKeyBinding(['escape'], clearSearch, {bypassBlock: true});
