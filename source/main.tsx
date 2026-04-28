@@ -6,6 +6,7 @@ import {ThemeProvider} from './contexts/theme.context.tsx';
 import {PlayerProvider} from './stores/player.store.tsx';
 import {FavoritesProvider} from './stores/favorites.store.tsx';
 import {HistoryProvider} from './stores/history.store.tsx';
+import {StatsProvider} from './stores/stats.store.tsx';
 import {ErrorBoundary} from './components/common/ErrorBoundary.tsx';
 import {KeyboardManager} from './hooks/useKeyboard.ts';
 import {KeyboardBlockProvider} from './hooks/useKeyboardBlocker.tsx';
@@ -215,25 +216,27 @@ export default function Main({flags}: {flags?: Flags}) {
 				<PlayerProvider>
 					<FavoritesProvider>
 						<HistoryProvider>
-							<NavigationProvider>
-								<ChatProvider>
-									<PluginsProvider>
-										<KeyboardBlockProvider>
-											<Box flexDirection="column">
-												<KeyboardManager />
-												{flags?.headless ? (
-													<HeadlessLayout flags={flags} />
-												) : (
-													<>
-														<Initializer flags={flags} />
-														<MainLayout />
-													</>
-												)}
-											</Box>
-										</KeyboardBlockProvider>
-									</PluginsProvider>
-								</ChatProvider>
-							</NavigationProvider>
+							<StatsProvider>
+								<NavigationProvider>
+									<ChatProvider>
+										<PluginsProvider>
+											<KeyboardBlockProvider>
+												<Box flexDirection="column">
+													<KeyboardManager />
+													{flags?.headless ? (
+														<HeadlessLayout flags={flags} />
+													) : (
+														<>
+															<Initializer flags={flags} />
+															<MainLayout />
+														</>
+													)}
+												</Box>
+											</KeyboardBlockProvider>
+										</PluginsProvider>
+									</ChatProvider>
+								</NavigationProvider>
+							</StatsProvider>
 						</HistoryProvider>
 					</FavoritesProvider>
 				</PlayerProvider>

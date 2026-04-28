@@ -69,6 +69,7 @@ export const VIEW = {
 	HOME: 'home',
 	AI_CHAT: 'ai_chat',
 	AI_RECOMMENDATIONS: 'ai_recommendations',
+	STATS: 'stats',
 } as const;
 
 // Search types
@@ -98,6 +99,7 @@ export const KEYBINDINGS = {
 	RESUME_BACKGROUND: ['shift+r'],
 	AI_CHAT: ['a'],
 	AI_RECOMMENDATIONS: ['shift+a'],
+	STATS_VIEW: ['ctrl+o'],
 
 	// Player
 	PLAY_PAUSE: [' '],

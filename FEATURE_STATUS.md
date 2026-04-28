@@ -34,6 +34,7 @@
 | User Interface             | Waveform Progress Bar             | Planned     |
 | User Interface             | Configurable Layout               | Planned     |
 | User Interface             | Startup Screen                    | Planned     |
+| User Interface             | Listening Stats Dashboard         | Implemented |
 | **Technical Improvements** | Multiple Audio Backends           | Planned     |
 | Technical Improvements     | Shell Completions                 | Implemented |
 | Technical Improvements     | Custom mpv Config Passthrough     | Planned     |
@@ -98,6 +99,7 @@
 - Waveform Progress Bar
 - Configurable Layout
 - Startup Screen
+- ~~Listening Stats Dashboard~~ ✓ Implemented
 
 ### Technical Improvements
 

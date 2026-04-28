@@ -9,6 +9,7 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Gapless Playback** - Seamless transitions between tracks without audio gaps
 - Implemented **Crossfade Support** - Smooth audio crossfading between songs (configurable duration)
 - Implemented **Equalizer** - Built-in audio equalizer with preset profiles (Bass Boost, Vocal, etc.)
+- Implemented **Listening Stats Dashboard** - Stats view showing top tracks, top artists, listening time, streaks, and 14-day timeline (Shift+S)
 
 ### Medium Priority
 
