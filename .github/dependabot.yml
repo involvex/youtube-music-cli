@@ -38,7 +38,7 @@ updates:
         patterns:
           - 'typescript*'
           - '@types/*'
-          - 'ts-node'
+          - 'tsx'
       # ESLint ecosystem
       eslint:
         patterns:

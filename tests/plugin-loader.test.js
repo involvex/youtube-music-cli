@@ -2,11 +2,6 @@ import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'ava';
-import {register} from 'node:module';
-import {pathToFileURL} from 'node:url';
-
-// Enable TS imports for source files
-register('ts-node/esm', pathToFileURL('./'));
 
 test('loads and initializes a plugin from disk', async t => {
 	const testRoot = join(

@@ -1,9 +1,4 @@
 import test from 'ava';
-import {register} from 'node:module';
-import {pathToFileURL} from 'node:url';
-
-// Enable TS imports for source files
-register('ts-node/esm', pathToFileURL('./'));
 
 test('player service exposes singleton without starting mpv', async t => {
 	const {getPlayerService} =
