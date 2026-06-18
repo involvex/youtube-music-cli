@@ -2,12 +2,12 @@ $ErrorActionPreference = 'Stop'
 
 $package = '@involvex/youtube-music-cli'
 
-if (Get-Command npm -ErrorAction SilentlyContinue) {
-	npm install -g $package
-} elseif (Get-Command bun -ErrorAction SilentlyContinue) {
-	bun install -g $package
-} else {
-	throw "npm or bun is required to install $package."
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+	Write-Host "Error: bun is required to install $package." -ForegroundColor Red
+	Write-Host 'Install bun from https://bun.sh' -ForegroundColor Red
+	exit 1
 }
+
+bun install -g $package
 
 Write-Host 'youtube-music-cli installed. Run: youtube-music-cli'

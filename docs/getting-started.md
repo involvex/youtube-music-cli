@@ -72,16 +72,20 @@ sudo apt install yt-dlp
 
 ## Installation
 
-### npm (Recommended)
+### Bun (Recommended)
 
-```bash
-npm install -g @involvex/youtube-music-cli
-```
-
-### Bun
+> **Note:** bun is required at runtime. Install it from [bun.sh](https://bun.sh) before proceeding.
 
 ```bash
 bun install -g @involvex/youtube-music-cli
+```
+
+### npm
+
+> **Note:** bun must still be installed on your system — the CLI entry point uses `#!/usr/bin/env bun`. npm only manages the package download.
+
+```bash
+npm install -g @involvex/youtube-music-cli
 ```
 
 ### Homebrew
