@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $package = '@involvex/youtube-music-cli'
 
 if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-	Write-Error "bun is required to run $package. Install bun: https://bun.sh"
+	Write-Error "bun is required to run $package. Install bun: https://bun.sh" -ErrorAction Continue
 	exit 1
 }
 
