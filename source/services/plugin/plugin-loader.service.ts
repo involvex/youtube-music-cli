@@ -9,7 +9,7 @@ import {logger} from '../logger/logger.service.ts';
 import {formatErrorData} from '../../utils/error.ts';
 import {existsSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {createJiti} from 'jiti';
+import {pathToFileURL} from 'node:url';
 
 /**
  * Validate plugin manifest
@@ -36,16 +36,6 @@ function validateManifest(manifest: unknown): manifest is PluginManifest {
  * Plugin loader service - handles dynamic loading of plugins
  */
 class PluginLoaderService {
-	private jiti: ReturnType<typeof createJiti>;
-
-	constructor() {
-		// Initialize jiti for dynamic TypeScript loading
-		this.jiti = createJiti(import.meta.url, {
-			interopDefault: true,
-			requireCache: false,
-		});
-	}
-
 	/**
 	 * Load a plugin from a directory
 	 */
@@ -78,9 +68,11 @@ class PluginLoaderService {
 
 		let pluginModule: unknown;
 		try {
-			// Use jiti to load TypeScript/JavaScript module
-			pluginModule = await this.jiti.import(pluginEntryPath);
-			// Clear perf entries accumulated by jiti/esbuild transforms
+			// Use native ESM import with file URL for TypeScript support (Node.js 24+)
+			// On Windows, ESM requires file:// URLs, not absolute paths
+			const pluginUrl = pathToFileURL(pluginEntryPath).href;
+			pluginModule = await import(pluginUrl);
+			// Clear perf entries accumulated by module loading
 			performance.clearMeasures();
 		} catch (error) {
 			logger.error(
@@ -93,7 +85,7 @@ class PluginLoaderService {
 			);
 		}
 
-		// Unwrap ESM namespace object that jiti may return when a module has named exports
+		// Unwrap ESM namespace object that may return when a module has named exports
 		if (
 			pluginModule !== null &&
 			typeof pluginModule === 'object' &&
