@@ -213,8 +213,7 @@ class PluginLoaderService {
 	async reloadPlugin(pluginPath: string): Promise<PluginInstance> {
 		logger.info('PluginLoaderService', `Reloading plugin from ${pluginPath}`);
 
-		// Clear jiti cache for this plugin
-		// Note: jiti has requireCache: false, so this should work automatically
+		// Native ESM imports are not cached between calls, so reloading works automatically
 		return this.loadPlugin(pluginPath);
 	}
 }
