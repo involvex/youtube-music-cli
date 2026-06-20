@@ -1,3 +1,9 @@
+## [0.0.81](https://github.com/involvex/youtube-music-cli/compare/v0.0.80...v0.0.81) (2026-06-20)
+
+### Bug Fixes
+
+- replace jiti with native ESM import for plugin loading ([d6f1053](https://github.com/involvex/youtube-music-cli/commit/d6f1053d869342487f95d233111694e9677446a5))
+
 ## [0.0.80](https://github.com/involvex/youtube-music-cli/compare/v0.0.79...v0.0.80) (2026-06-19)
 
 ### Bug Fixes
