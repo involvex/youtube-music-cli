@@ -26,6 +26,13 @@ title: Home
     </div>
   </div>
   <div class="feature">
+    <span class="feature-icon">🖥️</span>
+    <div>
+      <h3>Immersive Mode (Windows)</h3>
+      <p>Fullscreen visual experience with audio visualization and disco effects</p>
+    </div>
+  </div>
+  <div class="feature">
     <span class="feature-icon">🔍</span>
     <div>
       <h3>Powerful Search</h3>

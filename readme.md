@@ -29,7 +29,7 @@ A powerful Terminal User Interface (TUI) music player for YouTube Music
 - 🎨 **Themes** - Dark, Light, Midnight, Matrix themes
 - 🔌 **Plugin System** - Extend functionality with plugins
 - ⌨️ **Keyboard-Driven** - Efficient vim-style navigation
-- 🖥️ **Headless Mode** - Run without TUI for scripting
+- 🖥️ **Immersive Mode** - Fullscreen Windows TUI with audio visualizer and disco effects
 - 💾 **Downloads** - Save tracks/playlists/artists with `Shift+D`
 - 🏷️ **Metadata Tagging** - Auto-tag title/artist/album with optional cover art
 - ⚡️ **Shell Completions** - `ymc completions <bash|zsh|powershell|fish>` emits scripts you can source or save so the CLI (also available as `ymc`) tab-completes subcommands and flags
@@ -186,6 +186,29 @@ youtube-music-cli skip
 youtube-music-cli back
 ```
 
+### Immersive Mode (Windows)
+
+Launch a fullscreen visual experience with audio visualization and disco effects:
+
+```bash
+# Standard immersive mode
+youtube-music-cli --win32
+
+# With disco mode enabled
+DISCO_MODE=true youtube-music-cli --win32
+```
+
+**Hotkeys in Immersive Mode:**
+
+| Key       | Action              |
+| --------- | ------------------- |
+| `Space`   | Play / Pause        |
+| `D`       | Toggle disco mode   |
+| `↑` / `↓` | Volume up / down    |
+| `←` / `→` | Previous / Next     |
+| `Q`       | Quit immersive mode |
+| `Ctrl+C`  | Force quit          |
+
 ### Shell completions
 
 Generate shell completion helpers through the lightweight `ymc` alias that ships with the CLI. Run `ymc completions <bash|zsh|powershell|fish>` to print the completion script for your shell, then source it or persist it in your profile:
@@ -217,6 +240,7 @@ If you installed the CLI globally with an alias or script name, make sure `ymc` 
 | `--shuffle`  | `-s`  | Enable shuffle mode                          |
 | `--repeat`   | `-r`  | Repeat mode: `off`, `all`, `one`             |
 | `--headless` |       | Run without TUI                              |
+| `--win32`    |       | Immersive fullscreen mode (Windows only)     |
 | `--help`     | `-h`  | Show help                                    |
 
 ### Examples

@@ -49,6 +49,12 @@ youtube-music-cli/
 │   ├── hooks/               # Custom React hooks
 │   ├── types/               # TypeScript definitions
 │   ├── contexts/            # React contexts
+│   ├── immersive/           # Immersive Windows TUI
+│   │   ├── renderer/        # Frame buffer, braille canvas, ANSI codes
+│   │   ├── visualizer/      # Audio collector, disco engine
+│   │   ├── effects/         # Particle system, color extractor
+│   │   ├── native/          # Console, tray, notifications, hotkeys
+│   │   └── components/      # Immersive player component
 │   └── utils/               # Utilities
 │
 ├── plugins/                 # Plugin submodule
@@ -199,6 +205,54 @@ User Action → Store Dispatch → State Update → Plugin Hook → UI Re-render
                                     ▼
                             Plugin Event Emitted
 ```
+
+## Immersive Mode (Windows)
+
+A fullscreen Windows-only TUI experience built on top of the standard player architecture. It renders ANSI graphics directly to the terminal using an alternate screen buffer.
+
+### Architecture
+
+```
+┌─────────────────────────────────────┐
+│      ImmersivePlayer Component      │
+│  (entry via --win32 flag or CLI)    │
+└──────────────┬──────────────────────┘
+               │
+       ┌───────┴───────┬──────────┬──────────┐
+       ▼               ▼          ▼          ▼
+  ┌─────────┐   ┌───────────┐ ┌────────┐ ┌────────┐
+  │Renderer │   │Visualizer │ │Effects │ │ Native │
+  │         │   │           │ │        │ │        │
+  │-FrameBuf│   │-AudioCol  │ │-Particle│ │-Tray  │
+  │-Braille │   │-DiscoEng  │ │-ColorEx│ │-Notifs │
+  │-ANSI    │   │           │ │        │ │-Hotkey │
+  └─────────┘   └───────────┘ └────────┘ └────────┘
+```
+
+### Components
+
+- **Renderer** (`source/immersive/renderer/`) - Frame buffer, braille canvas for 2x4 pixel density, ANSI escape codes
+- **Visualizer** (`source/immersive/visualizer/`) - FFT-based frequency band analysis, disco color cycling with beat detection
+- **Effects** (`source/immersive/effects/`) - Particle system for disco mode, dominant color extraction
+- **Native** (`source/immersive/native/`) - Console alt buffer, system tray icon, Windows toast notifications, stdin hotkey listener
+
+### Entry Points
+
+```bash
+# Development
+bun run dev:win32
+
+# Production build
+bun run build:win32
+# Output: dist/ymc-win32.exe
+
+# Build all (bun + node + win32 + web)
+bun run build:all
+```
+
+### Build
+
+Uses `bun build --compile --target bun` to produce a standalone Windows executable.
 
 ## Component Architecture
 
