@@ -40,6 +40,7 @@ const FLAGS = [
 	'--shuffle',
 	'--repeat',
 	'--headless',
+	'--win32',
 	'--web',
 	'--web-host',
 	'--web-port',
