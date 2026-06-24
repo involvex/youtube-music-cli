@@ -4,6 +4,7 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useFavorites} from '../../stores/favorites.store.tsx';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {truncate} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
@@ -15,6 +16,7 @@ export default function FavoritesList() {
 	const {play, dispatch: playerDispatch} = usePlayer();
 	const {columns, rows} = useTerminalSize();
 	const [selectedIndex, setSelectedIndex] = useState(0);
+	const {dispatch} = useNavigation();
 
 	// Navigation
 	const navigateUp = useCallback(() => {
@@ -57,6 +59,10 @@ export default function FavoritesList() {
 		}
 	}, [favorites, selectedIndex, removeFavorite]);
 
+	const goBack = useCallback(() => {
+		dispatch({category: 'GO_BACK'});
+	}, [dispatch]);
+
 	// Key bindings
 	useKeyBinding(KEYBINDINGS.UP, navigateUp);
 	useKeyBinding(KEYBINDINGS.DOWN, navigateDown);
@@ -67,6 +73,7 @@ export default function FavoritesList() {
 	// Let's add specific shortcuts for playing all/shuffle
 	useKeyBinding(['p'], playAll);
 	useKeyBinding(['s'], shufflePlayAll);
+	useKeyBinding(['escape'], goBack, {bypassBlock: true});
 
 	if (favorites.length === 0) {
 		return (
