@@ -174,10 +174,7 @@ export async function executeTool(
 
 			case 'start_radio': {
 				const seedType = String(args['seedType'] || 'track') as
-					| 'track'
-					| 'artist'
-					| 'playlist'
-					| 'genre';
+					'track' | 'artist' | 'playlist' | 'genre';
 				const seedId = String(args['seedId'] || '');
 				const seedName = String(args['seedName'] || '');
 				if (!seedId) {

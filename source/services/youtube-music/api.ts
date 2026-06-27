@@ -322,8 +322,7 @@ class MusicService {
 
 				if (searchType === 'all' || searchType === 'playlists') {
 					const playlists = search.playlists as
-						| PlaylistSearchResult[]
-						| undefined;
+						PlaylistSearchResult[] | undefined;
 					if (playlists) {
 						for (const playlist of playlists) {
 							results.push({

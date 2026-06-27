@@ -7,11 +7,7 @@ import type {LLMConfig, LLMUsage, ChatMessage} from './llm.types.ts';
 export type RepeatMode = 'off' | 'all' | 'one';
 export type DownloadFormat = 'mp3' | 'm4a';
 export type EqualizerPreset =
-	| 'flat'
-	| 'bass_boost'
-	| 'vocal'
-	| 'bright'
-	| 'warm';
+	'flat' | 'bass_boost' | 'vocal' | 'bright' | 'warm';
 
 export interface KeybindingConfig {
 	keys: string[];

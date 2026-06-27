@@ -47,11 +47,7 @@ export function closeLibraryOverlay(state: LibraryOverlayState): void {
 }
 
 export type LibraryInputAction =
-	| 'none'
-	| 'close'
-	| 'menu_select'
-	| 'play_playlist'
-	| 'back_to_menu';
+	'none' | 'close' | 'menu_select' | 'play_playlist' | 'back_to_menu';
 
 export function handleLibraryMenuInput(
 	state: LibraryOverlayState,

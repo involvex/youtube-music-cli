@@ -25,10 +25,7 @@ export interface StateUpdateMessage {
 export interface EventMessage {
 	type: 'event';
 	event:
-		| 'connected'
-		| 'disconnected'
-		| 'client-connected'
-		| 'client-disconnected';
+		'connected' | 'disconnected' | 'client-connected' | 'client-disconnected';
 	data?: unknown;
 }
 

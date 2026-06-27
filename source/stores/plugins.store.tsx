@@ -280,8 +280,7 @@ export function PluginsProvider({children}: {children: ReactNode}) {
 			const config = getConfigService();
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const pluginStates = config.get('pluginStates' as any) as
-				| Record<string, {enabled: boolean}>
-				| undefined;
+				Record<string, {enabled: boolean}> | undefined;
 			for (const plugin of registryService.getAllPlugins()) {
 				if (pluginStates?.[plugin.manifest.id]?.enabled && !plugin.enabled) {
 					try {

@@ -303,11 +303,7 @@ function App() {
 								const formData = new FormData(e.currentTarget);
 								const query = formData.get('query') as string;
 								const searchType = formData.get('type') as
-									| 'all'
-									| 'songs'
-									| 'artists'
-									| 'albums'
-									| 'playlists';
+									'all' | 'songs' | 'artists' | 'albums' | 'playlists';
 								if (query.trim()) {
 									handleSearch(query, searchType);
 								}

@@ -24,8 +24,7 @@ export interface ImmersiveMusicService {
 }
 
 export type PlaySearchResult =
-	| {ok: true; tracks: Track[]}
-	| {ok: false; message: string};
+	{ok: true; tracks: Track[]} | {ok: false; message: string};
 
 export type CreateMixResult =
 	| {ok: true; tracks: Track[]; playlistName: string}
