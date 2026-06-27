@@ -77,12 +77,12 @@ export class FrameBuffer {
 		borderStyle: 'single' | 'double' | 'round' = 'single',
 	): void {
 		const singleChars = {
-			topLeft: '+',
-			topRight: '+',
-			bottomLeft: '+',
-			bottomRight: '+',
-			horizontal: '-',
-			vertical: '|',
+			topLeft: '┌',
+			topRight: '┐',
+			bottomLeft: '└',
+			bottomRight: '┘',
+			horizontal: '─',
+			vertical: '│',
 		};
 		const doubleChars = {
 			topLeft: '+',

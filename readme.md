@@ -188,26 +188,36 @@ youtube-music-cli back
 
 ### Immersive Mode (Windows)
 
-Launch a fullscreen visual experience with audio visualization and disco effects:
+Launch a fullscreen visual player with real playback, queue controls, and audio visualization. Requires `mpv` and `yt-dlp` (same as normal playback).
 
 ```bash
 # Standard immersive mode
 youtube-music-cli --win32
 
+# Search and play immediately
+youtube-music-cli --win32 --search "artist song"
+
 # With disco mode enabled
 DISCO_MODE=true youtube-music-cli --win32
+
+# Standalone Windows binary (Bun compile)
+bun run build:win32
+dist/ymc-win32.exe
 ```
 
 **Hotkeys in Immersive Mode:**
 
-| Key       | Action              |
-| --------- | ------------------- |
-| `Space`   | Play / Pause        |
-| `D`       | Toggle disco mode   |
-| `↑` / `↓` | Volume up / down    |
-| `←` / `→` | Previous / Next     |
-| `Q`       | Quit immersive mode |
-| `Ctrl+C`  | Force quit          |
+| Key        | Action              |
+| ---------- | ------------------- |
+| `/` or `S` | Open search overlay |
+| `Space`    | Play / Pause        |
+| `D`        | Toggle disco mode   |
+| `↑` / `↓`  | Volume up / down    |
+| `←` / `→`  | Previous / Next     |
+| `Q`        | Quit immersive mode |
+| `Ctrl+C`   | Force quit          |
+
+Global media keys (Alt+Media keys) also work when the terminal is unfocused on Windows with Bun runtime.
 
 ### Shell completions
 

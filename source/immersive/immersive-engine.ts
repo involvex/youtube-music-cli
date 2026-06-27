@@ -5,6 +5,7 @@ import {RenderLoop} from './renderer/render-loop.ts';
 import {AudioCollector} from './visualizer/audio-collector.ts';
 import {DiscoEngine} from './visualizer/disco-engine.ts';
 import {DiscoParticleSystem} from './effects/particle-system.ts';
+import {HybridAudioSource} from './visualizer/hybrid-audio.ts';
 import {
 	getTerminalInfo,
 	clearScreen,
@@ -12,9 +13,31 @@ import {
 	showCursor,
 	enterAltBuffer,
 	exitAltBuffer,
+	enableDpiAwareness,
+	onTerminalResize,
 } from './native/console.ts';
-import {createTrayIcon, removeTrayIcon} from './native/tray.ts';
+import {createTrayIcon, removeTrayIcon, updateTrayIcon} from './native/tray.ts';
 import type {RGB} from './renderer/ansi-codes.ts';
+import type {Track} from '../types/youtube-music.types.ts';
+import {parseKeyName} from './input/key-parser.ts';
+import {
+	closeSearchOverlay,
+	createSearchOverlayState,
+	handleSearchInput,
+	openSearchOverlay,
+	type SearchOverlayState,
+} from './ui/search-overlay.ts';
+import {
+	getUpcomingTracks,
+	trackArtists,
+	type ImmersivePlayerState,
+} from './state/queue-state.ts';
+import {
+	buildProgressBar,
+	buildVolumeBar,
+	computeLayout,
+	type ImmersiveLayout,
+} from './ui/layout.ts';
 
 export interface ImmersiveOptions {
 	width?: number;
@@ -30,20 +53,18 @@ export interface ImmersiveOptions {
 		album?: string;
 		artwork?: string;
 	};
+	getState?: () => ImmersivePlayerState;
 	onTogglePlay?: () => void;
 	onToggleDisco?: () => void;
 	onVolumeUp?: () => void;
 	onVolumeDown?: () => void;
 	onNext?: () => void;
 	onPrevious?: () => void;
-}
-
-interface PlayerState {
-	isPlaying: boolean;
-	currentTime: number;
-	duration: number;
-	volume: number;
-	isDiscoMode: boolean;
+	onSearch?: (
+		query: string,
+	) => Promise<{tracks: Track[]; message: string | null}>;
+	onSearchPlay?: (tracks: Track[]) => Promise<void>;
+	onAddToQueue?: (track: Track) => void;
 }
 
 export class ImmersiveEngine {
@@ -51,41 +72,32 @@ export class ImmersiveEngine {
 	private canvas: BrailleCanvas | null = null;
 	private renderLoop: RenderLoop | null = null;
 	private audioCollector: AudioCollector | null = null;
+	private hybridAudio: HybridAudioSource | null = null;
 	private discoEngine: DiscoEngine | null = null;
 	private particleSystem: DiscoParticleSystem | null = null;
+	private searchOverlay: SearchOverlayState = createSearchOverlayState();
+	private lastSearchResults: Track[] = [];
 
-	private state: PlayerState;
 	private options: ImmersiveOptions;
-	private callbacks: ImmersiveOptions;
 	private effectiveWidth: number;
 	private effectiveHeight: number;
 	private isRunning = false;
 	private inputHandler: ((data: string) => void) | null = null;
 	private exitHandler: (() => void) | null = null;
+	private resizeHandler: (() => void) | null = null;
 	private listenersRemoved = false;
 
 	constructor(options: ImmersiveOptions) {
 		this.options = options;
-		this.callbacks = {
-			onTogglePlay: options.onTogglePlay,
-			onToggleDisco: options.onToggleDisco,
-			onVolumeUp: options.onVolumeUp,
-			onVolumeDown: options.onVolumeDown,
-			onNext: options.onNext,
-			onPrevious: options.onPrevious,
-		};
 
+		enableDpiAwareness();
 		const terminalInfo = getTerminalInfo();
 		this.effectiveWidth = options.width ?? terminalInfo.width;
 		this.effectiveHeight = options.height ?? terminalInfo.height;
+	}
 
-		this.state = {
-			isPlaying: true,
-			currentTime: 0,
-			duration: 0,
-			volume: 1,
-			isDiscoMode: options.discoMode ?? false,
-		};
+	setDiscoMode(enabled: boolean): void {
+		this.discoEngine?.setEnabled(enabled);
 	}
 
 	async start(): Promise<void> {
@@ -134,11 +146,15 @@ export class ImmersiveEngine {
 			throw error;
 		}
 
+		const state = this.options.getState?.();
 		const fb = new Fb(this.effectiveWidth, this.effectiveHeight);
 		const canvas = new Bc(fb);
 		const loop = new Rl(fb, {targetFps: this.options.targetFps ?? 30});
 		const audio = new Ac(256);
-		const disco = new De({enabled: this.state.isDiscoMode});
+		const hybrid = new HybridAudioSource(audio.getFrequencyBinCount());
+		const disco = new De({
+			enabled: state?.isDiscoMode ?? this.options.discoMode,
+		});
 		const particles = new Dps({
 			spawnRate: 10,
 			colors: [
@@ -155,22 +171,28 @@ export class ImmersiveEngine {
 		this.canvas = canvas;
 		this.renderLoop = loop;
 		this.audioCollector = audio;
+		this.hybridAudio = hybrid;
 		this.discoEngine = disco;
 		this.particleSystem = particles;
 
-		if (this.options.enableTray && this.options.trackInfo) {
+		if (this.options.enableTray) {
+			const trackInfo = this.resolveTrackInfo(state);
 			createTrayIcon({
 				id: 'youtube-music-cli',
 				icon: '',
-				tooltip: `${this.options.trackInfo.title} - ${this.options.trackInfo.artist}`,
+				tooltip: trackInfo
+					? `${trackInfo.title} - ${trackInfo.artist}`
+					: 'YouTube Music CLI',
 			});
 		}
 
 		this.setupInput();
+		this.setupResize(fb);
 
 		loop.start(deltaTime => {
-			if (!fb || !canvas || !audio || !disco || !particles) return;
+			if (!fb || !canvas || !audio || !disco || !particles || !hybrid) return;
 
+			const playerState = this.options.getState?.();
 			const {width: tw, height: th} = getTerminalInfo();
 
 			if (tw !== this.effectiveWidth || th !== this.effectiveHeight) {
@@ -185,25 +207,55 @@ export class ImmersiveEngine {
 						bg: null,
 					})),
 				);
+				canvas.resize(tw, th);
 			}
 
 			particles.update(deltaTime);
 
-			const time = performance.now();
-			const simulatedAudio = audio.generateSimulatedData(time);
-			const bands = audio.getFrequencyBands(simulatedAudio);
+			if (playerState) {
+				hybrid.update(
+					{
+						currentTime: playerState.currentTime,
+						duration: playerState.duration,
+						isPlaying: playerState.isPlaying,
+						volume: playerState.volume,
+					},
+					deltaTime,
+				);
+			}
+
+			const rawAudio = hybrid.generateSamples();
+			const bands = audio.getFrequencyBands(audio.processAudioData(rawAudio));
 
 			disco.update(deltaTime);
 			const {background, accent, intensity} = disco.processAudio(bands);
 
 			fb.clear();
+			canvas.clearMask();
 
-			renderBackground(fb, tw, th, background, accent, intensity);
-			renderVisualizer(fb, canvas, audio, tw, th, accent, intensity);
-			renderTrackInfo(fb, tw, th, this.options.trackInfo, this.state);
-			renderControls(fb, tw, th);
+			const layout = computeLayout(tw, th);
+			const accentColor: RGB = accent;
 
-			if (this.state.isDiscoMode) {
+			renderBackground(fb, tw, th, background, accentColor, intensity);
+			renderHeader(fb, tw, layout, playerState, accentColor);
+			renderVisualizerFrame(fb, layout, accentColor);
+			renderVisualizer(
+				canvas,
+				audio,
+				rawAudio,
+				layout,
+				accentColor,
+				intensity,
+				playerState?.isPlaying ?? false,
+			);
+			renderNowPlaying(fb, layout, playerState, accentColor);
+			renderQueuePanel(fb, layout, playerState, accentColor);
+			renderControls(fb, tw, th, this.searchOverlay.active);
+			renderSearchOverlay(fb, tw, th, this.searchOverlay);
+
+			const isDisco =
+				playerState?.isDiscoMode ?? this.options.discoMode ?? false;
+			if (isDisco) {
 				for (const particle of particles.getParticles()) {
 					const screenX = (particle.x / 100) * tw;
 					const screenY = (particle.y / 100) * th;
@@ -226,6 +278,46 @@ export class ImmersiveEngine {
 		});
 	}
 
+	private resolveTrackInfo(state?: ImmersivePlayerState): {
+		title: string;
+		artist: string;
+	} | null {
+		if (state?.currentTrack) {
+			return {
+				title: state.currentTrack.title,
+				artist: trackArtists(state.currentTrack),
+			};
+		}
+
+		if (this.options.trackInfo) {
+			return {
+				title: this.options.trackInfo.title,
+				artist: this.options.trackInfo.artist,
+			};
+		}
+
+		return null;
+	}
+
+	private setupResize(fb: FrameBuffer): void {
+		this.resizeHandler = () => {
+			const {width, height} = getTerminalInfo();
+			this.effectiveWidth = width;
+			this.effectiveHeight = height;
+			fb.width = width;
+			fb.height = height;
+			fb.cells = Array.from({length: height}, () =>
+				Array.from({length: width}, () => ({
+					char: ' ',
+					fg: null,
+					bg: null,
+				})),
+			);
+			this.canvas?.resize(width, height);
+		};
+		onTerminalResize(this.resizeHandler);
+	}
+
 	private setupInput(): void {
 		if (!process.stdin.isTTY || this.inputHandler) return;
 
@@ -237,6 +329,11 @@ export class ImmersiveEngine {
 			const keyName = parseKeyName(data);
 			if (!keyName) return;
 
+			if (this.searchOverlay.active) {
+				void this.handleSearchKey(keyName);
+				return;
+			}
+
 			if (keyName === 'Ctrl+C') {
 				this.stop();
 				process.exit(0);
@@ -245,31 +342,35 @@ export class ImmersiveEngine {
 
 			switch (keyName) {
 				case ' ':
-					this.state.isPlaying = !this.state.isPlaying;
-					this.callbacks.onTogglePlay?.();
+					this.options.onTogglePlay?.();
 					break;
 				case 'd':
-				case 'D':
-					this.state.isDiscoMode = !this.state.isDiscoMode;
-					this.callbacks.onToggleDisco?.();
+					this.options.onToggleDisco?.();
 					break;
 				case 'up':
-					this.state.volume = Math.min(1, this.state.volume + 0.1);
-					this.callbacks.onVolumeUp?.();
+					this.options.onVolumeUp?.();
 					break;
 				case 'down':
-					this.state.volume = Math.max(0, this.state.volume - 0.1);
-					this.callbacks.onVolumeDown?.();
+					this.options.onVolumeDown?.();
 					break;
 				case 'right':
-					this.callbacks.onNext?.();
+					this.options.onNext?.();
 					break;
 				case 'left':
-					this.callbacks.onPrevious?.();
+					this.options.onPrevious?.();
+					break;
+				case '/':
+				case 's':
+					openSearchOverlay(this.searchOverlay);
+					break;
+				case 'a':
+					if (this.lastSearchResults[0]) {
+						this.options.onAddToQueue?.(this.lastSearchResults[0]);
+					}
 					break;
 				case 'q':
-				case 'Q':
 				case 'escape':
+					this.stop();
 					process.exit(0);
 					break;
 			}
@@ -282,6 +383,44 @@ export class ImmersiveEngine {
 				this.stop();
 			};
 			process.on('exit', this.exitHandler);
+		}
+	}
+
+	private async handleSearchKey(key: string): Promise<void> {
+		const action = handleSearchInput(this.searchOverlay, key);
+		if (action === 'cancel') {
+			return;
+		}
+
+		if (action !== 'submit' || !this.options.onSearch) {
+			return;
+		}
+
+		const query = this.searchOverlay.query.trim();
+		this.searchOverlay.status = 'Searching...';
+
+		try {
+			const result = await this.options.onSearch(query);
+			this.lastSearchResults = result.tracks;
+
+			if (result.tracks.length === 0) {
+				this.searchOverlay.status = result.message ?? 'No tracks found';
+				return;
+			}
+
+			if (this.options.onSearchPlay) {
+				await this.options.onSearchPlay(result.tracks);
+			}
+
+			const track = result.tracks[0];
+			if (track && this.options.enableTray) {
+				updateTrayIcon(`${track.title} - ${trackArtists(track)}`);
+			}
+
+			closeSearchOverlay(this.searchOverlay);
+		} catch (error) {
+			this.searchOverlay.status =
+				error instanceof Error ? error.message : 'Search failed';
 		}
 	}
 
@@ -298,6 +437,11 @@ export class ImmersiveEngine {
 				this.listenersRemoved = true;
 			}
 
+			if (this.resizeHandler) {
+				process.stdout.off('resize', this.resizeHandler);
+				this.resizeHandler = null;
+			}
+
 			showCursor();
 			exitAltBuffer();
 
@@ -308,184 +452,329 @@ export class ImmersiveEngine {
 	}
 }
 
-function parseKeyName(data: string): string | null {
-	const codes: Record<string, string> = {
-		'\x1B[A': 'up',
-		'\x1B[B': 'down',
-		'\x1B[C': 'right',
-		'\x1B[D': 'left',
-		'\x1B': 'escape',
-	};
-
-	if (codes[data]) {
-		return codes[data]!;
-	}
-
-	if (data === ' ') {
-		return ' ';
-	}
-
-	if (data === '\x03') {
-		return 'Ctrl+C';
-	}
-
-	if (data.length === 1 && data >= 'a' && data <= 'z') {
-		return data.toLowerCase();
-	}
-
-	if (data.length === 1 && data >= 'A' && data <= 'Z') {
-		return data.toLowerCase();
-	}
-
-	if (data === 'q' || data === 'Q') {
-		return 'q';
-	}
-
-	if (data === 'd' || data === 'D') {
-		return 'd';
-	}
-
-	return null;
-}
-
 function renderBackground(
 	fb: FrameBuffer,
-	_width: number,
-	_height: number,
-	_background: RGB,
-	_accent: RGB,
-	_intensity: number,
+	width: number,
+	height: number,
+	background: RGB,
+	accent: RGB,
+	intensity: number,
 ): void {
-	fb.verticalGradient(0, 0, _width, _height, _background, [
-		Math.round((_background[0] ?? 0) * 0.5),
-		Math.round((_background[1] ?? 0) * 0.5),
-		Math.round((_background[2] ?? 0) * 0.5),
-	]);
+	const top: RGB = [
+		Math.round((background[0] ?? 0) * 0.35),
+		Math.round((background[1] ?? 0) * 0.35),
+		Math.round((background[2] ?? 0) * 0.35),
+	];
+	const bottom: RGB = [
+		Math.round((background[0] ?? 0) * 0.12),
+		Math.round((background[1] ?? 0) * 0.12),
+		Math.round((background[2] ?? 0) * 0.12),
+	];
 
-	const barCount = 5;
-	const barWidth = Math.floor(_width / barCount) - 2;
+	fb.verticalGradient(0, 0, width, height, top, bottom);
 
-	for (let i = 0; i < barCount; i++) {
-		const x = i * (barWidth + 2) + 1;
-		const barHeight = Math.floor(2 + Math.random() * 4 * _intensity);
+	if (intensity > 0.35) {
+		const glowY = Math.floor(height * 0.15);
+		const glowW = Math.floor(width * (0.2 + intensity * 0.3));
+		const glowX = Math.floor((width - glowW) / 2);
+		fb.horizontalGradient(
+			glowX,
+			glowY,
+			glowW,
+			1,
+			[0, 0, 0],
+			[
+				Math.round(accent[0] * intensity),
+				Math.round(accent[1] * intensity),
+				Math.round(accent[2] * intensity),
+			],
+		);
+	}
+}
 
-		fb.drawRect(x, 0, barWidth, barHeight + 2, _accent, null, 'round');
+function renderHeader(
+	fb: FrameBuffer,
+	width: number,
+	layout: ImmersiveLayout,
+	state: ImmersivePlayerState | undefined,
+	accent: RGB,
+): void {
+	const title = '♫  YOUTUBE MUSIC';
+	fb.setText(2, layout.headerY, title, accent, null, {bold: true});
+
+	if (state?.currentTrack && state.queue.length > 0) {
+		const position = `Track ${state.queueIndex + 1}/${state.queue.length}`;
+		fb.setText(
+			Math.max(2, width - position.length - 2),
+			layout.headerY,
+			position,
+			null,
+			null,
+			{dim: true},
+		);
+	}
+
+	const lineY = layout.headerY + 1;
+	fb.setText(1, lineY, '─'.repeat(Math.max(0, width - 2)), null, null, {
+		dim: true,
+	});
+}
+
+function renderVisualizerFrame(
+	fb: FrameBuffer,
+	layout: ImmersiveLayout,
+	accent: RGB,
+): void {
+	fb.drawRect(
+		layout.vizX,
+		layout.vizY,
+		layout.vizW,
+		layout.vizH,
+		accent,
+		null,
+		'single',
+	);
+
+	const label = ' SPECTRUM ';
+	const labelX = layout.vizX + 2;
+	if (labelX + label.length < layout.vizX + layout.vizW - 1) {
+		fb.setText(labelX, layout.vizY, label, accent, null, {dim: true});
 	}
 }
 
 function renderVisualizer(
-	_fb: FrameBuffer,
-	_canvas: BrailleCanvas,
-	_audio: AudioCollector,
-	_width: number,
-	_height: number,
-	_accent: RGB,
-	_intensity: number,
+	canvas: BrailleCanvas,
+	audio: AudioCollector,
+	data: Float32Array,
+	layout: ImmersiveLayout,
+	accent: RGB,
+	intensity: number,
+	isPlaying: boolean,
 ): void {
-	const vizHeight = Math.floor(_height * 0.4);
-	const vizY = Math.floor(_height * 0.3);
+	const padX = 2;
+	const padY = 1;
+	const innerW = Math.max(4, layout.vizW - padX * 2);
+	const innerH = Math.max(3, layout.vizH - padY * 2);
 
-	const time = performance.now();
-	const data = _audio.generateSimulatedData(time);
-	const bands = _audio.getFrequencyBands(data);
+	const originX = (layout.vizX + padX) * 2;
+	const originY = (layout.vizY + padY) * 4;
+	const pixelW = innerW * 2;
+	const pixelH = innerH * 4;
 
-	const barCount = 20;
-	const barWidth = Math.floor(_width / barCount) - 1;
+	const barCount = Math.min(40, Math.max(12, Math.floor(innerW / 2)));
+	const gap = 1;
+	const barWidthPx = Math.max(
+		2,
+		Math.floor((pixelW - gap * (barCount - 1)) / barCount),
+	);
+	const bands = audio.getFrequencyBands(data);
+	const idleFloor = isPlaying ? 0.06 : 0.12;
 
 	for (let i = 0; i < barCount; i++) {
 		const freqIndex = Math.floor((i / barCount) * data.length);
-		const value = data[freqIndex] ?? 0;
-		const barHeight = Math.floor(value * vizHeight);
-
-		const hue = (i / barCount) * 60 + bands.bass * 30;
-		const color: RGB = hslToRgb(hue / 360, 0.8, 0.5 + _intensity * 0.2);
-
-		_canvas.drawRect(
-			i * (barWidth + 1) + Math.floor((_width - barCount * (barWidth + 1)) / 2),
-			vizY + vizHeight - barHeight,
-			barWidth,
-			barHeight,
-			color,
-			true,
+		const value = Math.max(idleFloor, data[freqIndex] ?? idleFloor);
+		const barHeightPx = Math.max(
+			4,
+			Math.floor(value * pixelH * (isPlaying ? 0.92 : 0.55)),
 		);
+
+		const hue = (i / barCount) * 50 + bands.bass * 40 + intensity * 20;
+		const color: RGB = hslToRgb(hue / 360, 0.75, 0.45 + intensity * 0.25);
+
+		const x =
+			originX +
+			i * (barWidthPx + gap) +
+			Math.floor((pixelW - barCount * (barWidthPx + gap)) / 2);
+		const y = originY + pixelH - barHeightPx;
+
+		canvas.drawRect(x, y, barWidthPx, barHeightPx, color, true);
+
+		if (barHeightPx > 8) {
+			const peakColor: RGB = [
+				Math.min(255, color[0] + 40),
+				Math.min(255, color[1] + 40),
+				Math.min(255, color[2] + 40),
+			];
+			canvas.drawRect(x, y, barWidthPx, 2, peakColor, true);
+		}
+	}
+
+	if (!isPlaying) {
+		const centerX = originX + Math.floor(pixelW / 2);
+		const centerY = originY + Math.floor(pixelH / 2);
+		canvas.drawCircle(centerX, centerY, 6, accent, false);
+		canvas.drawRect(centerX - 2, centerY - 4, 2, 8, accent, true);
+		canvas.drawRect(centerX + 1, centerY - 4, 2, 8, accent, true);
 	}
 }
 
-function renderTrackInfo(
-	_fb: FrameBuffer,
-	_width: number,
-	_height: number,
-	_trackInfo?: {
-		title: string;
-		artist: string;
-		album?: string;
-		artwork?: string;
-	},
-	_state?: PlayerState,
+function renderNowPlaying(
+	fb: FrameBuffer,
+	layout: ImmersiveLayout,
+	state: ImmersivePlayerState | undefined,
+	accent: RGB,
 ): void {
-	if (!_trackInfo) return;
-
-	const infoY = Math.floor(_height * 0.7);
-
-	const truncatedTitle = truncateText(_trackInfo.title, _width - 4);
-	const truncatedArtist = truncateText(_trackInfo.artist, _width - 4);
-
-	_fb.setText(
-		Math.floor((_width - truncatedTitle.length) / 2),
-		infoY,
-		truncatedTitle,
+	fb.drawRect(
+		layout.nowPlayingX,
+		layout.nowPlayingY,
+		layout.nowPlayingW,
+		layout.nowPlayingH,
+		accent,
 		null,
-		null,
-		{bold: true},
-	);
-	_fb.setText(
-		Math.floor((_width - truncatedArtist.length) / 2),
-		infoY + 1,
-		truncatedArtist,
-		null,
-		null,
-		{dim: true},
+		'single',
 	);
 
-	if (_state) {
-		const statusText = _state.isPlaying ? '[ PLAYING ]' : '[ PAUSED ]';
-		_fb.setText(
-			Math.floor((_width - statusText.length) / 2),
-			infoY + 3,
-			statusText,
-			null,
-			null,
-			{bold: true},
-		);
+	const innerX = layout.nowPlayingX + 2;
+	let y = layout.nowPlayingY + 1;
+
+	if (!state?.currentTrack) {
+		const idleText = 'Press / to search  •  Space to play';
+		fb.setText(innerX, y + 2, idleText, null, null, {dim: true});
+		return;
 	}
+
+	const maxTextW = layout.nowPlayingW - 4;
+	const title = truncateText(state.currentTrack.title, maxTextW);
+	const artist = truncateText(trackArtists(state.currentTrack), maxTextW);
+
+	fb.setText(innerX, y, 'NOW PLAYING', accent, null, {dim: true});
+	y += 1;
+	fb.setText(innerX, y, title, null, null, {bold: true});
+	y += 1;
+	fb.setText(innerX, y, artist, null, null, {dim: true});
+	y += 1;
+
+	const statusText = state.isPlaying ? '▶  PLAYING' : '⏸  PAUSED';
+	fb.setText(innerX, y, statusText, accent, null, {bold: true});
+	y += 1;
+
+	const duration = resolveDuration(state);
+	const progressW = Math.max(10, layout.nowPlayingW - 4);
+	const ratio = duration > 0 ? state.currentTime / duration : 0;
+	const {bar} = buildProgressBar(ratio, progressW);
+	fb.setText(innerX, y, bar, null, null);
+	y += 1;
+
+	if (duration > 0) {
+		const timeText = `${formatTime(state.currentTime)} / ${formatTime(duration)}`;
+		fb.setText(innerX, y, timeText, null, null, {dim: true});
+	} else {
+		fb.setText(innerX, y, 'Press Space to start playback', null, null, {
+			dim: true,
+		});
+	}
+	y += 1;
+
+	const volBarW = Math.min(16, progressW - 10);
+	const volumeLine = `Vol ${buildVolumeBar(state.volume, volBarW)} ${Math.round(state.volume)}%`;
+	fb.setText(innerX, y, truncateText(volumeLine, maxTextW), null, null, {
+		dim: true,
+	});
+}
+
+function renderQueuePanel(
+	fb: FrameBuffer,
+	layout: ImmersiveLayout,
+	state: ImmersivePlayerState | undefined,
+	accent: RGB,
+): void {
+	if (!state || state.queue.length === 0) {
+		return;
+	}
+
+	fb.drawRect(
+		layout.queueX,
+		layout.queueY,
+		layout.queueW,
+		layout.queueH,
+		accent,
+		null,
+		'single',
+	);
+
+	const innerX = layout.queueX + 2;
+	let y = layout.queueY + 1;
+	fb.setText(innerX, y, 'UP NEXT', accent, null, {bold: true});
+	y += 1;
+
+	const maxLines = Math.max(1, layout.queueH - 3);
+	const upcoming = getUpcomingTracks(state, maxLines);
+	for (let i = 0; i < upcoming.length; i++) {
+		const track = upcoming[i];
+		if (!track) continue;
+		const line = truncateText(`${i + 1}. ${track.title}`, layout.queueW - 4);
+		fb.setText(innerX, y + i, line, null, null, {dim: true});
+	}
+}
+
+function resolveDuration(state: ImmersivePlayerState): number {
+	if (state.duration > 0) {
+		return state.duration;
+	}
+	return state.currentTrack?.duration ?? 0;
 }
 
 function renderControls(
-	_fb: FrameBuffer,
-	_width: number,
-	_height: number,
+	fb: FrameBuffer,
+	width: number,
+	height: number,
+	searchActive: boolean,
 ): void {
-	const controlsY = _height - 3;
+	const separatorY = height - 3;
+	fb.setText(1, separatorY, '─'.repeat(Math.max(0, width - 2)), null, null, {
+		dim: true,
+	});
 
-	const controls = [
-		'[←] Prev',
-		'[SPACE] Play/Pause',
-		'[D] Disco',
-		'[↑↓] Volume',
-		'[→] Next',
-		'[Q] Quit',
-	];
+	const controlsY = height - 2;
+	const controls = searchActive
+		? '[Enter] Search   [Esc] Cancel   [Backspace] Delete'
+		: '[←→] Track   [Space] Play/Pause   [↑↓] Volume   [D] Disco   [/] Search   [Q] Quit';
 
-	let x = 2;
-	for (const control of controls) {
-		_fb.setText(x, controlsY, control, null, null, {dim: true});
-		x += control.length + 2;
+	const x = Math.max(2, Math.floor((width - controls.length) / 2));
+	fb.setText(x, controlsY, truncateText(controls, width - 4), null, null, {
+		dim: true,
+	});
+}
+
+function renderSearchOverlay(
+	fb: FrameBuffer,
+	width: number,
+	height: number,
+	overlay: SearchOverlayState,
+): void {
+	if (!overlay.active) {
+		return;
+	}
+
+	const boxY = height - 6;
+	const prompt = `Search: ${overlay.query}_`;
+	fb.setText(2, boxY, truncateText(prompt, width - 4), null, null, {
+		bold: true,
+	});
+
+	if (overlay.status) {
+		fb.setText(
+			2,
+			boxY + 1,
+			truncateText(overlay.status, width - 4),
+			null,
+			null,
+			{
+				dim: true,
+			},
+		);
 	}
 }
 
 function truncateText(text: string, maxLength: number): string {
 	if (text.length <= maxLength) return text;
 	return text.substring(0, maxLength - 3) + '...';
+}
+
+function formatTime(seconds: number): string {
+	const mins = Math.floor(seconds / 60);
+	const secs = Math.floor(seconds % 60);
+	return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 function hslToRgb(h: number, s: number, l: number): RGB {
@@ -514,3 +803,5 @@ function hslToRgb(h: number, s: number, l: number): RGB {
 
 	return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
+
+export {parseKeyName} from './input/key-parser.ts';

@@ -587,19 +587,30 @@ class PlayerService {
 			hasMpvProcess: Boolean(this.mpvProcess),
 			currentTrackId: this.currentTrackId,
 		});
-		this.isPlaying = true;
+
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
+			this.isPlaying = true;
 			this.sendIpcCommand(['set_property', 'pause', false]);
-			// Reapply volume after resume to ensure audio isn't muted
 			if (this.currentVolume !== undefined) {
 				setTimeout(() => {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
-		} else if (!this.isPlaying && !this.mpvProcess && this.currentUrl) {
-			logger.info('PlayerService', 'Resume fallback: restarting track');
-			void this.play(this.currentUrl, {volume: this.currentVolume});
+			return;
 		}
+
+		if (this.currentUrl) {
+			logger.info('PlayerService', 'Resume fallback: restarting track');
+			this.isPlaying = true;
+			void this.play(this.currentUrl, {volume: this.currentVolume});
+			return;
+		}
+
+		this.isPlaying = true;
+	}
+
+	hasActivePlaybackSession(): boolean {
+		return Boolean(this.ipcSocket && !this.ipcSocket.destroyed);
 	}
 
 	stop(): void {

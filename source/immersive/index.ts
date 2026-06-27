@@ -2,6 +2,8 @@ import process from 'node:process';
 import {ImmersiveEngine, type ImmersiveOptions} from './immersive-engine.ts';
 
 export {ImmersiveEngine} from './immersive-engine.ts';
+export {startImmersiveApp} from './immersive-app.ts';
+export type {ImmersiveAppOptions} from './immersive-app.ts';
 
 export function launchImmersiveMode(options: ImmersiveOptions): void {
 	if (process.platform !== 'win32') {

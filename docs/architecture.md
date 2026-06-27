@@ -208,14 +208,19 @@ User Action → Store Dispatch → State Update → Plugin Hook → UI Re-render
 
 ## Immersive Mode (Windows)
 
-A fullscreen Windows-only TUI experience built on top of the standard player architecture. It renders ANSI graphics directly to the terminal using an alternate screen buffer.
+A fullscreen Windows-only TUI experience wired to the real player stack (`PlayerService`, YouTube Music API). It renders ANSI graphics directly to the terminal using an alternate screen buffer.
 
 ### Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│      ImmersivePlayer Component      │
-│  (entry via --win32 flag or CLI)    │
+│  cli.tsx --win32 / immersive-entry  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│       immersive-app.ts (bridge)     │
+│  queue state + mpv IPC + search     │
 └──────────────┬──────────────────────┘
                │
        ┌───────┴───────┬──────────┬──────────┐
@@ -223,24 +228,28 @@ A fullscreen Windows-only TUI experience built on top of the standard player arc
   ┌─────────┐   ┌───────────┐ ┌────────┐ ┌────────┐
   │Renderer │   │Visualizer │ │Effects │ │ Native │
   │         │   │           │ │        │ │        │
-  │-FrameBuf│   │-AudioCol  │ │-Particle│ │-Tray  │
-  │-Braille │   │-DiscoEng  │ │-ColorEx│ │-Notifs │
-  │-ANSI    │   │           │ │        │ │-Hotkey │
+  │-FrameBuf│   │-HybridAud │ │-Particle│ │-Tray  │
+  │-Braille │   │-DiscoEng  │ │-ColorEx│ │-Hotkey │
+  │-ANSI    │   │           │ │        │ │-DPI   │
   └─────────┘   └───────────┘ └────────┘ └────────┘
 ```
 
 ### Components
 
-- **Renderer** (`source/immersive/renderer/`) - Frame buffer, braille canvas for 2x4 pixel density, ANSI escape codes
-- **Visualizer** (`source/immersive/visualizer/`) - FFT-based frequency band analysis, disco color cycling with beat detection
+- **Bridge** (`source/immersive/immersive-app.ts`) - Connects player services, queue state, search overlay, and notifications
+- **Renderer** (`source/immersive/renderer/`) - Frame buffer, braille canvas for 2x4 pixel density, flicker-free ANSI output
+- **Visualizer** (`source/immersive/visualizer/`) - Hybrid playback-synced audio bars, disco color cycling with beat detection
 - **Effects** (`source/immersive/effects/`) - Particle system for disco mode, dominant color extraction
-- **Native** (`source/immersive/native/`) - Console alt buffer, system tray icon, Windows toast notifications, stdin hotkey listener
+- **Native** (`source/immersive/native/`) - Console alt buffer, persistent tray daemon, `@bun-win32` DPI/hotkeys via runtime FFI loader
 
 ### Entry Points
 
 ```bash
 # Development
 bun run dev:win32
+
+# From main CLI
+youtube-music-cli --win32 --search "query"
 
 # Production build
 bun run build:win32
@@ -252,7 +261,7 @@ bun run build:all
 
 ### Build
 
-Uses `bun build --compile --target bun` to produce a standalone Windows executable.
+Uses `bun build --compile --target bun-windows-x64` to produce a standalone Windows executable with the immersive bridge entry point.
 
 ## Component Architecture
 

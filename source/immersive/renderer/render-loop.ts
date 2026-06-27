@@ -71,7 +71,7 @@ export class RenderLoop {
 	}
 
 	private render(): void {
-		let output = ANSI.hideCursor + ANSI.saveCursor + ANSI.clearScreen;
+		const rows: string[] = new Array(this.frameBuffer.height);
 
 		for (let y = 0; y < this.frameBuffer.height; y++) {
 			let row = '';
@@ -98,15 +98,34 @@ export class RenderLoop {
 					cellStr += ANSI.DIM;
 				}
 
-				cellStr += cell.char;
-
+				cellStr += cell.char + ANSI.RESET;
 				row += cellStr;
 			}
 
-			output += ANSI.goto(y + 1, 1) + row;
+			rows[y] = row;
 		}
 
-		output += ANSI.restoreCursor;
+		let output = ANSI.hideCursor + '\x1B[H';
+
+		for (let y = 0; y < rows.length; y++) {
+			output += rows[y] ?? '';
+			if (y < rows.length - 1) {
+				output += '\n';
+			}
+		}
+
+		this.writeOutput(output);
+	}
+
+	private writeOutput(output: string): void {
+		const bunRuntime = globalThis as {
+			Bun?: {write: (fd: unknown, data: string) => void};
+			stdout?: unknown;
+		};
+		if (bunRuntime.Bun?.write && bunRuntime.stdout) {
+			bunRuntime.Bun.write(bunRuntime.stdout, output);
+			return;
+		}
 
 		process.stdout.write(output);
 	}

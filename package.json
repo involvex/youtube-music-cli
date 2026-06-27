@@ -44,7 +44,7 @@
 		"build": "bun run build:bun && bun run build:node",
 		"build:bun": "bun build source/cli.tsx --outfile dist/source/cli.js --target bun --footer \"//Copyright (c) 2026 involvex\" --production",
 		"build:node": "bun build source/cli.tsx --outfile dist/source/cli.js --target node --footer \"//Copyright (c) 2026 involvex\" --production",
-		"build:win32": "bun build source/immersive-entry.tsx --compile --target bun --outfile dist/ymc-win32.exe",
+		"build:win32": "bun build source/immersive-entry.tsx --compile --target bun-windows-x64 --outfile dist/ymc-win32.exe",
 		"compile": "bun scripts/build-cli.ts",
 		"dev": "bun run --bun source/cli.tsx",
 		"dev:win32": "bun run --bun source/immersive-entry.tsx",

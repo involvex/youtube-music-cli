@@ -3,22 +3,39 @@ import type {RGB} from './ansi-codes.ts';
 
 const BRAILLE_BASE = 0x2800;
 
-const BRAILLE_PATTERNS = [
-	[0x01, 0x08],
-	[0x02, 0x10],
-	[0x04, 0x20],
-	[0x40, 0x80],
-];
+const BRAILLE_DOT_BITS = [0x01, 0x08, 0x02, 0x10, 0x04, 0x20, 0x40, 0x80];
 
 export class BrailleCanvas {
 	frameBuffer: FrameBuffer;
 	pixelWidth: number;
 	pixelHeight: number;
+	private dotMasks: Uint8Array;
+	private cellColors: Map<number, RGB>;
 
 	constructor(frameBuffer: FrameBuffer) {
 		this.frameBuffer = frameBuffer;
 		this.pixelWidth = frameBuffer.width * 2;
 		this.pixelHeight = frameBuffer.height * 4;
+		this.dotMasks = new Uint8Array(frameBuffer.width * frameBuffer.height);
+		this.cellColors = new Map();
+	}
+
+	resize(width: number, height: number): void {
+		this.frameBuffer.width = width;
+		this.frameBuffer.height = height;
+		this.pixelWidth = width * 2;
+		this.pixelHeight = height * 4;
+		this.dotMasks = new Uint8Array(width * height);
+		this.cellColors.clear();
+	}
+
+	clearMask(): void {
+		this.dotMasks.fill(0);
+		this.cellColors.clear();
+	}
+
+	private cellIndex(cellX: number, cellY: number): number {
+		return cellY * this.frameBuffer.width + cellX;
 	}
 
 	setPixel(x: number, y: number, color: RGB): void {
@@ -31,26 +48,22 @@ export class BrailleCanvas {
 
 		const localX = x % 2;
 		const localY = y % 4;
-
-		const cell = this.frameBuffer.getCell(cellX, cellY);
-		if (!cell) return;
-
 		const dotIndex = localY * 2 + localX;
-		const pattern = BRAILLE_PATTERNS[dotIndex] ?? [0x01, 0x08];
+		const dotBit = BRAILLE_DOT_BITS[dotIndex] ?? 0x01;
+		const index = this.cellIndex(cellX, cellY);
 
-		let charCode = BRAILLE_BASE;
-		for (let i = 0; i < pattern.length; i++) {
-			if (dotIndex === i && pattern[i] !== undefined) {
-				charCode |= pattern[i]!;
-			}
-		}
+		this.dotMasks[index] = (this.dotMasks[index] ?? 0) | dotBit;
+		this.cellColors.set(index, color);
 
-		const char = String.fromCharCode(charCode);
+		const char = String.fromCharCode(
+			BRAILLE_BASE + (this.dotMasks[index] ?? 0),
+		);
+		const cell = this.frameBuffer.getCell(cellX, cellY);
 
 		this.frameBuffer.setCell(cellX, cellY, {
 			char,
 			fg: color,
-			bg: cell.bg,
+			bg: cell?.bg ?? null,
 		});
 	}
 
@@ -143,6 +156,7 @@ export class BrailleCanvas {
 	}
 
 	clear(): void {
+		this.clearMask();
 		for (let y = 0; y < this.frameBuffer.height; y++) {
 			for (let x = 0; x < this.frameBuffer.width; x++) {
 				this.frameBuffer.setCell(x, y, {

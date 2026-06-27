@@ -31,7 +31,7 @@ This document captures how the team is turning the ideas listed in `SUGGESTIONS.
 
 ## Recent additions
 
-- **Immersive Windows Mode** - A fullscreen TUI experience for Windows with ANSI-based audio visualization and disco mode. Launch with `youtube-music-cli --win32` or use `bun run dev:win32` for development. Build via `bun run build:win32` to produce a standalone `ymc-win32.exe`.
+- **Immersive Windows Mode** - Fullscreen Windows player with real mpv playback, in-TUI search (`/`), queue display, hybrid visualizer, disco mode, tray notifications, and Bun-native hotkeys. Launch with `youtube-music-cli --win32`, `youtube-music-cli --win32 --search "query"`, or `bun run dev:win32`. Build via `bun run build:win32` to produce `dist/ymc-win32.exe`.
 - **Favorites feature** – Users can now mark tracks as favorites using the `f` key and view their collection with `Shift+F`. Favorites are persisted in `~/.youtube-music-cli/favorites.json` and indicated with a heart icon (♥) across all views.
 - **Shell completions for `ymc`** – the CLI now ships with `ymc completions <bash|zsh|powershell|fish>` to emit shell-specific helper scripts.
 

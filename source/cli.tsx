@@ -466,11 +466,11 @@ if (command === 'plugins') {
 	if (flags.win32 && process.platform === 'win32') {
 		void (async () => {
 			try {
-				const {launchImmersiveMode} = await import('./immersive/index.ts');
-				launchImmersiveMode({
-					discoMode: false,
-					enableTray: true,
-					enableNotifications: true,
+				const {startImmersiveApp} =
+					await import('./immersive/immersive-app.ts');
+				await startImmersiveApp({
+					flags,
+					discoMode: process.env.DISCO_MODE === 'true',
 				});
 			} catch (error) {
 				console.error(
