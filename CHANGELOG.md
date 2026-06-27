@@ -1,3 +1,9 @@
+## [0.0.83](https://github.com/involvex/youtube-music-cli/compare/v0.0.82...v0.0.83) (2026-06-27)
+
+### Bug Fixes
+
+- **immersive:** rewrite as plain Node.js class to fix black screen ([cf8e16b](https://github.com/involvex/youtube-music-cli/commit/cf8e16b2490441e2f929b7a9b07dd94666c0a392))
+
 ## [0.0.82](https://github.com/involvex/youtube-music-cli/compare/v0.0.80...v0.0.82) (2026-06-23)
 
 ### Bug Fixes
