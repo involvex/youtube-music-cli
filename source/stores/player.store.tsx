@@ -275,7 +275,12 @@ export function playerReducer(
 			return {...state, isLoading: action.loading};
 
 		case 'SET_ERROR':
-			return {...state, error: action.error, isLoading: false};
+			return {
+				...state,
+				error: action.error,
+				isLoading: false,
+				isPlaying: false,
+			};
 
 		case 'SET_SPEED': {
 			const clampedSpeed = Math.max(0.25, Math.min(4.0, action.speed));

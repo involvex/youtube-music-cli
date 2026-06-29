@@ -58,6 +58,19 @@ test('player-service-mpv-args: normalizeIpcPipePath normalizes Windows pipe path
 	}
 });
 
+test('player-service-mpv-args: buildMpvArgs uses mpv slang option when subtitles are enabled', async t => {
+	const {buildMpvArgs} =
+		await import('../source/services/player/player.service.ts');
+	const args = buildMpvArgs(IPC_PATH, {
+		volume: 55,
+		subtitlesEnabled: true,
+	});
+
+	t.true(args.includes('--slang=en'));
+	t.true(args.includes('--sub-scale=1.3'));
+	t.false(args.includes('--sub-lang=en'));
+});
+
 test('player-service-mpv-args: connectToMpvIpc throws on invalid path instead of passing null', async t => {
 	const {connectToMpvIpc} =
 		await import('../source/services/player/player.service.ts');
