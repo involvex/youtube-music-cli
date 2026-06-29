@@ -785,7 +785,7 @@ class PlayerService {
 			return;
 		}
 
-		this.isPlaying = true;
+		logger.warn('PlayerService', 'resume() ignored: no IPC session or URL');
 	}
 
 	hasActivePlaybackSession(): boolean {

@@ -12,16 +12,18 @@ import {getDownloadService} from '../services/download/download.service.ts';
 import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {ensurePlaybackDependencies} from '../services/player/dependency-check.service.ts';
 import {loadPlayerState} from '../services/player-state/player-state.service.ts';
+import {
+	BACKGROUND_PLAYBACK_TTL_MS,
+	PLAYBACK_STALL_MS,
+	shouldApplyMpvPauseSync,
+	shouldDebounceAdvance,
+} from '../services/player/mpv-event-policy.ts';
 import {ImmersiveEngine} from './immersive-engine.ts';
 import {
 	createMixFromResult,
 	loadPlaylists,
 	playSearchResult,
 } from './actions/playback-actions.ts';
-import {
-	shouldDebounceAdvance,
-	shouldSyncPauseFromMpv,
-} from './state/playback-sync.ts';
 import {
 	advanceQueue,
 	createInitialImmersiveState,
@@ -69,7 +71,7 @@ function getPlaybackOptions(volume: number) {
 	};
 }
 
-async function resolveInitialTrack(flags?: Flags): Promise<{
+export async function resolveInitialTrack(flags?: Flags): Promise<{
 	tracks: Track[];
 	queueIndex: number;
 	startPlaying: boolean;
@@ -130,7 +132,7 @@ async function resolveInitialTrack(flags?: Flags): Promise<{
 				persisted.queuePosition,
 				Math.max(0, tracks.length - 1),
 			),
-			startPlaying: Boolean(flags?.continue),
+			startPlaying: true,
 			savedProgress: persisted.progress,
 			savedVolume: persisted.volume,
 		};
@@ -143,9 +145,16 @@ async function tryReattachBackgroundPlayback(
 	state: ImmersivePlayerState,
 	playerService: ReturnType<typeof getPlayerService>,
 	config: ReturnType<typeof getConfigService>,
+	waitForTimePos: (timeoutMs: number) => Promise<boolean>,
 ): Promise<boolean> {
 	const bgState = config.getBackgroundPlaybackState();
 	if (!bgState.enabled || !bgState.ipcPath) {
+		return false;
+	}
+
+	const ageMs = Date.now() - Date.parse(bgState.timestamp);
+	if (Number.isNaN(ageMs) || ageMs > BACKGROUND_PLAYBACK_TTL_MS) {
+		config.clearBackgroundPlaybackState();
 		return false;
 	}
 
@@ -156,6 +165,13 @@ async function tryReattachBackgroundPlayback(
 			trackId: videoId,
 			currentUrl: bgState.currentUrl,
 		});
+		const healthy = await waitForTimePos(2000);
+		if (!healthy) {
+			playerService.stop();
+			config.clearBackgroundPlaybackState();
+			return false;
+		}
+
 		config.clearBackgroundPlaybackState();
 		state.isPlaying = true;
 		playerService.resume();
@@ -217,9 +233,28 @@ export async function startImmersiveApp(
 
 	let engine: ImmersiveEngine | null = null;
 	let eofTimestamp = 0;
-	let playbackStartTimestamp = 0;
 	let isAdvancing = false;
 	let lastAdvanceAt = 0;
+	let lastTimePosChangeAt = Date.now();
+	let lastObservedTimePos = state.currentTime;
+	let stallNotified = false;
+	let reattachTimePosWaiter: (() => void) | null = null;
+
+	const waitForTimePos = (timeoutMs: number): Promise<boolean> =>
+		new Promise(resolve => {
+			let settled = false;
+			const finish = (ok: boolean) => {
+				if (settled) {
+					return;
+				}
+				settled = true;
+				reattachTimePosWaiter = null;
+				clearTimeout(timer);
+				resolve(ok);
+			};
+			reattachTimePosWaiter = () => finish(true);
+			const timer = setTimeout(() => finish(false), timeoutMs);
+		});
 
 	const playTrackAtIndex = async (index: number): Promise<void> => {
 		const track = state.queue[index];
@@ -234,7 +269,6 @@ export async function startImmersiveApp(
 		const notificationsEnabled = config.get('notifications') ?? false;
 
 		isAdvancing = true;
-		playbackStartTimestamp = Date.now();
 		state.currentTime = 0;
 
 		try {
@@ -314,7 +348,6 @@ export async function startImmersiveApp(
 			loadedTrackId === currentVideoId
 		) {
 			playerService.resume();
-			playbackStartTimestamp = Date.now();
 			state.isPlaying = true;
 			return;
 		}
@@ -357,6 +390,14 @@ export async function startImmersiveApp(
 
 		if (event.timePos !== undefined) {
 			state.currentTime = event.timePos;
+			if (event.timePos !== lastObservedTimePos) {
+				lastObservedTimePos = event.timePos;
+				lastTimePosChangeAt = Date.now();
+				stallNotified = false;
+			}
+			if (reattachTimePosWaiter) {
+				reattachTimePosWaiter();
+			}
 		}
 
 		if (event.eof) {
@@ -371,17 +412,18 @@ export async function startImmersiveApp(
 
 		if (event.paused !== undefined) {
 			if (
-				!shouldSyncPauseFromMpv({
+				!shouldApplyMpvPauseSync({
 					paused: event.paused,
 					isAdvancing,
 					eofTimestamp,
-					playbackStartTimestamp,
-					currentTime: state.currentTime,
 				})
 			) {
 				return;
 			}
 			state.isPlaying = !event.paused;
+			if (event.paused) {
+				stallNotified = false;
+			}
 		}
 	});
 
@@ -397,8 +439,29 @@ export async function startImmersiveApp(
 		},
 	});
 
+	const stallWatchdog = setInterval(() => {
+		if (
+			!state.isPlaying ||
+			isAdvancing ||
+			!playerService.hasActivePlaybackSession()
+		) {
+			lastTimePosChangeAt = Date.now();
+			return;
+		}
+
+		if (
+			Date.now() - lastTimePosChangeAt >= PLAYBACK_STALL_MS &&
+			!stallNotified
+		) {
+			state.isPlaying = false;
+			stallNotified = true;
+			showTrackChangeToast('Playback stalled', 'Press Space to resume');
+		}
+	}, 1000);
+
 	process.on('exit', () => {
 		unregisterGlobalHotkeys();
+		clearInterval(stallWatchdog);
 		playerService.stop();
 	});
 
@@ -554,18 +617,17 @@ export async function startImmersiveApp(
 
 	await engine.start();
 
+	let playbackStarted = false;
 	if (state.currentTrack) {
-		const reattached = await tryReattachBackgroundPlayback(
+		playbackStarted = await tryReattachBackgroundPlayback(
 			state,
 			playerService,
 			config,
+			waitForTimePos,
 		);
-		if (reattached) {
-			playbackStartTimestamp = Date.now();
-		}
 	}
 
-	if (startPlaying && state.currentTrack) {
+	if (startPlaying && state.currentTrack && !playbackStarted) {
 		await playCurrent();
 	}
 }

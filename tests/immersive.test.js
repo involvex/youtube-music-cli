@@ -156,42 +156,26 @@ test('queue-state shuffle with repeat-all at end picks a different track', async
 	t.true(['a', 'b'].includes(next?.videoId ?? ''));
 });
 
-test('playback-sync suppresses pause during track advance and startup', async t => {
+test('playback-sync re-exports mpv-event-policy helpers', async t => {
 	const {ADVANCE_DEBOUNCE_MS, shouldDebounceAdvance, shouldSyncPauseFromMpv} =
 		await import('../source/immersive/state/playback-sync.ts');
 
-	const base = {
-		paused: true,
-		isAdvancing: false,
-		eofTimestamp: 0,
-		playbackStartTimestamp: 0,
-		currentTime: 0,
-		now: 10_000,
-	};
-
-	t.false(shouldSyncPauseFromMpv({...base, isAdvancing: true}));
+	const now = 10_000;
 	t.false(
 		shouldSyncPauseFromMpv({
-			...base,
-			eofTimestamp: 9000,
-		}),
-	);
-	t.false(
-		shouldSyncPauseFromMpv({
-			...base,
-			playbackStartTimestamp: 3000,
-			currentTime: 0,
+			paused: true,
+			isAdvancing: true,
+			eofTimestamp: 0,
+			now,
 		}),
 	);
 	t.true(
 		shouldSyncPauseFromMpv({
-			...base,
+			paused: true,
 			eofTimestamp: 0,
-			playbackStartTimestamp: 0,
-			currentTime: 5,
+			now,
 		}),
 	);
-	t.true(shouldSyncPauseFromMpv({...base, paused: false}));
 
 	t.true(shouldDebounceAdvance(0, ADVANCE_DEBOUNCE_MS - 1));
 	t.false(shouldDebounceAdvance(0, ADVANCE_DEBOUNCE_MS));

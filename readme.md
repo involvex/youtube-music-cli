@@ -239,6 +239,12 @@ The footer shows shuffle/repeat/disco status on one line and prioritized shortcu
 
 Global media keys (Alt+Media keys) also work when the terminal is unfocused on Windows with Bun runtime.
 
+**Troubleshooting immersive playback**
+
+- **Track info shows but time does not move / no audio:** Press `Space` to resume. Immersive auto-starts the last session; if mpv was paused externally (screen share, focus loss), the UI now syncs to `PAUSED` — press `Space` again.
+- **Screen sharing (Discord, Teams, OBS):** Remote viewers often do not hear your PC audio unless you enable “share computer sound” / system audio capture. That is a Windows capture limitation, not the player routing audio only to you.
+- **Requires Bun for Win32 native features:** Global hotkeys and native console title use `@bun-win32/*` via Bun. Run with `bun run dev:win32` or the compiled `ymc-win32.exe` binary.
+
 ### Shell completions
 
 Generate shell completion helpers through the lightweight `ymc` alias that ships with the CLI. Run `ymc completions <bash|zsh|powershell|fish>` to print the completion script for your shell, then source it or persist it in your profile:

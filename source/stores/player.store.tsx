@@ -14,6 +14,7 @@ import {
 	savePlayerState,
 } from '../services/player-state/player-state.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
+import {shouldApplyMpvPauseSync} from '../services/player/mpv-event-policy.ts';
 import {getNotificationService} from '../services/notification/notification.service.ts';
 import {getScrobblingService} from '../services/scrobbling/scrobbling.service.ts';
 import {getDiscordRpcService} from '../services/discord/discord-rpc.service.ts';
@@ -429,11 +430,13 @@ function PlayerManager() {
 			}
 
 			if (event.paused !== undefined) {
-				// mpv sends pause=true when a track ends and it enters idle mode.
-				// Suppress this for ~2s after EOF to prevent it from overwriting
-				// the isPlaying:true set by NEXT, which would block autoplay.
-				if (event.paused && Date.now() - eofTimestampRef.current < 2000) {
-					logger.debug('PlayerManager', 'Pause suppressed (EOF within 2s)', {
+				if (
+					!shouldApplyMpvPauseSync({
+						paused: event.paused,
+						eofTimestamp: eofTimestampRef.current,
+					})
+				) {
+					logger.debug('PlayerManager', 'Pause suppressed (EOF or advancing)', {
 						timeSinceEofMs: Date.now() - eofTimestampRef.current,
 					});
 					return;
