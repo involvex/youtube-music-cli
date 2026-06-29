@@ -1,8 +1,14 @@
+## [0.0.89](https://github.com/involvex/youtube-music-cli/compare/v0.0.88...v0.0.89) (2026-06-29)
+
+### Bug Fixes
+
+- resolve mpv IPC crashes and unify favorites persistence ([d390f17](https://github.com/involvex/youtube-music-cli/commit/d390f170cad21a026b575a83ee8d24d9723d984c))
+
 ## [0.0.88](https://github.com/involvex/youtube-music-cli/compare/v0.0.87...v0.0.88) (2026-06-29)
 
 ### Features
 
-- **immersive:** TUI volume keys and tray context menu ([3d94ef9](https://github.com/involvex/youtube-music-cli/commit/3d94ef94b762c76e2282cd1cdb8cc7b6010b02d4))
+- **immersive:** TUI volume keys and tray context menu ([ab8e070](https://github.com/involvex/youtube-music-cli/commit/ab8e070f793060b4e190826e7932c8e42be6332d))
 
 ## [0.0.87](https://github.com/involvex/youtube-music-cli/compare/v0.0.86...v0.0.87) (2026-06-27)
 
