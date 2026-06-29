@@ -49,3 +49,40 @@ test('favorites: parseFavoritesFileContent filters invalid entries', async t => 
 	});
 	t.is(tracks.length, 1);
 });
+
+test('favorites: saveFavorites refuses empty overwrite of populated file', async t => {
+	const {mkdtempSync, readFileSync, rmSync, writeFileSync} =
+		await import('node:fs');
+	const {tmpdir} = await import('node:os');
+	const {join} = await import('node:path');
+	const {
+		loadFavorites,
+		parseFavoritesFileContent,
+		saveFavorites,
+		setFavoritesFilePathForTests,
+	} = await import('../source/services/favorites/favorites.service.ts');
+
+	const tempDir = mkdtempSync(join(tmpdir(), 'ymc-favorites-save-test-'));
+	const favoritesFile = join(tempDir, 'favorites.json');
+	setFavoritesFilePathForTests(favoritesFile);
+	t.teardown(() => {
+		setFavoritesFilePathForTests(null);
+		rmSync(tempDir, {force: true, recursive: true});
+	});
+
+	writeFileSync(
+		favoritesFile,
+		JSON.stringify({schemaVersion: 1, tracks: [sampleTrack]}, null, 2),
+		'utf8',
+	);
+
+	await saveFavorites([]);
+	const persisted = parseFavoritesFileContent(
+		JSON.parse(readFileSync(favoritesFile, 'utf8')),
+	);
+	t.is(persisted.length, 1);
+
+	await saveFavorites([], {allowEmptyOverwrite: true});
+	const cleared = await loadFavorites();
+	t.is(cleared.length, 0);
+});

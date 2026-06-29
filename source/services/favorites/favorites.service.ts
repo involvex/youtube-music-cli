@@ -1,4 +1,11 @@
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {
+	copyFile,
+	mkdir,
+	readFile,
+	rename,
+	unlink,
+	writeFile,
+} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {CONFIG_DIR} from '../../utils/constants.ts';
@@ -8,7 +15,11 @@ import type {Track} from '../../types/youtube-music.types.ts';
 import {getConfigService} from '../config/config.service.ts';
 import {logger} from '../logger/logger.service.ts';
 
-const FAVORITES_FILE = join(CONFIG_DIR, 'favorites.json');
+let favoritesFilePathOverride: string | null = null;
+
+function getFavoritesFilePath(): string {
+	return favoritesFilePathOverride ?? join(CONFIG_DIR, 'favorites.json');
+}
 const SCHEMA_VERSION = 1;
 
 const defaultFavorites: PersistedFavorites = {
@@ -73,7 +84,11 @@ function tracksFromLegacyIds(ids: string[]): Track[] {
 
 let saveLock = Promise.resolve();
 
-export async function saveFavorites(tracks: Track[]): Promise<void> {
+export async function saveFavorites(
+	tracks: Track[],
+	options?: {allowEmptyOverwrite?: boolean},
+): Promise<void> {
+	const favoritesFile = getFavoritesFilePath();
 	const currentLock = saveLock;
 	let releaseLock: () => void = () => {};
 	const newLock = new Promise<void>(resolve => {
@@ -84,8 +99,32 @@ export async function saveFavorites(tracks: Track[]): Promise<void> {
 	await currentLock.catch(() => {});
 
 	try {
-		if (!existsSync(CONFIG_DIR)) {
-			await mkdir(CONFIG_DIR, {recursive: true});
+		const favoritesDir = join(favoritesFile, '..');
+		if (!existsSync(favoritesDir)) {
+			await mkdir(favoritesDir, {recursive: true});
+		}
+
+		if (
+			tracks.length === 0 &&
+			!options?.allowEmptyOverwrite &&
+			existsSync(favoritesFile)
+		) {
+			try {
+				const existingData = await readFile(favoritesFile, 'utf8');
+				const existingTracks = parseFavoritesFileContent(
+					JSON.parse(existingData) as unknown,
+				);
+				if (existingTracks.length > 0) {
+					logger.warn(
+						'FavoritesService',
+						'Refusing to overwrite non-empty favorites file with empty list',
+						{existingCount: existingTracks.length},
+					);
+					return;
+				}
+			} catch {
+				/* allow empty overwrite when existing file is unreadable */
+			}
 		}
 
 		const stateToSave: PersistedFavorites = {
@@ -94,16 +133,41 @@ export async function saveFavorites(tracks: Track[]): Promise<void> {
 			lastUpdated: new Date().toISOString(),
 		};
 
-		const tempFile = `${FAVORITES_FILE}.tmp.${Date.now()}`;
+		const tempFile = `${favoritesFile}.tmp.${Date.now()}`;
+		const backupFile = `${favoritesFile}.bak`;
 		await writeFile(tempFile, JSON.stringify(stateToSave, null, 2), 'utf8');
 
-		if (process.platform === 'win32' && existsSync(FAVORITES_FILE)) {
-			await import('node:fs/promises').then(fs => fs.unlink(FAVORITES_FILE));
-		}
+		try {
+			if (existsSync(favoritesFile)) {
+				await copyFile(favoritesFile, backupFile);
+			}
 
-		await import('node:fs/promises').then(fs =>
-			fs.rename(tempFile, FAVORITES_FILE),
-		);
+			try {
+				await rename(tempFile, favoritesFile);
+			} catch {
+				if (process.platform === 'win32' && existsSync(favoritesFile)) {
+					await unlink(favoritesFile);
+				}
+
+				await rename(tempFile, favoritesFile);
+			}
+
+			if (existsSync(backupFile)) {
+				await unlink(backupFile);
+			}
+		} catch (error) {
+			if (existsSync(backupFile)) {
+				try {
+					await copyFile(backupFile, favoritesFile);
+				} catch {
+					/* ignore restore failure */
+				}
+
+				await unlink(backupFile).catch(() => {});
+			}
+
+			throw error;
+		}
 
 		logger.debug('FavoritesService', 'Saved favorites', {
 			count: tracks.length,
@@ -118,13 +182,15 @@ export async function saveFavorites(tracks: Track[]): Promise<void> {
 }
 
 export async function loadFavorites(): Promise<Track[]> {
+	const favoritesFile = getFavoritesFilePath();
+
 	try {
-		if (!existsSync(FAVORITES_FILE)) {
+		if (!existsSync(favoritesFile)) {
 			logger.debug('FavoritesService', 'No favorites file found');
 			return [];
 		}
 
-		const data = await readFile(FAVORITES_FILE, 'utf8');
+		const data = await readFile(favoritesFile, 'utf8');
 		const parsed = JSON.parse(data) as unknown;
 		const tracks = parseFavoritesFileContent(parsed);
 
@@ -164,15 +230,32 @@ async function migrateLegacyConfigFavorites(): Promise<Track[]> {
 export class FavoritesManager {
 	private tracks: Track[] = [];
 	private loaded = false;
+	private loadPromise: Promise<void> | null = null;
 
 	async ensureLoaded(): Promise<void> {
 		if (this.loaded) {
 			return;
 		}
 
+		this.loadPromise ??= this.loadFromDisk();
+		await this.loadPromise;
+	}
+
+	private async loadFromDisk(): Promise<void> {
+		const favoritesFile = getFavoritesFilePath();
+		const favoritesFileExisted = existsSync(favoritesFile);
+
 		this.tracks = await loadFavorites();
 		if (this.tracks.length === 0) {
-			this.tracks = await migrateLegacyConfigFavorites();
+			if (!favoritesFileExisted) {
+				this.tracks = await migrateLegacyConfigFavorites();
+			} else {
+				getConfigService().consumeLegacyFavoriteIds();
+				logger.warn(
+					'FavoritesService',
+					'Favorites file exists but contained no valid tracks; keeping file on disk',
+				);
+			}
 		} else {
 			getConfigService().consumeLegacyFavoriteIds();
 		}
@@ -210,7 +293,7 @@ export class FavoritesManager {
 		}
 
 		this.tracks = next;
-		await saveFavorites(this.tracks);
+		await saveFavorites(this.tracks, {allowEmptyOverwrite: true});
 	}
 
 	async toggle(track: Track): Promise<boolean> {
@@ -245,5 +328,10 @@ export function getFavoritesManager(): FavoritesManager {
 }
 
 export function resetFavoritesManagerForTests(): void {
+	favoritesManagerInstance = null;
+}
+
+export function setFavoritesFilePathForTests(filePath: string | null): void {
+	favoritesFilePathOverride = filePath;
 	favoritesManagerInstance = null;
 }
