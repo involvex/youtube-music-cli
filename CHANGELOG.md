@@ -1,3 +1,11 @@
+## [0.0.90](https://github.com/involvex/youtube-music-cli/compare/v0.0.89...v0.0.90) (2026-06-29)
+
+### Bug Fixes
+
+- **favorites:** stop tests from wiping user favorites.json ([10f6c9d](https://github.com/involvex/youtube-music-cli/commit/10f6c9d1fad4918a3926e5b29ce33e3186b70317))
+- **immersive:** auto-advance queue without pausing between tracks ([f19b4f8](https://github.com/involvex/youtube-music-cli/commit/f19b4f86294c2a2eca7d27dbafaedd4cf097229c))
+- **player:** restore playback when subtitles enabled with mpv 0.41+ ([53d17cd](https://github.com/involvex/youtube-music-cli/commit/53d17cd92d1b2e017f726b24944fb0807db6adff))
+
 ## [0.0.89](https://github.com/involvex/youtube-music-cli/compare/v0.0.88...v0.0.89) (2026-06-29)
 
 ### Bug Fixes
