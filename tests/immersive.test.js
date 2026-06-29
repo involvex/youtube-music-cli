@@ -200,7 +200,7 @@ test('immersive settings items match TUI row count and cycle values', async t =>
 });
 
 test('tray helpers parse actions and resolve icon path', async t => {
-	const {parseTrayActionLine, resolveTrayIconPath} =
+	const {parseTrayActionLine, resolveTrayIconPath, truncateTrayTooltip} =
 		await import('../source/immersive/native/tray.ts');
 
 	t.is(parseTrayActionLine('ACTION:settings'), 'settings');
@@ -208,7 +208,10 @@ test('tray helpers parse actions and resolve icon path', async t => {
 	t.is(parseTrayActionLine('TOOLTIP:foo'), null);
 
 	const iconPath = resolveTrayIconPath();
-	t.true(iconPath === null || iconPath.endsWith('icon.ico'));
+	t.true(iconPath === null || /\.(ico|png|jpe?g)$/i.test(iconPath));
+
+	const long = 'A'.repeat(80);
+	t.is(truncateTrayTooltip(long).length, 63);
 });
 
 test('player shortcut line includes volume keys', async t => {
@@ -216,7 +219,7 @@ test('player shortcut line includes volume keys', async t => {
 		await import('../source/immersive/ui/layout.ts');
 
 	const line = buildPlayerShortcutLine(120);
-	t.true(line.includes('[=/-] Vol'));
+	t.true(line.includes('[+/-]'));
 });
 
 test('HybridAudioSource reacts to playback state', async t => {
@@ -256,9 +259,11 @@ test('layout helpers compute regions and progress bars', async t => {
 	} = await import('../source/immersive/ui/layout.ts');
 
 	const layout = computeLayout(100, 30);
-	t.true(layout.vizH >= 7);
+	t.true(layout.vizH >= 6);
 	t.true(layout.vizW > 0);
 	t.true(layout.nowPlayingW > 0);
+	t.true(layout.nowPlayingH >= 8);
+	t.true(layout.footerStartY > 0);
 
 	const {bar} = buildProgressBar(0.5, 10);
 	t.is(bar.length, 10);
@@ -384,12 +389,15 @@ test('search overlay handles query and results phases', async t => {
 	t.is(handleSearchQueryInput(overlay, 'escape'), 'cancel');
 });
 
-test('library overlay navigates menu and playlists', async t => {
+test('library overlay navigates menu, playlists, and favorites', async t => {
 	const {
 		closeLibraryOverlay,
 		createLibraryOverlayState,
+		formatFavoriteLine,
+		handleLibraryFavoritesInput,
 		handleLibraryMenuInput,
 		handleLibraryPlaylistInput,
+		openFavoritesPicker,
 		openLibraryMenu,
 		openPlaylistPicker,
 	} = await import('../source/immersive/ui/library-overlay.ts');
@@ -401,7 +409,14 @@ test('library overlay navigates menu and playlists', async t => {
 
 	t.is(handleLibraryMenuInput(overlay, 'down'), 'none');
 	t.is(overlay.selectedIndex, 1);
-	t.is(handleLibraryMenuInput(overlay, 'enter'), 'menu_select');
+
+	openFavoritesPicker(overlay);
+	t.is(overlay.view, 'favorites');
+	t.is(handleLibraryFavoritesInput(overlay, 'down', 2), 'none');
+	t.is(overlay.selectedIndex, 1);
+	t.is(handleLibraryFavoritesInput(overlay, 'enter', 2), 'play_favorite');
+	t.is(handleLibraryFavoritesInput(overlay, 'escape', 2), 'back_to_menu');
+	t.is(overlay.view, 'menu');
 
 	openPlaylistPicker(overlay);
 	t.is(overlay.view, 'playlists');
@@ -410,13 +425,21 @@ test('library overlay navigates menu and playlists', async t => {
 	t.is(handleLibraryPlaylistInput(overlay, 'escape', 3), 'back_to_menu');
 	t.is(overlay.view, 'menu');
 
+	const line = formatFavoriteLine(
+		{videoId: 'a', title: 'Favorite Song', artists: [{name: 'Artist'}]},
+		40,
+	);
+	t.true(line.includes('Favorite Song'));
+
 	closeLibraryOverlay(overlay);
 	t.false(overlay.active);
 });
 
 test('playback-actions dedupe tracks and favorites manager toggles', async t => {
-	const {dedupeTracks, FavoritesManager} =
+	const {dedupeTracks} =
 		await import('../source/immersive/actions/playback-actions.ts');
+	const {FavoritesManager, resetFavoritesManagerForTests} =
+		await import('../source/services/favorites/favorites.service.ts');
 
 	const deduped = dedupeTracks([
 		{videoId: 'a', title: 'A', artists: []},
@@ -425,6 +448,7 @@ test('playback-actions dedupe tracks and favorites manager toggles', async t => 
 	]);
 	t.is(deduped.length, 2);
 
+	resetFavoritesManagerForTests();
 	const manager = new FavoritesManager();
 	manager['tracks'] = [];
 	manager['loaded'] = true;
@@ -434,6 +458,10 @@ test('playback-actions dedupe tracks and favorites manager toggles', async t => 
 	const added = await manager.toggle(track);
 	t.true(added);
 	t.true(manager.isFavorite('x'));
+	t.deepEqual(
+		manager.getRecentTracks(8).map(entry => entry.videoId),
+		['x'],
+	);
 	const removed = await manager.toggle(track);
 	t.false(removed);
 	t.false(manager.isFavorite('x'));

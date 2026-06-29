@@ -1,6 +1,8 @@
-import type {Playlist} from '../../types/youtube-music.types.ts';
+import type {Playlist, Track} from '../../types/youtube-music.types.ts';
+import {trackArtists} from '../state/queue-state.ts';
+import {truncate} from '../../utils/format.ts';
 
-export type LibraryView = 'menu' | 'playlists';
+export type LibraryView = 'menu' | 'playlists' | 'favorites';
 
 export interface LibraryOverlayState {
 	active: boolean;
@@ -11,6 +13,7 @@ export interface LibraryOverlayState {
 
 export const LIBRARY_MENU_ITEMS = [
 	'Saved Playlists...',
+	'Favorites...',
 	'Play All Favorites',
 	'Random Favorite',
 	'Back',
@@ -39,6 +42,13 @@ export function openPlaylistPicker(state: LibraryOverlayState): void {
 	state.status = null;
 }
 
+export function openFavoritesPicker(state: LibraryOverlayState): void {
+	state.active = true;
+	state.view = 'favorites';
+	state.selectedIndex = 0;
+	state.status = null;
+}
+
 export function closeLibraryOverlay(state: LibraryOverlayState): void {
 	state.active = false;
 	state.view = 'menu';
@@ -47,7 +57,12 @@ export function closeLibraryOverlay(state: LibraryOverlayState): void {
 }
 
 export type LibraryInputAction =
-	'none' | 'close' | 'menu_select' | 'play_playlist' | 'back_to_menu';
+	| 'none'
+	| 'close'
+	| 'menu_select'
+	| 'play_playlist'
+	| 'play_favorite'
+	| 'back_to_menu';
 
 export function handleLibraryMenuInput(
 	state: LibraryOverlayState,
@@ -111,6 +126,39 @@ export function handleLibraryPlaylistInput(
 	return 'none';
 }
 
+export function handleLibraryFavoritesInput(
+	state: LibraryOverlayState,
+	key: string,
+	favoriteCount: number,
+): LibraryInputAction {
+	if (key === 'escape') {
+		state.view = 'menu';
+		state.selectedIndex = 0;
+		state.status = null;
+		return 'back_to_menu';
+	}
+
+	if (favoriteCount === 0) {
+		return 'none';
+	}
+
+	if (key === 'up') {
+		state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+		return 'none';
+	}
+
+	if (key === 'down') {
+		state.selectedIndex = Math.min(favoriteCount - 1, state.selectedIndex + 1);
+		return 'none';
+	}
+
+	if (key === 'enter') {
+		return 'play_favorite';
+	}
+
+	return 'none';
+}
+
 export function formatPlaylistLine(
 	playlist: Playlist,
 	maxWidth: number,
@@ -122,4 +170,15 @@ export function formatPlaylistLine(
 			? `${playlist.name.slice(0, maxName - 3)}...`
 			: playlist.name;
 	return `${name}${suffix}`;
+}
+
+export function formatFavoriteLine(track: Track, maxWidth: number): string {
+	const artist = trackArtists(track);
+	const suffix = artist ? ` · ${artist}` : '';
+	const maxTitle = Math.max(8, maxWidth - suffix.length);
+	const title =
+		track.title.length > maxTitle
+			? `${track.title.slice(0, maxTitle - 3)}...`
+			: track.title;
+	return truncate(`${title}${suffix}`, maxWidth);
 }

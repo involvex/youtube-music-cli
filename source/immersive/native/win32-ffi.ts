@@ -2,7 +2,7 @@
 // because @bun-win32 packages use syntax incompatible with erasableSyntaxOnly.
 
 type User32Api = {
-	SetProcessDpiAwarenessContext: (value: bigint) => number;
+	SetProcessDPIAware: () => number;
 	RegisterHotKey: (
 		hWnd: bigint,
 		id: number,
@@ -65,9 +65,40 @@ export async function loadKernel32Api(): Promise<Kernel32Api | null> {
 	}
 }
 
+// DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 — pseudo-handle passed as intptr_t.
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4n;
+
 export async function enableProcessDpiAwareness(): Promise<void> {
-	const user32 = await loadUser32Api();
-	user32?.SetProcessDpiAwarenessContext(-4n);
+	if (!isBunWin32Runtime()) {
+		return;
+	}
+
+	try {
+		const {dlopen, FFIType} = await import('bun:ffi');
+		const {SetProcessDpiAwarenessContext} = dlopen('user32', {
+			SetProcessDpiAwarenessContext: {
+				args: [FFIType.i64],
+				returns: FFIType.i32,
+			},
+		}).symbols;
+
+		if (
+			SetProcessDpiAwarenessContext(
+				DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+			) !== 0
+		) {
+			return;
+		}
+	} catch {
+		// Fall through to legacy API.
+	}
+
+	try {
+		const user32 = await loadUser32Api();
+		user32?.SetProcessDPIAware();
+	} catch {
+		// DPI awareness is optional.
+	}
 }
 
 export async function setNativeConsoleTitle(title: string): Promise<boolean> {

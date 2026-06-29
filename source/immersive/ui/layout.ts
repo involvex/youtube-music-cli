@@ -12,27 +12,70 @@ export interface ImmersiveLayout {
 	queueY: number;
 	queueW: number;
 	queueH: number;
+	favoritesX: number;
+	favoritesY: number;
+	favoritesW: number;
+	favoritesH: number;
+	footerStartY: number;
 	controlsY: number;
+	splitQueue: boolean;
 }
+
+export const RECENT_FAVORITES_MAX = 8;
 
 export function computeLayout(width: number, height: number): ImmersiveLayout {
 	const headerRows = 1;
 	const footerRows = 3;
 	const margin = 2;
 	const innerW = Math.max(20, width - margin * 2);
-	const contentH = Math.max(12, height - headerRows - footerRows);
-
-	const vizH = Math.max(7, Math.floor(contentH * 0.4));
-	const nowPlayingH = 7;
-	const queueH = Math.max(4, contentH - vizH - nowPlayingH - 2);
+	const footerStartY = height - footerRows;
+	const contentBottom = footerStartY - 1;
+	const contentH = Math.max(10, contentBottom - headerRows);
 
 	const splitQueue = innerW >= 72;
 	const nowPlayingW = splitQueue ? Math.floor(innerW * 0.58) : innerW;
 	const queueW = splitQueue ? innerW - nowPlayingW - 2 : innerW;
 
+	const vizH = Math.max(
+		6,
+		Math.min(Math.floor(contentH * 0.36), contentH - 10),
+	);
 	const vizY = headerRows + 1;
 	const nowPlayingY = vizY + vizH + 1;
-	const queueY = splitQueue ? nowPlayingY : nowPlayingY + nowPlayingH + 1;
+
+	const minNowPlayingH = 8;
+	const maxNowPlayingH = splitQueue
+		? Math.min(11, Math.max(minNowPlayingH, contentBottom - nowPlayingY - 5))
+		: Math.min(10, Math.max(minNowPlayingH, Math.floor(contentH * 0.26)));
+	const nowPlayingH = Math.max(
+		minNowPlayingH,
+		Math.min(maxNowPlayingH, contentBottom - nowPlayingY - 2),
+	);
+
+	let queueX = margin;
+	let queueY = nowPlayingY;
+	let queueH = 0;
+	const favoritesX = margin;
+	const favoritesY = nowPlayingY + nowPlayingH + 1;
+	const favoritesW = nowPlayingW;
+	let favoritesH = 0;
+
+	if (splitQueue) {
+		queueX = margin + nowPlayingW + 2;
+		queueY = nowPlayingY;
+		queueH = Math.max(4, contentBottom - nowPlayingY + 1);
+		favoritesH = Math.max(
+			0,
+			Math.min(RECENT_FAVORITES_MAX + 2, contentBottom - favoritesY + 1),
+		);
+	} else {
+		favoritesH = Math.max(
+			0,
+			Math.min(RECENT_FAVORITES_MAX + 2, contentBottom - favoritesY + 1),
+		);
+		queueY = favoritesY + (favoritesH > 0 ? favoritesH + 1 : 0);
+		queueH = Math.max(0, contentBottom - queueY + 1);
+	}
 
 	return {
 		headerY: 0,
@@ -44,11 +87,17 @@ export function computeLayout(width: number, height: number): ImmersiveLayout {
 		nowPlayingY,
 		nowPlayingW,
 		nowPlayingH,
-		queueX: splitQueue ? margin + nowPlayingW + 2 : margin,
-		queueY: splitQueue ? nowPlayingY : queueY,
+		queueX,
+		queueY,
 		queueW,
 		queueH,
+		favoritesX,
+		favoritesY,
+		favoritesW,
+		favoritesH,
+		footerStartY,
 		controlsY: height - 1,
+		splitQueue,
 	};
 }
 
@@ -83,7 +132,7 @@ export function buildModeStatusLine(state: {
 export function buildPlayerShortcutLine(maxWidth: number): string {
 	const required = [
 		'[←→] Track',
-		'[=/-] Vol',
+		'[+/-]',
 		'[Space] Play',
 		'[Shift+S] Shuffle',
 		'[R] Repeat',

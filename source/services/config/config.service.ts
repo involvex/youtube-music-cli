@@ -13,11 +13,15 @@ class ConfigService {
 	private configDir: string;
 	private config: Config;
 	private saveLock = Promise.resolve();
+	private legacyFavoriteIds: string[] = [];
 
 	constructor() {
 		this.configDir = CONFIG_DIR;
 		this.configPath = CONFIG_FILE;
 		this.config = this.load() || this.getDefaultConfig();
+		if (this.legacyFavoriteIds.length > 0) {
+			void this.saveAsync();
+		}
 	}
 
 	getDefaultConfig(): Config {
@@ -28,7 +32,6 @@ class ConfigService {
 			playlists: [],
 			history: [],
 			searchHistory: [],
-			favorites: [],
 			repeat: 'off',
 			shuffle: false,
 			customTheme: undefined,
@@ -64,13 +67,25 @@ class ConfigService {
 			}
 
 			const data = readFileSync(this.configPath, 'utf-8');
-			const config = JSON.parse(data) as Config;
+			const parsed = JSON.parse(data) as Record<string, unknown>;
 
-			// Merge with defaults to handle new fields
-			return {...this.getDefaultConfig(), ...config};
+			if (Array.isArray(parsed['favorites'])) {
+				this.legacyFavoriteIds = parsed['favorites'].filter(
+					(id): id is string => typeof id === 'string' && id.length > 0,
+				);
+				delete parsed['favorites'];
+			}
+
+			return {...this.getDefaultConfig(), ...(parsed as unknown as Config)};
 		} catch {
 			return null;
 		}
+	}
+
+	consumeLegacyFavoriteIds(): string[] {
+		const ids = [...this.legacyFavoriteIds];
+		this.legacyFavoriteIds = [];
+		return ids;
 	}
 
 	save(): void {
@@ -185,26 +200,6 @@ class ConfigService {
 
 	getSearchHistory(): string[] {
 		return this.config.searchHistory ?? [];
-	}
-
-	addFavorite(trackId: string): void {
-		if (!this.config.favorites.includes(trackId)) {
-			this.config.favorites.push(trackId);
-			this.save();
-		}
-	}
-
-	removeFavorite(trackId: string): void {
-		this.config.favorites = this.config.favorites.filter(id => id !== trackId);
-		this.save();
-	}
-
-	isFavorite(trackId: string): boolean {
-		return this.config.favorites.includes(trackId);
-	}
-
-	getFavorites(): string[] {
-		return this.config.favorites;
 	}
 
 	setBackgroundPlaybackState(state: {

@@ -1,8 +1,4 @@
 import {getConfigService} from '../../services/config/config.service.ts';
-import {
-	loadFavorites,
-	saveFavorites,
-} from '../../services/favorites/favorites.service.ts';
 import {logger} from '../../services/logger/logger.service.ts';
 import type {
 	Album,
@@ -196,44 +192,6 @@ export async function createMixFromResult(
 
 	createSavedPlaylist(playlistName, uniqueTracks);
 	return {ok: true, tracks: uniqueTracks, playlistName};
-}
-
-export class FavoritesManager {
-	private tracks: Track[] = [];
-	private loaded = false;
-
-	async ensureLoaded(): Promise<void> {
-		if (this.loaded) return;
-		this.tracks = await loadFavorites();
-		this.loaded = true;
-	}
-
-	getAllTracks(): Track[] {
-		return [...this.tracks];
-	}
-
-	isFavorite(videoId: string): boolean {
-		return this.tracks.some(track => track.videoId === videoId);
-	}
-
-	async toggle(track: Track): Promise<boolean> {
-		await this.ensureLoaded();
-		if (this.isFavorite(track.videoId)) {
-			this.tracks = this.tracks.filter(t => t.videoId !== track.videoId);
-			await saveFavorites(this.tracks);
-			return false;
-		}
-
-		this.tracks = [track, ...this.tracks];
-		await saveFavorites(this.tracks);
-		return true;
-	}
-
-	randomOne(): Track | null {
-		if (this.tracks.length === 0) return null;
-		const index = Math.floor(Math.random() * this.tracks.length);
-		return this.tracks[index] ?? null;
-	}
 }
 
 export function getSearchResultLabel(result: SearchResult): string {

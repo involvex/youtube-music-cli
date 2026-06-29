@@ -9,12 +9,12 @@ import {getConfigService} from '../services/config/config.service.ts';
 import {getMusicService} from '../services/youtube-music/api.ts';
 import {getPlayerService} from '../services/player/player.service.ts';
 import {getDownloadService} from '../services/download/download.service.ts';
+import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {ensurePlaybackDependencies} from '../services/player/dependency-check.service.ts';
 import {loadPlayerState} from '../services/player-state/player-state.service.ts';
 import {ImmersiveEngine} from './immersive-engine.ts';
 import {
 	createMixFromResult,
-	FavoritesManager,
 	loadPlaylists,
 	playSearchResult,
 } from './actions/playback-actions.ts';
@@ -154,54 +154,12 @@ async function tryReattachBackgroundPlayback(
 		});
 		config.clearBackgroundPlaybackState();
 		state.isPlaying = true;
+		playerService.resume();
 		return true;
 	} catch {
 		config.clearBackgroundPlaybackState();
 		return false;
 	}
-}
-
-async function playTrackAtIndex(
-	state: ImmersivePlayerState,
-	index: number,
-): Promise<void> {
-	const track = state.queue[index];
-	if (!track) {
-		return;
-	}
-
-	state.queueIndex = index;
-	state.currentTrack = track;
-	state.isPlaying = true;
-
-	const playerService = getPlayerService();
-	const config = getConfigService();
-	const trackUrl = trackYouTubeUrl(track);
-
-	const bgState = config.getBackgroundPlaybackState();
-	if (bgState.enabled && bgState.ipcPath && bgState.currentUrl === trackUrl) {
-		try {
-			await playerService.reattach(bgState.ipcPath, {
-				trackId: track.videoId,
-				currentUrl: trackUrl,
-			});
-			config.clearBackgroundPlaybackState();
-		} catch {
-			config.clearBackgroundPlaybackState();
-			await playerService.play(trackUrl, getPlaybackOptions(state.volume));
-		}
-	} else {
-		await playerService.play(trackUrl, getPlaybackOptions(state.volume));
-	}
-
-	if (track.duration) {
-		state.duration = track.duration;
-	}
-
-	const title = track.title;
-	const artist = trackArtists(track);
-	updateTrayIcon(`${title} - ${artist}`);
-	showTrackChangeToast(title, artist);
 }
 
 export async function startImmersiveApp(
@@ -220,7 +178,7 @@ export async function startImmersiveApp(
 	const config = getConfigService();
 	const playerService = getPlayerService();
 	const musicService = getMusicService();
-	const favoritesManager = new FavoritesManager();
+	const favoritesManager = getFavoritesManager();
 	await favoritesManager.ensureLoaded();
 	const discoMode = options.discoMode ?? process.env.DISCO_MODE === 'true';
 
@@ -255,22 +213,81 @@ export async function startImmersiveApp(
 
 	let engine: ImmersiveEngine | null = null;
 	let eofTimestamp = 0;
+	let playbackStartTimestamp = 0;
+
+	const playTrackAtIndex = async (index: number): Promise<void> => {
+		const track = state.queue[index];
+		if (!track) {
+			return;
+		}
+
+		state.queueIndex = index;
+		state.currentTrack = track;
+
+		const trackUrl = trackYouTubeUrl(track);
+		const notificationsEnabled = config.get('notifications') ?? false;
+
+		try {
+			const bgState = config.getBackgroundPlaybackState();
+			if (
+				bgState.enabled &&
+				bgState.ipcPath &&
+				bgState.currentUrl === trackUrl
+			) {
+				try {
+					await playerService.reattach(bgState.ipcPath, {
+						trackId: track.videoId,
+						currentUrl: trackUrl,
+					});
+					config.clearBackgroundPlaybackState();
+				} catch {
+					config.clearBackgroundPlaybackState();
+					await playerService.play(trackUrl, getPlaybackOptions(state.volume));
+				}
+			} else {
+				await playerService.play(trackUrl, getPlaybackOptions(state.volume));
+			}
+
+			playerService.resume();
+			playbackStartTimestamp = Date.now();
+			state.isPlaying = true;
+
+			if (track.duration) {
+				state.duration = track.duration;
+			}
+
+			const title = track.title;
+			const artist = trackArtists(track);
+			updateTrayIcon(`${title} - ${artist}`);
+			if (notificationsEnabled) {
+				showTrackChangeToast(title, artist);
+			}
+		} catch (error) {
+			state.isPlaying = false;
+			playerService.stop();
+			const message =
+				error instanceof Error ? error.message : 'Playback failed';
+			showTrackChangeToast('Playback error', message);
+		}
+	};
 
 	const queueAndPlay = async (nextTracks: Track[]): Promise<void> => {
 		if (nextTracks.length === 0) return;
 		setQueue(state, nextTracks);
-		await playTrackAtIndex(state, 0);
+		await playTrackAtIndex(0);
 	};
 
 	const playCurrent = async (): Promise<void> => {
 		if (!state.currentTrack) {
 			return;
 		}
-		await playTrackAtIndex(state, state.queueIndex);
+		await playTrackAtIndex(state.queueIndex);
 	};
 
 	const togglePlayback = async (): Promise<void> => {
 		const hasSession = playerService.hasActivePlaybackSession();
+		const loadedTrackId = playerService.getCurrentTrackId();
+		const currentVideoId = state.currentTrack?.videoId ?? null;
 
 		if (hasSession && state.isPlaying) {
 			playerService.pause();
@@ -278,8 +295,15 @@ export async function startImmersiveApp(
 			return;
 		}
 
-		if (hasSession && !state.isPlaying) {
+		if (
+			hasSession &&
+			!state.isPlaying &&
+			loadedTrackId &&
+			currentVideoId &&
+			loadedTrackId === currentVideoId
+		) {
 			playerService.resume();
+			playbackStartTimestamp = Date.now();
 			state.isPlaying = true;
 			return;
 		}
@@ -292,7 +316,7 @@ export async function startImmersiveApp(
 	const handleNext = async (): Promise<void> => {
 		const track = advanceQueue(state);
 		if (track) {
-			await playTrackAtIndex(state, state.queueIndex);
+			await playTrackAtIndex(state.queueIndex);
 		} else {
 			playerService.pause();
 			state.isPlaying = false;
@@ -302,7 +326,7 @@ export async function startImmersiveApp(
 	const handlePrevious = async (): Promise<void> => {
 		const track = previousQueue(state);
 		if (track) {
-			await playTrackAtIndex(state, state.queueIndex);
+			await playTrackAtIndex(state.queueIndex);
 		}
 	};
 
@@ -319,7 +343,7 @@ export async function startImmersiveApp(
 			eofTimestamp = Date.now();
 			if (state.repeat === 'one' && state.currentTrack) {
 				state.currentTime = 0;
-				void playTrackAtIndex(state, state.queueIndex);
+				void playTrackAtIndex(state.queueIndex);
 				return;
 			}
 			void handleNext();
@@ -327,6 +351,13 @@ export async function startImmersiveApp(
 
 		if (event.paused !== undefined) {
 			if (event.paused && Date.now() - eofTimestamp < 2000) {
+				return;
+			}
+			if (
+				event.paused &&
+				Date.now() - playbackStartTimestamp < 4000 &&
+				state.currentTime < 1
+			) {
 				return;
 			}
 			state.isPlaying = !event.paused;
@@ -353,7 +384,7 @@ export async function startImmersiveApp(
 	engine = new ImmersiveEngine({
 		discoMode: state.isDiscoMode,
 		enableTray: true,
-		enableNotifications: true,
+		enableNotifications: config.get('notifications') ?? false,
 		getState: () => state,
 		isFavorite: videoId => favoritesManager.isFavorite(videoId),
 		onTogglePlay: () => {
@@ -449,11 +480,16 @@ export async function startImmersiveApp(
 			}
 		},
 		getSavedPlaylists: () => loadPlaylists(),
+		getFavoriteTracks: () => favoritesManager.getAllTracks(),
+		getRecentFavorites: () => favoritesManager.getRecentTracks(8),
 		onPlaySavedPlaylist: async (playlist: Playlist) => {
 			if (playlist.tracks.length === 0) {
 				throw new Error(`No tracks in "${playlist.name}"`);
 			}
 			await queueAndPlay(playlist.tracks);
+		},
+		onPlayFavoriteTrack: async (track: Track) => {
+			await queueAndPlay([track]);
 		},
 		onPlayAllFavorites: async () => {
 			const favorites = favoritesManager.getAllTracks();
@@ -498,7 +534,14 @@ export async function startImmersiveApp(
 	await engine.start();
 
 	if (state.currentTrack) {
-		await tryReattachBackgroundPlayback(state, playerService, config);
+		const reattached = await tryReattachBackgroundPlayback(
+			state,
+			playerService,
+			config,
+		);
+		if (reattached) {
+			playbackStartTimestamp = Date.now();
+		}
 	}
 
 	if (startPlaying && state.currentTrack) {

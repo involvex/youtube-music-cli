@@ -32,3 +32,37 @@ test('player-service-mpv-args: buildMpvArgs adds acrossfade and normalization fi
 	t.true(filterArg?.includes('afade=t=in'));
 	t.true(filterArg?.includes('afade=t=out'));
 });
+
+test('player-service-mpv-args: isValidIpcPipePath rejects null and empty paths', async t => {
+	const {isValidIpcPipePath} =
+		await import('../source/services/player/player.service.ts');
+
+	t.false(isValidIpcPipePath(null));
+	t.false(isValidIpcPipePath(undefined));
+	t.false(isValidIpcPipePath(''));
+	t.false(isValidIpcPipePath('   '));
+});
+
+test('player-service-mpv-args: normalizeIpcPipePath normalizes Windows pipe paths', async t => {
+	const {normalizeIpcPipePath} =
+		await import('../source/services/player/player.service.ts');
+
+	if (process.platform === 'win32') {
+		t.is(
+			normalizeIpcPipePath('//./pipe/mpvsocket-123'),
+			'\\\\.\\pipe\\mpvsocket-123',
+		);
+		t.throws(() => normalizeIpcPipePath('not-a-pipe'));
+	} else {
+		t.is(normalizeIpcPipePath('/tmp/mpvsocket-1'), '/tmp/mpvsocket-1');
+	}
+});
+
+test('player-service-mpv-args: connectToMpvIpc throws on invalid path instead of passing null', async t => {
+	const {connectToMpvIpc} =
+		await import('../source/services/player/player.service.ts');
+
+	t.throws(() => connectToMpvIpc(''), {
+		message: /IPC pipe path is empty/,
+	});
+});

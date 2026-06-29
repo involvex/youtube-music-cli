@@ -108,6 +108,58 @@ export type PlayerEventCallback = (event: {
 	subtitle?: string | null;
 }) => void;
 
+export function isValidIpcPipePath(
+	pipePath: string | null | undefined,
+): pipePath is string {
+	if (!pipePath || typeof pipePath !== 'string') {
+		return false;
+	}
+
+	const trimmed = pipePath.trim();
+	if (!trimmed) {
+		return false;
+	}
+
+	if (process.platform === 'win32') {
+		return (
+			trimmed.startsWith('\\\\.\\pipe\\') || trimmed.startsWith('//./pipe/')
+		);
+	}
+
+	return trimmed.startsWith('/');
+}
+
+export function normalizeIpcPipePath(pipePath: string): string {
+	const trimmed = pipePath.trim();
+	if (!trimmed) {
+		throw new Error('IPC pipe path is empty');
+	}
+
+	if (process.platform === 'win32') {
+		if (trimmed.startsWith('//./pipe/')) {
+			return `\\\\.\\pipe\\${trimmed.slice('//./pipe/'.length).replace(/\//g, '\\')}`;
+		}
+
+		if (!trimmed.startsWith('\\\\.\\pipe\\')) {
+			throw new Error(`Invalid Windows IPC pipe path: ${trimmed}`);
+		}
+
+		return trimmed;
+	}
+
+	return trimmed;
+}
+
+export function connectToMpvIpc(pipePath: string): Socket {
+	const normalized = normalizeIpcPipePath(pipePath);
+
+	if (process.platform === 'win32') {
+		return connect({path: normalized});
+	}
+
+	return connect(normalized);
+}
+
 class PlayerService {
 	private static instance: PlayerService;
 	private mpvProcess: ChildProcess | null = null;
@@ -119,6 +171,8 @@ class PlayerService {
 	private eventCallback: PlayerEventCallback | null = null;
 	private ipcConnectRetries = 0;
 	private readonly maxIpcRetries = 10;
+	private ipcConnectGeneration = 0;
+	private pendingIpcTimers: ReturnType<typeof setTimeout>[] = [];
 	private currentTrackId: string | null = null; // Track currently playing
 	private playSessionId = 0; // Incremented per play() call for unique IPC paths
 	private lastVolumeChangeTimestamp = 0; // For correlating volume changes with pause events
@@ -165,24 +219,142 @@ class PlayerService {
 		return process.platform === 'win32' ? 'mpv.exe' : 'mpv';
 	}
 
+	private invalidateIpcConnect(): void {
+		this.ipcConnectGeneration++;
+		for (const timer of this.pendingIpcTimers) {
+			clearTimeout(timer);
+		}
+
+		this.pendingIpcTimers = [];
+		this.ipcConnectRetries = 0;
+	}
+
+	private scheduleIpcTimer(
+		delayMs: number,
+		generation: number,
+		fn: () => void,
+	): void {
+		const timer = setTimeout(() => {
+			this.pendingIpcTimers = this.pendingIpcTimers.filter(
+				pendingTimer => pendingTimer !== timer,
+			);
+			if (generation !== this.ipcConnectGeneration) {
+				return;
+			}
+
+			fn();
+		}, delayMs);
+		this.pendingIpcTimers.push(timer);
+	}
+
+	private destroyIpcSocket(): void {
+		if (!this.ipcSocket || this.ipcSocket.destroyed) {
+			this.ipcSocket = null;
+			return;
+		}
+
+		this.ipcSocket.removeAllListeners();
+		this.ipcSocket.destroy();
+		this.ipcSocket = null;
+	}
+
 	/**
 	 * Connect to mpv IPC socket and optionally load a URL via loadfile
 	 */
 	private async connectIpc(urlToLoad?: string): Promise<void> {
-		if (!this.ipcPath) {
+		if (!isValidIpcPipePath(this.ipcPath)) {
 			throw new Error('IPC path not set');
 		}
 
+		const pipePath = normalizeIpcPipePath(this.ipcPath);
+		const generation = this.ipcConnectGeneration;
+		let settled = false;
+
 		return new Promise<void>((resolve, reject) => {
+			const isStale = () => generation !== this.ipcConnectGeneration;
+
+			const abortIfStale = (): boolean => {
+				if (!settled && isStale()) {
+					settled = true;
+					reject(new Error('IPC connection aborted'));
+					return true;
+				}
+
+				return false;
+			};
+
+			const rejectOnce = (error: Error) => {
+				if (settled) {
+					return;
+				}
+
+				settled = true;
+				reject(error);
+			};
+
+			const scheduleRetry = () => {
+				if (abortIfStale()) {
+					return;
+				}
+
+				const maxRetries =
+					process.platform === 'win32'
+						? this.maxIpcRetries * 2
+						: this.maxIpcRetries;
+				if (this.ipcConnectRetries < maxRetries) {
+					this.ipcConnectRetries++;
+					this.scheduleIpcTimer(
+						process.platform === 'win32' ? 250 : 100,
+						generation,
+						attemptConnect,
+					);
+					return;
+				}
+
+				rejectOnce(
+					new Error(
+						`Failed to connect to IPC socket after ${maxRetries} attempts`,
+					),
+				);
+			};
+
 			const attemptConnect = () => {
+				if (abortIfStale()) {
+					return;
+				}
+
+				if (!isValidIpcPipePath(this.ipcPath)) {
+					rejectOnce(new Error('IPC path not set'));
+					return;
+				}
+
 				logger.debug('PlayerService', 'Attempting IPC connection', {
-					path: this.ipcPath,
+					path: pipePath,
 					attempt: this.ipcConnectRetries + 1,
 				});
 
-				this.ipcSocket = connect(this.ipcPath!);
+				this.destroyIpcSocket();
 
-				this.ipcSocket.on('connect', () => {
+				let socket: Socket;
+				try {
+					socket = connectToMpvIpc(pipePath);
+				} catch (error) {
+					logger.debug('PlayerService', 'IPC synchronous connect failure', {
+						error: formatError(error),
+						attempt: this.ipcConnectRetries + 1,
+					});
+					scheduleRetry();
+					return;
+				}
+
+				this.ipcSocket = socket;
+
+				socket.on('connect', () => {
+					if (abortIfStale()) {
+						socket.destroy();
+						return;
+					}
+
 					logger.info('PlayerService', 'IPC socket connected');
 					this.ipcConnectRetries = 0;
 
@@ -213,41 +385,32 @@ class PlayerService {
 						this.sendIpcCommand(['loadfile', urlToLoad]);
 					}
 
+					settled = true;
 					resolve();
 				});
 
-				this.ipcSocket.on('data', (data: Buffer) => {
+				socket.on('data', (data: Buffer) => {
 					this.handleIpcMessage(data.toString());
 				});
 
-				this.ipcSocket.on('error', (err: Error) => {
+				socket.on('error', (err: Error) => {
 					logger.debug('PlayerService', 'IPC socket error', {
 						error: formatError(err),
 						attempt: this.ipcConnectRetries + 1,
 					});
 
-					const maxRetries =
-						process.platform === 'win32'
-							? this.maxIpcRetries * 2
-							: this.maxIpcRetries;
-					if (this.ipcConnectRetries < maxRetries) {
-						this.ipcConnectRetries++;
-						setTimeout(
-							attemptConnect,
-							process.platform === 'win32' ? 250 : 100,
-						);
-					} else {
-						reject(
-							new Error(
-								`Failed to connect to IPC socket after ${maxRetries} attempts`,
-							),
-						);
+					if (this.ipcSocket === socket) {
+						this.destroyIpcSocket();
 					}
+
+					scheduleRetry();
 				});
 
-				this.ipcSocket.on('close', () => {
+				socket.on('close', () => {
 					logger.debug('PlayerService', 'IPC socket closed');
-					this.ipcSocket = null;
+					if (this.ipcSocket === socket) {
+						this.ipcSocket = null;
+					}
 				});
 			};
 
@@ -483,7 +646,8 @@ class PlayerService {
 
 				// Connect to IPC socket after a delay (longer on Windows)
 				const ipcDelay = process.platform === 'win32' ? 500 : 200;
-				setTimeout(() => {
+				const connectGeneration = this.ipcConnectGeneration;
+				this.scheduleIpcTimer(ipcDelay, connectGeneration, () => {
 					this.connectIpc(playUrl)
 						.then(() => {
 							// IPC connected and loadfile sent - playback starting
@@ -497,7 +661,7 @@ class PlayerService {
 							this.stop();
 							handleError(new Error(`IPC connection failed: ${error.message}`));
 						});
-				}, ipcDelay);
+				});
 
 				// Handle stdout (should be minimal with --really-quiet)
 				spawnedProcess.stdout.on('data', (data: Buffer) => {
@@ -618,11 +782,8 @@ class PlayerService {
 			stack: new Error().stack,
 		});
 
-		// Close IPC socket
-		if (this.ipcSocket && !this.ipcSocket.destroyed) {
-			this.ipcSocket.destroy();
-			this.ipcSocket = null;
-		}
+		this.invalidateIpcConnect();
+		this.destroyIpcSocket();
 
 		if (this.mpvProcess) {
 			try {
@@ -639,7 +800,6 @@ class PlayerService {
 		}
 
 		this.ipcPath = null;
-		this.ipcConnectRetries = 0;
 	}
 
 	/**
@@ -657,6 +817,9 @@ class PlayerService {
 			currentUrl: this.currentUrl,
 		};
 
+		this.invalidateIpcConnect();
+		this.destroyIpcSocket();
+
 		if (this.mpvProcess) {
 			// Close piped stdio handles so Node has no open references that could
 			// prevent clean exit or send SIGHUP to the detached mpv process.
@@ -668,8 +831,6 @@ class PlayerService {
 
 		// Clear references but DON'T kill mpv process - it keeps playing
 		this.mpvProcess = null;
-		this.ipcSocket = null;
-		this.ipcPath = null;
 		this.isPlaying = false;
 
 		return info;
@@ -682,9 +843,15 @@ class PlayerService {
 		ipcPath: string,
 		options?: {trackId?: string; currentUrl?: string},
 	): Promise<void> {
+		if (!isValidIpcPipePath(ipcPath)) {
+			throw new Error('Invalid IPC pipe path for reattach');
+		}
+
 		logger.info('PlayerService', 'Reattaching to player', {ipcPath});
 
-		this.ipcPath = ipcPath;
+		this.invalidateIpcConnect();
+		this.destroyIpcSocket();
+		this.ipcPath = normalizeIpcPipePath(ipcPath);
 		await this.connectIpc();
 		this.isPlaying = true;
 

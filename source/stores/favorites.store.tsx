@@ -7,16 +7,10 @@ import {
 	type ReactNode,
 } from 'react';
 import type {Track} from '../types/youtube-music.types.ts';
-import {
-	loadFavorites,
-	saveFavorites,
-} from '../services/favorites/favorites.service.ts';
+import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
 
-type FavoritesAction =
-	| {category: 'SET_FAVORITES'; tracks: Track[]}
-	| {category: 'ADD_FAVORITE'; track: Track}
-	| {category: 'REMOVE_FAVORITE'; trackId: string};
+type FavoritesAction = {category: 'SET_FAVORITES'; tracks: Track[]};
 
 type FavoritesState = Track[];
 
@@ -27,13 +21,6 @@ function favoritesReducer(
 	switch (action.category) {
 		case 'SET_FAVORITES':
 			return action.tracks;
-		case 'ADD_FAVORITE':
-			if (state.some(t => t.videoId === action.track.videoId)) {
-				return state;
-			}
-			return [action.track, ...state];
-		case 'REMOVE_FAVORITE':
-			return state.filter(t => t.videoId !== action.trackId);
 		default:
 			return state;
 	}
@@ -49,47 +36,65 @@ type FavoritesContextValue = {
 
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
+function refreshFavorites(dispatch: (action: FavoritesAction) => void): void {
+	dispatch({
+		category: 'SET_FAVORITES',
+		tracks: getFavoritesManager().getAllTracks(),
+	});
+}
+
 export function FavoritesProvider({children}: {children: ReactNode}) {
 	const [state, dispatch] = useReducer(favoritesReducer, []);
 
-	// Load favorites on mount
 	useEffect(() => {
-		void loadFavorites().then(tracks => {
-			dispatch({category: 'SET_FAVORITES', tracks});
-		});
-	}, []);
+		let cancelled = false;
+		const manager = getFavoritesManager();
 
-	// Save favorites on change
-	useEffect(() => {
-		void saveFavorites(state);
-	}, [state]);
+		void manager.ensureLoaded().then(() => {
+			if (cancelled) {
+				return;
+			}
+
+			refreshFavorites(dispatch);
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const actions = useMemo(
 		() => ({
 			addFavorite: (track: Track) => {
-				dispatch({category: 'ADD_FAVORITE', track});
-				logger.debug('FavoritesStore', 'Added favorite', {
-					title: track.title,
-					videoId: track.videoId,
-				});
+				void getFavoritesManager()
+					.add(track)
+					.then(() => {
+						refreshFavorites(dispatch);
+						logger.debug('FavoritesStore', 'Added favorite', {
+							title: track.title,
+							videoId: track.videoId,
+						});
+					});
 			},
 			removeFavorite: (trackId: string) => {
-				dispatch({category: 'REMOVE_FAVORITE', trackId});
-				logger.debug('FavoritesStore', 'Removed favorite', {trackId});
+				void getFavoritesManager()
+					.remove(trackId)
+					.then(() => {
+						refreshFavorites(dispatch);
+						logger.debug('FavoritesStore', 'Removed favorite', {trackId});
+					});
 			},
 			toggleFavorite: (track: Track) => {
-				const isFav = state.some(t => t.videoId === track.videoId);
-				if (isFav) {
-					dispatch({category: 'REMOVE_FAVORITE', trackId: track.videoId});
-					logger.debug('FavoritesStore', 'Removed favorite (toggle)', {
-						title: track.title,
+				void getFavoritesManager()
+					.toggle(track)
+					.then(added => {
+						refreshFavorites(dispatch);
+						logger.debug(
+							'FavoritesStore',
+							added ? 'Added favorite (toggle)' : 'Removed favorite (toggle)',
+							{title: track.title},
+						);
 					});
-				} else {
-					dispatch({category: 'ADD_FAVORITE', track});
-					logger.debug('FavoritesStore', 'Added favorite (toggle)', {
-						title: track.title,
-					});
-				}
 			},
 			isFavorite: (trackId: string) => state.some(t => t.videoId === trackId),
 		}),

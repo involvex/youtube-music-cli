@@ -18,11 +18,16 @@ import {
 } from './native/console.ts';
 import {
 	createTrayIcon,
+	resolveTrayIconPath,
 	removeTrayIcon,
 	setTrayActionHandler,
 } from './native/tray.ts';
 import type {RGB} from './renderer/ansi-codes.ts';
-import type {Playlist, SearchResult} from '../types/youtube-music.types.ts';
+import type {
+	Playlist,
+	SearchResult,
+	Track,
+} from '../types/youtube-music.types.ts';
 import {StdinKeyBuffer} from './input/stdin-buffer.ts';
 import {formatSearchResultLine} from './actions/playback-actions.ts';
 import {
@@ -42,10 +47,13 @@ import {
 import {
 	closeLibraryOverlay,
 	createLibraryOverlayState,
+	formatFavoriteLine,
 	formatPlaylistLine,
+	handleLibraryFavoritesInput,
 	handleLibraryMenuInput,
 	handleLibraryPlaylistInput,
 	LIBRARY_MENU_ITEMS,
+	openFavoritesPicker,
 	openLibraryMenu,
 	openPlaylistPicker,
 	type LibraryOverlayState,
@@ -72,6 +80,7 @@ import {
 	buildProgressBar,
 	buildVolumeBar,
 	computeLayout,
+	RECENT_FAVORITES_MAX,
 	type ImmersiveLayout,
 } from './ui/layout.ts';
 
@@ -110,7 +119,10 @@ export interface ImmersiveOptions {
 	) => Promise<string | null>;
 	onDownloadSearchResult?: (result: SearchResult) => Promise<string | null>;
 	getSavedPlaylists?: () => Playlist[];
+	getFavoriteTracks?: () => Track[];
+	getRecentFavorites?: () => Track[];
 	onPlaySavedPlaylist?: (playlist: Playlist) => Promise<void>;
+	onPlayFavoriteTrack?: (track: Track) => Promise<void>;
 	onPlayAllFavorites?: () => Promise<string | null>;
 	onPlayRandomFavorite?: () => Promise<string | null>;
 	onToggleShuffle?: () => void;
@@ -248,7 +260,7 @@ export class ImmersiveEngine {
 			});
 			createTrayIcon({
 				id: 'youtube-music-cli',
-				icon: '',
+				icon: resolveTrayIconPath() ?? '',
 				tooltip: trackInfo
 					? `${trackInfo.title} - ${trackInfo.artist}`
 					: 'YouTube Music CLI',
@@ -325,6 +337,12 @@ export class ImmersiveEngine {
 				this.options.isFavorite,
 			);
 			renderQueuePanel(fb, layout, playerState, accentColor);
+			renderRecentFavoritesPanel(
+				fb,
+				layout,
+				accentColor,
+				this.options.getRecentFavorites?.() ?? [],
+			);
 			renderControls(
 				fb,
 				tw,
@@ -341,6 +359,7 @@ export class ImmersiveEngine {
 				th,
 				this.libraryOverlay,
 				this.options.getSavedPlaylists?.() ?? [],
+				this.options.getFavoriteTracks?.() ?? [],
 			);
 			renderSettingsOverlay(
 				fb,
@@ -551,18 +570,53 @@ export class ImmersiveEngine {
 					this.libraryOverlay.status = null;
 					break;
 				case 1:
+					openFavoritesPicker(this.libraryOverlay);
+					break;
+				case 2:
 					await this.runLibraryAction(() =>
 						this.options.onPlayAllFavorites?.(),
 					);
 					break;
-				case 2:
+				case 3:
 					await this.runLibraryAction(() =>
 						this.options.onPlayRandomFavorite?.(),
 					);
 					break;
-				case 3:
+				case 4:
 					closeLibraryOverlay(this.libraryOverlay);
 					break;
+			}
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'favorites') {
+			const favorites = this.options.getFavoriteTracks?.() ?? [];
+			const action = handleLibraryFavoritesInput(
+				this.libraryOverlay,
+				key,
+				favorites.length,
+			);
+
+			if (action === 'back_to_menu') {
+				return;
+			}
+
+			if (action !== 'play_favorite') {
+				return;
+			}
+
+			const track = favorites[this.libraryOverlay.selectedIndex];
+			if (!track) {
+				this.libraryOverlay.status = 'No favorites yet — press F while playing';
+				return;
+			}
+
+			try {
+				await this.options.onPlayFavoriteTrack?.(track);
+				closeLibraryOverlay(this.libraryOverlay);
+			} catch (error) {
+				this.libraryOverlay.status =
+					error instanceof Error ? error.message : 'Failed to play favorite';
 			}
 			return;
 		}
@@ -977,6 +1031,10 @@ function renderNowPlaying(
 	const heart = favorited ? '♥ ' : '';
 	const title = truncateText(`${heart}${state.currentTrack.title}`, maxTextW);
 	const artist = truncateText(trackArtists(state.currentTrack), maxTextW);
+	const innerH = layout.nowPlayingH - 2;
+	const showVolume = innerH >= 7;
+	const showTime = innerH >= 6;
+	const showProgress = innerH >= 5;
 
 	fb.setText(innerX, y, 'NOW PLAYING', accent, null, {dim: true});
 	y += 1;
@@ -1004,28 +1062,35 @@ function renderNowPlaying(
 	);
 	y += 1;
 
-	const duration = resolveDuration(state);
-	const progressW = Math.max(10, layout.nowPlayingW - 4);
-	const ratio = duration > 0 ? state.currentTime / duration : 0;
-	const {bar} = buildProgressBar(ratio, progressW);
-	fb.setText(innerX, y, bar, null, null);
-	y += 1;
+	if (showProgress) {
+		const duration = resolveDuration(state);
+		const progressW = Math.max(10, layout.nowPlayingW - 4);
+		const ratio = duration > 0 ? state.currentTime / duration : 0;
+		const {bar} = buildProgressBar(ratio, progressW);
+		fb.setText(innerX, y, bar, null, null);
+		y += 1;
 
-	if (duration > 0) {
-		const timeText = `${formatTime(state.currentTime)} / ${formatTime(duration)}`;
-		fb.setText(innerX, y, timeText, null, null, {dim: true});
-	} else {
-		fb.setText(innerX, y, 'Press Space to start playback', null, null, {
+		if (showTime) {
+			if (duration > 0) {
+				const timeText = `${formatTime(state.currentTime)} / ${formatTime(duration)}`;
+				fb.setText(innerX, y, timeText, null, null, {dim: true});
+			} else {
+				fb.setText(innerX, y, 'Press Space to start playback', null, null, {
+					dim: true,
+				});
+			}
+			y += 1;
+		}
+	}
+
+	if (showVolume) {
+		const progressW = Math.max(10, layout.nowPlayingW - 4);
+		const volBarW = Math.min(18, progressW - 12);
+		const volumeLine = `[+/-] ${buildVolumeBar(state.volume, volBarW)} ${Math.round(state.volume)}%`;
+		fb.setText(innerX, y, truncateText(volumeLine, maxTextW), null, null, {
 			dim: true,
 		});
 	}
-	y += 1;
-
-	const volBarW = Math.min(16, progressW - 10);
-	const volumeLine = `Vol ${buildVolumeBar(state.volume, volBarW)} ${Math.round(state.volume)}%`;
-	fb.setText(innerX, y, truncateText(volumeLine, maxTextW), null, null, {
-		dim: true,
-	});
 }
 
 function renderQueuePanel(
@@ -1034,7 +1099,11 @@ function renderQueuePanel(
 	state: ImmersivePlayerState | undefined,
 	accent: RGB,
 ): void {
-	if (!state || state.queue.length === 0) {
+	if (!state || state.queue.length === 0 || layout.queueH < 4) {
+		return;
+	}
+
+	if (!layout.splitQueue && layout.favoritesH > 0) {
 		return;
 	}
 
@@ -1070,6 +1139,49 @@ function resolveDuration(state: ImmersivePlayerState): number {
 	return state.currentTrack?.duration ?? 0;
 }
 
+function renderRecentFavoritesPanel(
+	fb: FrameBuffer,
+	layout: ImmersiveLayout,
+	accent: RGB,
+	favorites: Track[],
+): void {
+	if (layout.favoritesH < 3 || favorites.length === 0) {
+		return;
+	}
+
+	const recent = favorites.slice(0, RECENT_FAVORITES_MAX);
+	fb.drawRect(
+		layout.favoritesX,
+		layout.favoritesY,
+		layout.favoritesW,
+		layout.favoritesH,
+		accent,
+		null,
+		'single',
+	);
+
+	const innerX = layout.favoritesX + 2;
+	let y = layout.favoritesY + 1;
+	fb.setText(innerX, y, 'RECENT FAVORITES', accent, null, {bold: true});
+	y += 1;
+
+	const maxLines = Math.max(1, layout.favoritesH - 3);
+	const visible = recent.slice(0, maxLines);
+	for (let i = 0; i < visible.length; i++) {
+		const track = visible[i];
+		if (!track) continue;
+		const line = truncateText(
+			`${i + 1}. ${formatFavoriteLine(track, layout.favoritesW - 6)}`,
+			layout.favoritesW - 4,
+		);
+		fb.setText(innerX, y + i, line, null, null, {dim: true});
+	}
+}
+
+function layoutFooterY(height: number, offset: number): number {
+	return height - 3 + offset;
+}
+
 function renderControls(
 	fb: FrameBuffer,
 	width: number,
@@ -1079,9 +1191,9 @@ function renderControls(
 	libraryOverlay: LibraryOverlayState,
 	settingsOverlay: SettingsOverlayState,
 ): void {
-	const separatorY = height - 4;
-	const modeY = height - 3;
-	const controlsY = height - 2;
+	const separatorY = layoutFooterY(height, 0);
+	const modeY = layoutFooterY(height, 1);
+	const controlsY = layoutFooterY(height, 2);
 
 	fb.setText(1, separatorY, '─'.repeat(Math.max(0, width - 2)), null, null, {
 		dim: true,
@@ -1101,10 +1213,13 @@ function renderControls(
 				'[↑↓] Select   [Enter] Play   [Shift+D] Download   [M] Mix   [F] Favorite   [Ctrl+A/L] Filter   [Esc] Back';
 		}
 	} else if (libraryOverlay.active) {
-		controls =
-			libraryOverlay.view === 'menu'
-				? '[↑↓] Navigate   [Enter] Select   [Esc] Close'
-				: '[↑↓] Select playlist   [Enter] Play   [Esc] Back';
+		if (libraryOverlay.view === 'menu') {
+			controls = '[↑↓] Navigate   [Enter] Select   [Esc] Close';
+		} else if (libraryOverlay.view === 'favorites') {
+			controls = '[↑↓] Select favorite   [Enter] Play   [Esc] Back';
+		} else {
+			controls = '[↑↓] Select playlist   [Enter] Play   [Esc] Back';
+		}
 	} else if (settingsOverlay.active) {
 		controls = '[↑↓] Navigate   [Enter] Cycle   [Esc] Close';
 	} else if (playerState) {
@@ -1237,6 +1352,7 @@ function renderLibraryOverlay(
 	height: number,
 	overlay: LibraryOverlayState,
 	playlists: Playlist[],
+	favorites: Track[],
 ): void {
 	if (!overlay.active) {
 		return;
@@ -1262,6 +1378,46 @@ function renderLibraryOverlay(
 				null,
 				i === overlay.selectedIndex ? {bold: true} : {dim: true},
 			);
+		}
+	} else if (overlay.view === 'favorites') {
+		fb.setText(boxX + 2, boxY, ' FAVORITES ', null, null, {bold: true});
+		if (favorites.length === 0) {
+			fb.setText(
+				boxX + 2,
+				boxY + 2,
+				'No favorites yet — press F while playing',
+				null,
+				null,
+				{dim: true},
+			);
+		} else {
+			const maxLines = boxH - 4;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, favorites.length - maxLines),
+				),
+			);
+			const visible = favorites.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const track = visible[i];
+				if (!track) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				const line = truncateText(
+					`${marker} ${formatFavoriteLine(track, boxW - 8)}`,
+					boxW - 4,
+				);
+				fb.setText(
+					boxX + 2,
+					boxY + 2 + i,
+					line,
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
 		}
 	} else {
 		fb.setText(boxX + 2, boxY, ' PLAYLISTS ', null, null, {bold: true});

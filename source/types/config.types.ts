@@ -30,7 +30,6 @@ export interface Config {
 	playlists: Playlist[];
 	history: string[];
 	searchHistory: string[];
-	favorites: string[];
 	repeat: RepeatMode;
 	shuffle: boolean;
 	customTheme?: Theme;
