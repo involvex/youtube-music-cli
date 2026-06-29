@@ -1,3 +1,9 @@
+## [0.0.91](https://github.com/involvex/youtube-music-cli/compare/v0.0.90...v0.0.91) (2026-06-29)
+
+### Bug Fixes
+
+- **immersive:** align mpv playback sync with Ink TUI ([f1e9ff4](https://github.com/involvex/youtube-music-cli/commit/f1e9ff4303cc9654f4ccac71ccf459497bb9a791))
+
 ## [0.0.90](https://github.com/involvex/youtube-music-cli/compare/v0.0.89...v0.0.90) (2026-06-29)
 
 ### Bug Fixes
