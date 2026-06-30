@@ -138,8 +138,12 @@ test('queue-state supports shuffle and repeat-all', async t => {
 });
 
 test('queue-state shuffle with repeat-all at end picks a different track', async t => {
-	const {advanceQueue, createInitialImmersiveState, setQueue} =
-		await import('../source/immersive/state/queue-state.ts');
+	const {
+		advanceQueue,
+		createInitialImmersiveState,
+		setQueue,
+		shuffleQueueOrder,
+	} = await import('../source/immersive/state/queue-state.ts');
 
 	const state = createInitialImmersiveState({shuffle: true, repeat: 'all'});
 	setQueue(state, [
@@ -149,11 +153,102 @@ test('queue-state shuffle with repeat-all at end picks a different track', async
 	]);
 	state.queueIndex = 2;
 	state.currentTrack = state.queue[2] ?? null;
+	shuffleQueueOrder(state, 2);
 
 	const next = advanceQueue(state);
 	t.truthy(next);
 	t.not(next?.videoId, 'c');
 	t.true(['a', 'b'].includes(next?.videoId ?? ''));
+});
+
+test('getUpcomingTracks wraps with repeat-all at last shuffle index', async t => {
+	const {
+		createInitialImmersiveState,
+		getUpcomingTracks,
+		setQueue,
+		shuffleQueueOrder,
+	} = await import('../source/immersive/state/queue-state.ts');
+
+	const state = createInitialImmersiveState({shuffle: true, repeat: 'all'});
+	setQueue(state, [
+		{videoId: 'a', title: 'A', artists: []},
+		{videoId: 'b', title: 'B', artists: []},
+		{videoId: 'c', title: 'C', artists: []},
+	]);
+	state.queueIndex = 2;
+	state.currentTrack = state.queue[2] ?? null;
+	shuffleQueueOrder(state, 2);
+
+	const upcoming = getUpcomingTracks(state, 5);
+	t.true(upcoming.length >= 2);
+	t.not(upcoming[0]?.videoId, 'c');
+});
+
+test('getUpcomingTracks wraps sequentially with repeat-all at queue end', async t => {
+	const {createInitialImmersiveState, getUpcomingTracks, setQueue} =
+		await import('../source/immersive/state/queue-state.ts');
+
+	const state = createInitialImmersiveState({repeat: 'all'});
+	setQueue(state, [
+		{videoId: 'a', title: 'A', artists: []},
+		{videoId: 'b', title: 'B', artists: []},
+		{videoId: 'c', title: 'C', artists: []},
+	]);
+	state.queueIndex = 2;
+	state.currentTrack = state.queue[2] ?? null;
+
+	const upcoming = getUpcomingTracks(state, 3);
+	t.deepEqual(
+		upcoming.map(track => track.videoId),
+		['a', 'b'],
+	);
+});
+
+test('advanceQueue with playbackOrder does not repeat current track', async t => {
+	const {advanceQueue, createInitialImmersiveState, setQueue} =
+		await import('../source/immersive/state/queue-state.ts');
+
+	const state = createInitialImmersiveState({shuffle: true, repeat: 'all'});
+	setQueue(state, [
+		{videoId: 'a', title: 'A', artists: []},
+		{videoId: 'b', title: 'B', artists: []},
+		{videoId: 'c', title: 'C', artists: []},
+	]);
+
+	const firstId = state.currentTrack?.videoId;
+	const second = advanceQueue(state);
+	t.not(second?.videoId, firstId);
+});
+
+test('resolveRandomFavoriteStartIndex stays within queue bounds', async t => {
+	const {resolveRandomFavoriteStartIndex} =
+		await import('../source/immersive/state/queue-state.ts');
+
+	for (let i = 0; i < 20; i++) {
+		const index = resolveRandomFavoriteStartIndex(15);
+		t.true(index >= 0);
+		t.true(index < 15);
+	}
+	t.is(resolveRandomFavoriteStartIndex(0), 0);
+});
+
+test('toggleShuffle rebuilds and clears playback order', async t => {
+	const {createInitialImmersiveState, setQueue, toggleShuffle} =
+		await import('../source/immersive/state/queue-state.ts');
+
+	const state = createInitialImmersiveState();
+	setQueue(state, [
+		{videoId: 'a', title: 'A', artists: []},
+		{videoId: 'b', title: 'B', artists: []},
+	]);
+	t.is(state.playbackOrder, null);
+
+	t.true(toggleShuffle(state));
+	t.truthy(state.playbackOrder);
+	t.is(state.playbackOrder?.length, 2);
+
+	t.false(toggleShuffle(state));
+	t.is(state.playbackOrder, null);
 });
 
 test('playback-sync re-exports mpv-event-policy helpers', async t => {

@@ -21,10 +21,19 @@ test('mpv-event-policy: suppresses pause only when advancing or after EOF', asyn
 			now,
 		}),
 	);
+	t.false(
+		shouldApplyMpvPauseSync({
+			paused: true,
+			eofTimestamp: 0,
+			advanceGraceUntil: now + 5000,
+			now,
+		}),
+	);
 	t.true(
 		shouldApplyMpvPauseSync({
 			paused: true,
 			eofTimestamp: now - EOF_PAUSE_SUPPRESSION_MS,
+			advanceGraceUntil: now - 1,
 			now,
 		}),
 	);
@@ -44,4 +53,5 @@ test('mpv-event-policy: debounces EOF advance', async t => {
 
 	t.true(shouldDebounceAdvance(0, ADVANCE_DEBOUNCE_MS - 1));
 	t.false(shouldDebounceAdvance(0, ADVANCE_DEBOUNCE_MS));
+	t.false(shouldDebounceAdvance(-ADVANCE_DEBOUNCE_MS, ADVANCE_DEBOUNCE_MS - 1));
 });

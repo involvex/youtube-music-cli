@@ -11,8 +11,13 @@ import {getPlayerService} from '../services/player/player.service.ts';
 import {getDownloadService} from '../services/download/download.service.ts';
 import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {ensurePlaybackDependencies} from '../services/player/dependency-check.service.ts';
-import {loadPlayerState} from '../services/player-state/player-state.service.ts';
 import {
+	loadPlayerState,
+	savePlayerState,
+} from '../services/player-state/player-state.service.ts';
+import {
+	ADVANCE_DEBOUNCE_MS,
+	ADVANCE_GRACE_MS,
 	BACKGROUND_PLAYBACK_TTL_MS,
 	PLAYBACK_STALL_MS,
 	shouldApplyMpvPauseSync,
@@ -30,6 +35,7 @@ import {
 	cycleRepeat,
 	formatRepeatLabel,
 	previousQueue,
+	resolveRandomFavoriteStartIndex,
 	setQueue,
 	toggleShuffle,
 	trackArtists,
@@ -218,9 +224,7 @@ export async function startImmersiveApp(
 		state.repeat = persisted.repeat;
 	}
 	if (tracks.length > 0) {
-		setQueue(state, tracks);
-		state.queueIndex = queueIndex;
-		state.currentTrack = tracks[queueIndex] ?? tracks[0] ?? null;
+		setQueue(state, tracks, queueIndex);
 		state.currentTime = savedProgress;
 		if (state.currentTrack?.duration) {
 			state.duration = state.currentTrack.duration;
@@ -234,11 +238,32 @@ export async function startImmersiveApp(
 	let engine: ImmersiveEngine | null = null;
 	let eofTimestamp = 0;
 	let isAdvancing = false;
-	let lastAdvanceAt = 0;
+	let lastAdvanceAt = -ADVANCE_DEBOUNCE_MS;
+	let advanceGraceUntil = 0;
 	let lastTimePosChangeAt = Date.now();
 	let lastObservedTimePos = state.currentTime;
 	let stallNotified = false;
 	let reattachTimePosWaiter: (() => void) | null = null;
+
+	const beginAdvanceGrace = (): void => {
+		advanceGraceUntil = Date.now() + ADVANCE_GRACE_MS;
+	};
+
+	const clearAdvanceGrace = (): void => {
+		advanceGraceUntil = 0;
+	};
+
+	const persistImmersivePlayerState = (): void => {
+		void savePlayerState({
+			currentTrack: state.currentTrack,
+			queue: state.queue,
+			queuePosition: state.queueIndex,
+			progress: state.currentTime,
+			volume: state.volume,
+			shuffle: state.shuffle,
+			repeat: state.repeat,
+		});
+	};
 
 	const waitForTimePos = (timeoutMs: number): Promise<boolean> =>
 		new Promise(resolve => {
@@ -269,6 +294,7 @@ export async function startImmersiveApp(
 		const notificationsEnabled = config.get('notifications') ?? false;
 
 		isAdvancing = true;
+		beginAdvanceGrace();
 		state.currentTime = 0;
 
 		try {
@@ -307,6 +333,7 @@ export async function startImmersiveApp(
 			}
 		} catch (error) {
 			state.isPlaying = false;
+			clearAdvanceGrace();
 			playerService.stop();
 			const message =
 				error instanceof Error ? error.message : 'Playback failed';
@@ -316,10 +343,18 @@ export async function startImmersiveApp(
 		}
 	};
 
-	const queueAndPlay = async (nextTracks: Track[]): Promise<void> => {
-		if (nextTracks.length === 0) return;
-		setQueue(state, nextTracks);
-		await playTrackAtIndex(0);
+	const queueAndPlay = async (
+		nextTracks: Track[],
+		startIndex = 0,
+	): Promise<void> => {
+		if (nextTracks.length === 0) {
+			return;
+		}
+		setQueue(state, nextTracks, startIndex);
+		state.isPlaying = true;
+		beginAdvanceGrace();
+		await playTrackAtIndex(state.queueIndex);
+		persistImmersivePlayerState();
 	};
 
 	const playCurrent = async (): Promise<void> => {
@@ -360,8 +395,12 @@ export async function startImmersiveApp(
 	const handleNext = async (): Promise<void> => {
 		const track = advanceQueue(state);
 		if (track) {
+			state.isPlaying = true;
+			beginAdvanceGrace();
 			await playTrackAtIndex(state.queueIndex);
+			persistImmersivePlayerState();
 		} else {
+			clearAdvanceGrace();
 			playerService.pause();
 			state.isPlaying = false;
 		}
@@ -394,6 +433,9 @@ export async function startImmersiveApp(
 				lastObservedTimePos = event.timePos;
 				lastTimePosChangeAt = Date.now();
 				stallNotified = false;
+				if (advanceGraceUntil > 0 && event.timePos > 0) {
+					clearAdvanceGrace();
+				}
 			}
 			if (reattachTimePosWaiter) {
 				reattachTimePosWaiter();
@@ -404,6 +446,8 @@ export async function startImmersiveApp(
 			eofTimestamp = Date.now();
 			if (state.repeat === 'one' && state.currentTrack) {
 				state.currentTime = 0;
+				state.isPlaying = true;
+				beginAdvanceGrace();
 				void playTrackAtIndex(state.queueIndex);
 				return;
 			}
@@ -416,6 +460,7 @@ export async function startImmersiveApp(
 					paused: event.paused,
 					isAdvancing,
 					eofTimestamp,
+					advanceGraceUntil,
 				})
 			) {
 				return;
@@ -440,28 +485,57 @@ export async function startImmersiveApp(
 	});
 
 	const stallWatchdog = setInterval(() => {
+		const now = Date.now();
+		const inAdvanceGrace = advanceGraceUntil > 0 && now < advanceGraceUntil;
+
 		if (
 			!state.isPlaying ||
 			isAdvancing ||
+			inAdvanceGrace ||
 			!playerService.hasActivePlaybackSession()
 		) {
-			lastTimePosChangeAt = Date.now();
+			lastTimePosChangeAt = now;
 			return;
 		}
 
-		if (
-			Date.now() - lastTimePosChangeAt >= PLAYBACK_STALL_MS &&
-			!stallNotified
-		) {
+		if (now - lastTimePosChangeAt >= PLAYBACK_STALL_MS && !stallNotified) {
 			state.isPlaying = false;
 			stallNotified = true;
 			showTrackChangeToast('Playback stalled', 'Press Space to resume');
 		}
 	}, 1000);
 
+	const progressAdvanceCheck = setInterval(() => {
+		if (
+			!state.isPlaying ||
+			isAdvancing ||
+			state.duration <= 0 ||
+			state.repeat === 'one'
+		) {
+			return;
+		}
+
+		if (state.currentTime < state.duration - 2) {
+			return;
+		}
+
+		const hasNextTrack =
+			state.queue.length > 0 &&
+			(state.repeat === 'all' ||
+				state.queueIndex < state.queue.length - 1 ||
+				(state.shuffle && state.queue.length > 1));
+
+		if (!hasNextTrack) {
+			return;
+		}
+
+		void handleNextFromEof();
+	}, 500);
+
 	process.on('exit', () => {
 		unregisterGlobalHotkeys();
 		clearInterval(stallWatchdog);
+		clearInterval(progressAdvanceCheck);
 		playerService.stop();
 	});
 
@@ -584,20 +658,23 @@ export async function startImmersiveApp(
 			return null;
 		},
 		onPlayRandomFavorite: async () => {
-			const track = favoritesManager.randomOne();
-			if (!track) {
+			const favorites = favoritesManager.getAllTracks();
+			if (favorites.length === 0) {
 				return 'No favorites yet — press F while playing';
 			}
-			await queueAndPlay([track]);
+			const startIndex = resolveRandomFavoriteStartIndex(favorites.length);
+			await queueAndPlay(favorites, startIndex);
 			return null;
 		},
 		onToggleShuffle: () => {
 			const enabled = toggleShuffle(state);
 			showTrackChangeToast('Shuffle', enabled ? 'On' : 'Off');
+			persistImmersivePlayerState();
 		},
 		onToggleRepeat: () => {
 			const mode = cycleRepeat(state);
 			showTrackChangeToast('Repeat', formatRepeatLabel(mode));
+			persistImmersivePlayerState();
 		},
 		getSettingsRows: () => buildImmersiveSettingsRows(config),
 		getSettingsTextDraft: (field: SettingsTextField) =>
