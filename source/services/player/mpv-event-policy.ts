@@ -8,7 +8,7 @@ export const ADVANCE_DEBOUNCE_MS = 1500;
 export const ADVANCE_GRACE_MS = 15_000;
 
 /** Immersive: time-pos unchanged this long while "playing" → sync UI to paused. */
-export const PLAYBACK_STALL_MS = 3000;
+export const PLAYBACK_STALL_MS = 8000;
 
 /** Background detach reattach older than this is treated as stale. */
 export const BACKGROUND_PLAYBACK_TTL_MS = 30 * 60 * 1000;
@@ -18,6 +18,8 @@ export type MpvPauseSyncInput = {
 	isAdvancing?: boolean;
 	eofTimestamp: number;
 	advanceGraceUntil?: number;
+	isFetchingAutoplay?: boolean;
+	waitingForAutoplayAtQueueEnd?: boolean;
 	now?: number;
 };
 
@@ -31,6 +33,10 @@ export function shouldApplyMpvPauseSync(input: MpvPauseSyncInput): boolean {
 	}
 
 	if (input.isAdvancing) {
+		return false;
+	}
+
+	if (input.isFetchingAutoplay || input.waitingForAutoplayAtQueueEnd) {
 		return false;
 	}
 

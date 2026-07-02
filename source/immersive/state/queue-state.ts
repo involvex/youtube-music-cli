@@ -1,3 +1,4 @@
+import {shouldLoopExplicitQueue} from '../../services/player/autoplay-coordinator.ts';
 import type {RadioSeed} from '../../types/radio.types.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
@@ -16,6 +17,8 @@ export interface ImmersivePlayerState {
 	shuffle: boolean;
 	repeat: RepeatMode;
 	autoplay: boolean;
+	/** User-queued tracks count; autoplay extensions sit beyond this boundary. */
+	explicitQueueLength: number;
 	radioIsActive: boolean;
 	radioSeed: RadioSeed | null;
 }
@@ -36,6 +39,7 @@ export function createInitialImmersiveState(
 		shuffle: false,
 		repeat: 'off',
 		autoplay: true,
+		explicitQueueLength: 0,
 		radioIsActive: false,
 		radioSeed: null,
 		...overrides,
@@ -90,6 +94,7 @@ export function setQueue(
 	state.queue = [...tracks];
 	state.queueIndex = safeStart;
 	state.currentTrack = tracks[safeStart] ?? tracks[0] ?? null;
+	state.explicitQueueLength = tracks.length;
 
 	if (state.shuffle && tracks.length > 1) {
 		shuffleQueueOrder(state, safeStart);
@@ -191,7 +196,7 @@ function advanceShuffleQueue(state: ImmersivePlayerState): Track | null {
 
 	let nextOrderPos = orderPos + 1;
 	if (nextOrderPos >= state.playbackOrder.length) {
-		if (state.repeat === 'all') {
+		if (shouldLoopExplicitQueue(state)) {
 			nextOrderPos = 0;
 		} else {
 			state.isPlaying = false;
@@ -223,7 +228,7 @@ export function advanceQueue(state: ImmersivePlayerState): Track | null {
 
 	const nextIndex = state.queueIndex + 1;
 	if (nextIndex >= state.queue.length) {
-		if (state.repeat === 'all') {
+		if (shouldLoopExplicitQueue(state)) {
 			state.queueIndex = 0;
 			state.currentTrack = state.queue[0] ?? null;
 			state.currentTime = 0;
@@ -288,7 +293,7 @@ export function getUpcomingTracks(
 		) {
 			let pos = orderPos + step;
 			if (pos >= state.playbackOrder.length) {
-				if (state.repeat !== 'all') {
+				if (!shouldLoopExplicitQueue(state)) {
 					break;
 				}
 				pos %= state.playbackOrder.length;
@@ -311,7 +316,7 @@ export function getUpcomingTracks(
 	for (let step = 1; upcoming.length < count; step++) {
 		let idx = state.queueIndex + step;
 		if (idx >= state.queue.length) {
-			if (state.repeat !== 'all') {
+			if (!shouldLoopExplicitQueue(state)) {
 				break;
 			}
 			idx %= state.queue.length;

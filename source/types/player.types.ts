@@ -52,6 +52,7 @@ export interface PlayerState {
 	subtitle: string | null;
 	radioIsActive: boolean;
 	radioSeed: RadioSeed | null;
+	explicitQueueLength: number;
 }
 
 export type PlayerAction =

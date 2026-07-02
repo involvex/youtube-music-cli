@@ -16,6 +16,10 @@ import {
 import {logger} from '../services/logger/logger.service.ts';
 import {shouldApplyMpvPauseSync} from '../services/player/mpv-event-policy.ts';
 import {
+	buildAutoplaySeedPlan,
+	mergeSuggestionTracksForAutoplay,
+	recordSessionTrack,
+	shouldLoopExplicitQueue,
 	shouldPrefetchAutoplay,
 	shouldResumeAfterPrefetch,
 } from '../services/player/autoplay-coordinator.ts';
@@ -47,7 +51,11 @@ const initialState: PlayerState = {
 	subtitle: null,
 	radioIsActive: false,
 	radioSeed: null,
+	explicitQueueLength: 0,
 };
+
+let inkSessionHistory: string[] = [];
+let inkHistorySeedCursor = 0;
 
 // Get player service instance
 const playerService = getPlayerService();
@@ -65,6 +73,8 @@ export function playerReducer(
 				progress: 0,
 				error: null,
 				playRequestId: state.playRequestId + 1,
+				explicitQueueLength:
+					state.queue.length > 0 ? state.explicitQueueLength || 1 : 1,
 			};
 
 		case 'PAUSE': {
@@ -116,7 +126,12 @@ export function playerReducer(
 			// Sequential mode
 			const nextPosition = state.queuePosition + 1;
 			if (nextPosition >= state.queue.length) {
-				if (state.repeat === 'all') {
+				if (
+					shouldLoopExplicitQueue({
+						autoplay: state.autoplay,
+						repeat: state.repeat,
+					})
+				) {
 					return {
 						...state,
 						queuePosition: 0,
@@ -222,6 +237,7 @@ export function playerReducer(
 				...state,
 				queue: action.queue,
 				queuePosition: 0,
+				explicitQueueLength: action.queue.length,
 			};
 
 		case 'ADD_TO_QUEUE':
@@ -329,6 +345,7 @@ export function playerReducer(
 				shuffle: action.shuffle,
 				repeat: action.repeat,
 				autoplay: action.autoplay ?? true,
+				explicitQueueLength: action.explicitQueueLength ?? action.queue.length,
 				isPlaying: false, // Don't auto-play restored state
 				abLoop: {a: null, b: null},
 			};
@@ -790,6 +807,16 @@ function PlayerManager() {
 	// Smart autoplay: fetch suggestions when near end of queue
 	const fetchedForRef = useRef<string | null>(null);
 	const isFetchingAutoplayRef = useRef(false);
+
+	useEffect(() => {
+		if (state.currentTrack?.videoId) {
+			inkSessionHistory = recordSessionTrack(
+				inkSessionHistory,
+				state.currentTrack.videoId,
+			);
+		}
+	}, [state.currentTrack?.videoId]);
+
 	useEffect(() => {
 		const autoplayState = {
 			autoplay: state.autoplay,
@@ -800,6 +827,7 @@ function PlayerManager() {
 			queuePosition: state.queuePosition,
 			currentTrackVideoId: state.currentTrack?.videoId ?? null,
 			radioIsActive: state.radioIsActive,
+			explicitQueueLength: state.explicitQueueLength,
 		};
 
 		if (
@@ -819,26 +847,48 @@ function PlayerManager() {
 		const durationBefore = state.duration;
 
 		isFetchingAutoplayRef.current = true;
-		fetchedForRef.current = trackId;
 
-		const fetchPromise =
-			state.radioIsActive && state.radioSeed
-				? getRadioService().fetchMoreTracks(state.radioSeed)
-				: musicService.getSuggestions(trackId);
+		const runFetch = async (): Promise<void> => {
+			const {seeds, nextCursor} = buildAutoplaySeedPlan(
+				trackId,
+				inkSessionHistory,
+				inkHistorySeedCursor,
+			);
+			inkHistorySeedCursor = nextCursor;
 
-		fetchPromise
-			.then(tracks => {
-				for (const track of tracks) {
-					dispatch({category: 'ADD_TO_QUEUE', track});
+			const queueIds = new Set(state.queue.map(t => t.videoId).filter(Boolean));
+			const recentPlayedIds = new Set(inkSessionHistory);
+
+			let tracksToAdd: Track[] = [];
+			for (const seed of seeds) {
+				const rawTracks =
+					state.radioIsActive && state.radioSeed
+						? await getRadioService().fetchMoreTracks(state.radioSeed)
+						: await musicService.getSuggestions(seed);
+				const merged = mergeSuggestionTracksForAutoplay(
+					recentPlayedIds,
+					queueIds,
+					rawTracks,
+				);
+				if (merged.length > 0) {
+					tracksToAdd = merged;
+					fetchedForRef.current = seed;
+					break;
 				}
+			}
 
+			for (const track of tracksToAdd) {
+				dispatch({category: 'ADD_TO_QUEUE', track});
+			}
+
+			if (tracksToAdd.length > 0) {
 				logger.info(
 					state.radioIsActive ? 'Radio' : 'Autoplay',
 					state.radioIsActive
 						? 'Radio: added tracks'
 						: 'Autoplay: added suggestions',
 					{
-						count: tracks.length,
+						count: tracksToAdd.length,
 						basedOn: trackTitle,
 						radioMode: state.radioIsActive,
 					},
@@ -861,7 +911,12 @@ function PlayerManager() {
 					);
 					dispatch({category: 'NEXT'});
 				}
-			})
+			} else {
+				fetchedForRef.current = null;
+			}
+		};
+
+		runFetch()
 			.catch((error: unknown) => {
 				fetchedForRef.current = null;
 				logger.warn('PlayerManager', 'Autoplay: failed to fetch suggestions', {
@@ -877,10 +932,11 @@ function PlayerManager() {
 		state.isPlaying,
 		state.repeat,
 		state.shuffle,
-		state.queue.length,
+		state.queue,
 		state.queuePosition,
 		state.radioIsActive,
 		state.radioSeed,
+		state.explicitQueueLength,
 		musicService,
 		dispatch,
 		state.progress,
@@ -904,6 +960,10 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 			isInitializedRef.current = true;
 
 			if (persistedState) {
+				if (persistedState.sessionHistory) {
+					inkSessionHistory = persistedState.sessionHistory;
+				}
+
 				logger.info('PlayerProvider', 'Restoring persisted state', {
 					hasTrack: !!persistedState.currentTrack,
 					queueLength: persistedState.queue.length,
@@ -922,6 +982,7 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 					shuffle: persistedState.shuffle,
 					repeat: persistedState.repeat,
 					autoplay: persistedState.autoplay ?? true,
+					explicitQueueLength: persistedState.explicitQueueLength,
 				});
 			}
 		});
@@ -948,6 +1009,8 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 					shuffle: state.shuffle,
 					repeat: state.repeat,
 					autoplay: state.autoplay,
+					sessionHistory: inkSessionHistory,
+					explicitQueueLength: state.explicitQueueLength,
 				});
 			},
 			// Debounce progress updates (5s), immediate for track/queue changes
@@ -968,6 +1031,7 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 		state.shuffle,
 		state.repeat,
 		state.autoplay,
+		state.explicitQueueLength,
 	]);
 
 	// Save immediately on unmount/quit
@@ -989,6 +1053,8 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 				shuffle: currentState.shuffle,
 				repeat: currentState.repeat,
 				autoplay: currentState.autoplay,
+				sessionHistory: inkSessionHistory,
+				explicitQueueLength: currentState.explicitQueueLength,
 			});
 		};
 

@@ -123,6 +123,7 @@ export interface RestoreStateAction {
 	shuffle: boolean;
 	repeat: 'off' | 'all' | 'one';
 	autoplay?: boolean;
+	explicitQueueLength?: number;
 }
 
 export interface SetSpeedAction {

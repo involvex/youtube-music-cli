@@ -24,9 +24,13 @@ import {
 	shouldDebounceAdvance,
 } from '../services/player/mpv-event-policy.ts';
 import {
+	AUTOPLAY_MAX_FAILED_CYCLES,
+	AUTOPLAY_RETRY_DELAY_MS,
 	AUTOPLAY_TICK_MS,
-	mergeSuggestionTracks,
-	pickHistoryFallbackSeed,
+	buildAutoplaySeedPlan,
+	getTracksAhead,
+	isAtExplicitQueueEnd,
+	mergeSuggestionTracksForAutoplay,
 	recordSessionTrack,
 	shouldDeferPauseAtQueueEnd,
 	shouldPrefetchAutoplay,
@@ -239,6 +243,9 @@ export async function startImmersiveApp(
 	}
 	if (tracks.length > 0) {
 		setQueue(state, tracks, queueIndex);
+		if (persisted?.explicitQueueLength !== undefined) {
+			state.explicitQueueLength = persisted.explicitQueueLength;
+		}
 		state.currentTime = savedProgress;
 		if (state.currentTrack?.duration) {
 			state.duration = state.currentTrack.duration;
@@ -260,9 +267,12 @@ export async function startImmersiveApp(
 	let reattachTimePosWaiter: (() => void) | null = null;
 	let fetchedForVideoId: string | null = null;
 	let isFetchingAutoplay = false;
-	let sessionHistory: string[] = [];
+	let sessionHistory: string[] = persisted?.sessionHistory ?? [];
 	let historySeedCursor = 0;
 	let waitingForAutoplayAtQueueEnd = false;
+	let autoplayFailedCycles = 0;
+	let autoplayRetryTimer: ReturnType<typeof setTimeout> | null = null;
+	let radioPhaseNotified = false;
 
 	const getAutoplayQueueState = () => ({
 		autoplay: state.autoplay,
@@ -273,6 +283,7 @@ export async function startImmersiveApp(
 		queuePosition: state.queueIndex,
 		currentTrackVideoId: state.currentTrack?.videoId ?? null,
 		radioIsActive: state.radioIsActive,
+		explicitQueueLength: state.explicitQueueLength,
 	});
 
 	const beginAdvanceGrace = (): void => {
@@ -293,7 +304,19 @@ export async function startImmersiveApp(
 			shuffle: state.shuffle,
 			repeat: state.repeat,
 			autoplay: state.autoplay,
+			sessionHistory,
+			explicitQueueLength: state.explicitQueueLength,
 		});
+	};
+
+	const scheduleAutoplayRetry = (waitingAtQueueEnd: boolean): void => {
+		if (autoplayRetryTimer) {
+			return;
+		}
+		autoplayRetryTimer = setTimeout(() => {
+			autoplayRetryTimer = null;
+			void runAutoplayTick({waitingAtQueueEnd});
+		}, AUTOPLAY_RETRY_DELAY_MS);
 	};
 
 	const waitForTimePos = (timeoutMs: number): Promise<boolean> =>
@@ -373,6 +396,7 @@ export async function startImmersiveApp(
 			showTrackChangeToast('Playback error', message);
 		} finally {
 			isAdvancing = false;
+			persistImmersivePlayerState();
 		}
 	};
 
@@ -384,16 +408,12 @@ export async function startImmersiveApp(
 			return;
 		}
 		setQueue(state, nextTracks, startIndex);
+		radioPhaseNotified = false;
 		state.isPlaying = true;
 		beginAdvanceGrace();
 		await playTrackAtIndex(state.queueIndex);
 		persistImmersivePlayerState();
-		if (
-			state.autoplay &&
-			state.queue.length === 1 &&
-			state.repeat !== 'all' &&
-			!(state.shuffle && state.queue.length > 1)
-		) {
+		if (state.autoplay) {
 			void runAutoplayTick();
 		}
 	};
@@ -472,12 +492,6 @@ export async function startImmersiveApp(
 				waitingAtQueueEnd,
 			})
 		) {
-			if (waitingAtQueueEnd && !isFetchingAutoplay) {
-				waitingForAutoplayAtQueueEnd = false;
-				clearAdvanceGrace();
-				playerService.pause();
-				state.isPlaying = false;
-			}
 			return;
 		}
 
@@ -493,51 +507,72 @@ export async function startImmersiveApp(
 		const trackTitle = state.currentTrack?.title ?? seedVideoId;
 
 		isFetchingAutoplay = true;
-		fetchedForVideoId = seedVideoId;
 
 		try {
-			let tracks =
-				state.radioIsActive && state.radioSeed
-					? await getRadioService().fetchMoreTracks(state.radioSeed)
-					: await musicService.getSuggestions(seedVideoId);
+			const {seeds, nextCursor} = buildAutoplaySeedPlan(
+				seedVideoId,
+				sessionHistory,
+				historySeedCursor,
+			);
+			historySeedCursor = nextCursor;
 
 			const queueIds = new Set(
 				state.queue.map(queueTrack => queueTrack.videoId).filter(Boolean),
 			);
-			tracks = mergeSuggestionTracks(queueIds, tracks);
+			const recentPlayedIds = new Set(sessionHistory);
 
-			if (tracks.length === 0) {
-				const excludeIds = new Set(queueIds);
-				if (seedVideoId) {
-					excludeIds.add(seedVideoId);
-				}
-				const fallback = pickHistoryFallbackSeed(
-					sessionHistory,
-					historySeedCursor,
-					excludeIds,
+			let tracks: Track[] = [];
+			for (const seed of seeds) {
+				const rawTracks =
+					state.radioIsActive && state.radioSeed
+						? await getRadioService().fetchMoreTracks(state.radioSeed)
+						: await musicService.getSuggestions(seed);
+				const merged = mergeSuggestionTracksForAutoplay(
+					recentPlayedIds,
+					queueIds,
+					rawTracks,
 				);
-				historySeedCursor = fallback.nextCursor;
-				if (fallback.seed) {
-					const fallbackTracks = await musicService.getSuggestions(
-						fallback.seed,
-					);
-					tracks = mergeSuggestionTracks(queueIds, fallbackTracks);
+				if (merged.length > 0) {
+					tracks = merged;
+					fetchedForVideoId = seed;
+					break;
 				}
 			}
 
 			const added = appendTracksForAutoplay(state, tracks);
 			if (added === 0) {
 				fetchedForVideoId = null;
-				if (waitingAtQueueEnd) {
+				autoplayFailedCycles++;
+				if (
+					waitingAtQueueEnd &&
+					autoplayFailedCycles >= AUTOPLAY_MAX_FAILED_CYCLES
+				) {
 					waitingForAutoplayAtQueueEnd = false;
 					clearAdvanceGrace();
 					playerService.pause();
 					state.isPlaying = false;
+					showTrackChangeToast('Autoplay', 'Could not find new tracks to play');
+				} else if (waitingAtQueueEnd || wasAtEndOfQueue) {
+					waitingForAutoplayAtQueueEnd = true;
+					state.isPlaying = true;
+					showTrackChangeToast('Autoplay', 'No new tracks found, retrying…');
+					scheduleAutoplayRetry(true);
 				}
 				return;
 			}
 
+			autoplayFailedCycles = 0;
 			waitingForAutoplayAtQueueEnd = false;
+
+			if (
+				!radioPhaseNotified &&
+				state.explicitQueueLength > 0 &&
+				wasAtEndOfQueue &&
+				state.queueIndex >= state.explicitQueueLength - 1
+			) {
+				radioPhaseNotified = true;
+				showTrackChangeToast('Autoplay', 'Playing similar tracks');
+			}
 
 			logger.info(
 				state.radioIsActive ? 'Radio' : 'Autoplay',
@@ -572,11 +607,20 @@ export async function startImmersiveApp(
 			}
 		} catch (error) {
 			fetchedForVideoId = null;
-			if (waitingAtQueueEnd) {
+			autoplayFailedCycles++;
+			if (
+				waitingAtQueueEnd &&
+				autoplayFailedCycles >= AUTOPLAY_MAX_FAILED_CYCLES
+			) {
 				waitingForAutoplayAtQueueEnd = false;
 				clearAdvanceGrace();
 				playerService.pause();
 				state.isPlaying = false;
+				showTrackChangeToast('Autoplay', 'Failed to fetch suggestions');
+			} else if (waitingAtQueueEnd) {
+				waitingForAutoplayAtQueueEnd = true;
+				state.isPlaying = true;
+				scheduleAutoplayRetry(true);
 			}
 			logger.warn('ImmersiveApp', 'Autoplay: failed to fetch suggestions', {
 				error: error instanceof Error ? error.message : String(error),
@@ -644,6 +688,8 @@ export async function startImmersiveApp(
 					isAdvancing,
 					eofTimestamp,
 					advanceGraceUntil,
+					isFetchingAutoplay,
+					waitingForAutoplayAtQueueEnd,
 				})
 			) {
 				return;
@@ -683,9 +729,26 @@ export async function startImmersiveApp(
 		}
 
 		if (now - lastTimePosChangeAt >= PLAYBACK_STALL_MS && !stallNotified) {
-			state.isPlaying = false;
 			stallNotified = true;
-			showTrackChangeToast('Playback stalled', 'Press Space to resume');
+			if (state.autoplay) {
+				showTrackChangeToast('Playback slow', 'Buffering…');
+				const tracksAhead = getTracksAhead({
+					queueLength: state.queue.length,
+					queuePosition: state.queueIndex,
+				});
+				if (
+					tracksAhead === 0 ||
+					isAtExplicitQueueEnd({
+						queuePosition: state.queueIndex,
+						explicitQueueLength: state.explicitQueueLength,
+					})
+				) {
+					void runAutoplayTick({waitingAtQueueEnd: true});
+				}
+			} else {
+				state.isPlaying = false;
+				showTrackChangeToast('Playback stalled', 'Press Space to resume');
+			}
 		}
 	}, 1000);
 
@@ -705,9 +768,7 @@ export async function startImmersiveApp(
 
 		const hasNextTrack =
 			state.queue.length > 0 &&
-			(state.repeat === 'all' ||
-				state.queueIndex < state.queue.length - 1 ||
-				(state.shuffle && state.queue.length > 1));
+			(state.queueIndex < state.queue.length - 1 || state.autoplay);
 
 		if (!hasNextTrack) {
 			return;
@@ -725,6 +786,9 @@ export async function startImmersiveApp(
 		clearInterval(stallWatchdog);
 		clearInterval(progressAdvanceCheck);
 		clearInterval(autoplayTick);
+		if (autoplayRetryTimer) {
+			clearTimeout(autoplayRetryTimer);
+		}
 		playerService.stop();
 	});
 
@@ -868,6 +932,10 @@ export async function startImmersiveApp(
 		onToggleAutoplay: () => {
 			const enabled = toggleAutoplay(state);
 			fetchedForVideoId = null;
+			autoplayFailedCycles = 0;
+			if (enabled) {
+				void runAutoplayTick();
+			}
 			showTrackChangeToast('Autoplay', enabled ? 'On' : 'Off');
 			persistImmersivePlayerState();
 		},

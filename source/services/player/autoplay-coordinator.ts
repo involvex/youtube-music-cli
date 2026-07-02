@@ -5,6 +5,9 @@ export const AUTOPLAY_TRACKS_AHEAD_RADIO = 15;
 export const AUTOPLAY_RESUME_NEAR_END_SECONDS = 5;
 export const SESSION_HISTORY_MAX = 30;
 export const AUTOPLAY_TICK_MS = 2000;
+export const AUTOPLAY_SEED_ATTEMPTS = 5;
+export const AUTOPLAY_RETRY_DELAY_MS = 5000;
+export const AUTOPLAY_MAX_FAILED_CYCLES = 3;
 
 export type AutoplayQueueState = {
 	autoplay: boolean;
@@ -15,6 +18,8 @@ export type AutoplayQueueState = {
 	queuePosition: number;
 	currentTrackVideoId: string | null;
 	radioIsActive: boolean;
+	/** Length of user-queued tracks; appended autoplay tracks are beyond this. */
+	explicitQueueLength: number;
 };
 
 export type AutoplayPrefetchContext = {
@@ -29,6 +34,26 @@ export function isAtQueueEnd(state: {
 	queuePosition: number;
 }): boolean {
 	return state.queueLength > 0 && state.queuePosition >= state.queueLength - 1;
+}
+
+export function isAtExplicitQueueEnd(state: {
+	queuePosition: number;
+	explicitQueueLength: number;
+}): boolean {
+	return (
+		state.explicitQueueLength > 0 &&
+		state.queuePosition >= state.explicitQueueLength - 1
+	);
+}
+
+export function isInRadioExtensionPhase(state: {
+	queuePosition: number;
+	explicitQueueLength: number;
+}): boolean {
+	return (
+		state.explicitQueueLength > 0 &&
+		state.queuePosition >= state.explicitQueueLength
+	);
 }
 
 export function getTracksAhead(state: {
@@ -46,6 +71,17 @@ export function getAutoplayTracksAheadThreshold(
 		: AUTOPLAY_TRACKS_AHEAD_NORMAL;
 }
 
+/** When autoplay is on, explicit queue plays once; repeat/shuffle wrap only when autoplay is off. */
+export function shouldLoopExplicitQueue(state: {
+	autoplay: boolean;
+	repeat: 'off' | 'all' | 'one';
+}): boolean {
+	if (state.autoplay) {
+		return false;
+	}
+	return state.repeat === 'all';
+}
+
 export function shouldPrefetchAutoplay(
 	state: AutoplayQueueState,
 	context?: AutoplayPrefetchContext,
@@ -54,17 +90,15 @@ export function shouldPrefetchAutoplay(
 		return false;
 	}
 
+	if (state.repeat === 'one') {
+		return false;
+	}
+
 	const waitingAtQueueEnd = context?.waitingAtQueueEnd === true;
+	const atExplicitEnd = isAtExplicitQueueEnd(state);
+	const atEnd = isAtQueueEnd(state);
+
 	if (!state.isPlaying && !waitingAtQueueEnd) {
-		return false;
-	}
-
-	if (state.repeat === 'all' || (state.shuffle && state.queueLength > 1)) {
-		return false;
-	}
-
-	const threshold = getAutoplayTracksAheadThreshold(state.radioIsActive);
-	if (getTracksAhead(state) > threshold) {
 		return false;
 	}
 
@@ -72,11 +106,20 @@ export function shouldPrefetchAutoplay(
 		return false;
 	}
 
-	const atEnd = isAtQueueEnd(state);
+	const threshold = getAutoplayTracksAheadThreshold(state.radioIsActive);
+	const tracksAhead = getTracksAhead(state);
+
+	if (waitingAtQueueEnd || atExplicitEnd || atEnd) {
+		return true;
+	}
+
+	if (tracksAhead > threshold) {
+		return false;
+	}
+
 	if (
 		context?.fetchedForVideoId === state.currentTrackVideoId &&
-		!waitingAtQueueEnd &&
-		!atEnd
+		tracksAhead > 0
 	) {
 		return false;
 	}
@@ -99,6 +142,27 @@ export function mergeSuggestionTracks(
 	const seen = new Set(existingVideoIds);
 	for (const track of newTracks) {
 		if (!track.videoId || seen.has(track.videoId)) {
+			continue;
+		}
+		seen.add(track.videoId);
+		result.push(track);
+	}
+	return result;
+}
+
+/** Dedupe suggestions against recent session plays, not the full queue. */
+export function mergeSuggestionTracksForAutoplay(
+	recentPlayedIds: ReadonlySet<string>,
+	queueVideoIds: ReadonlySet<string>,
+	newTracks: Track[],
+): Track[] {
+	const result: Track[] = [];
+	const seen = new Set(recentPlayedIds);
+	for (const track of newTracks) {
+		if (!track.videoId || seen.has(track.videoId)) {
+			continue;
+		}
+		if (queueVideoIds.has(track.videoId)) {
 			continue;
 		}
 		seen.add(track.videoId);
@@ -158,4 +222,36 @@ export function pickHistoryFallbackSeed(
 	}
 
 	return {seed: null, nextCursor: cursor};
+}
+
+export function buildAutoplaySeedPlan(
+	currentVideoId: string | null,
+	sessionHistory: string[],
+	cursor: number,
+	maxAttempts = AUTOPLAY_SEED_ATTEMPTS,
+): {seeds: string[]; nextCursor: number} {
+	const seeds: string[] = [];
+	const seen = new Set<string>();
+
+	if (currentVideoId) {
+		seeds.push(currentVideoId);
+		seen.add(currentVideoId);
+	}
+
+	let nextCursor = cursor;
+	for (
+		let added = 0;
+		added < maxAttempts - seeds.length && sessionHistory.length > 0;
+		added++
+	) {
+		const fallback = pickHistoryFallbackSeed(sessionHistory, nextCursor, seen);
+		nextCursor = fallback.nextCursor;
+		if (!fallback.seed) {
+			break;
+		}
+		seeds.push(fallback.seed);
+		seen.add(fallback.seed);
+	}
+
+	return {seeds, nextCursor};
 }

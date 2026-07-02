@@ -1,6 +1,6 @@
 import test from 'ava';
 
-test('shouldPrefetchAutoplay respects repeat-all and shuffle guards', async t => {
+test('shouldPrefetchAutoplay allows repeat-all and shuffle when autoplay on', async t => {
 	const {shouldPrefetchAutoplay} =
 		await import('../source/services/player/autoplay-coordinator.ts');
 
@@ -13,6 +13,7 @@ test('shouldPrefetchAutoplay respects repeat-all and shuffle guards', async t =>
 		queuePosition: 2,
 		currentTrackVideoId: 'seed',
 		radioIsActive: false,
+		explicitQueueLength: 3,
 	};
 
 	t.true(
@@ -22,16 +23,16 @@ test('shouldPrefetchAutoplay respects repeat-all and shuffle guards', async t =>
 		}),
 	);
 
-	t.false(
+	t.true(
 		shouldPrefetchAutoplay(
 			{...base, repeat: 'all'},
 			{fetchedForVideoId: null, isFetching: false},
 		),
 	);
 
-	t.false(
+	t.true(
 		shouldPrefetchAutoplay(
-			{...base, shuffle: true, queueLength: 4},
+			{...base, shuffle: true, queueLength: 4, explicitQueueLength: 4},
 			{fetchedForVideoId: null, isFetching: false},
 		),
 	);
@@ -39,6 +40,13 @@ test('shouldPrefetchAutoplay respects repeat-all and shuffle guards', async t =>
 	t.false(
 		shouldPrefetchAutoplay(
 			{...base, autoplay: false},
+			{fetchedForVideoId: null, isFetching: false},
+		),
+	);
+
+	t.false(
+		shouldPrefetchAutoplay(
+			{...base, repeat: 'one'},
 			{fetchedForVideoId: null, isFetching: false},
 		),
 	);
@@ -70,6 +78,43 @@ test('shouldPrefetchAutoplay respects repeat-all and shuffle guards', async t =>
 			},
 		),
 	);
+});
+
+test('shouldLoopExplicitQueue defers repeat-all when autoplay on', async t => {
+	const {shouldLoopExplicitQueue} =
+		await import('../source/services/player/autoplay-coordinator.ts');
+
+	t.false(shouldLoopExplicitQueue({autoplay: true, repeat: 'all'}));
+	t.true(shouldLoopExplicitQueue({autoplay: false, repeat: 'all'}));
+	t.false(shouldLoopExplicitQueue({autoplay: false, repeat: 'off'}));
+});
+
+test('buildAutoplaySeedPlan rotates through session history', async t => {
+	const {buildAutoplaySeedPlan} =
+		await import('../source/services/player/autoplay-coordinator.ts');
+
+	const {seeds, nextCursor} = buildAutoplaySeedPlan('current', ['a', 'b'], 0);
+	t.deepEqual(seeds, ['current', 'a', 'b']);
+	t.is(nextCursor, 0);
+
+	const second = buildAutoplaySeedPlan('current', ['a', 'b'], nextCursor);
+	t.true(second.seeds.includes('current'));
+});
+
+test('mergeSuggestionTracksForAutoplay dedupes recent plays and queue', async t => {
+	const {mergeSuggestionTracksForAutoplay} =
+		await import('../source/services/player/autoplay-coordinator.ts');
+
+	const recent = new Set(['a']);
+	const queue = new Set(['b']);
+	const merged = mergeSuggestionTracksForAutoplay(recent, queue, [
+		{videoId: 'a', title: 'A', artists: []},
+		{videoId: 'b', title: 'B', artists: []},
+		{videoId: 'c', title: 'C', artists: []},
+	]);
+
+	t.is(merged.length, 1);
+	t.is(merged[0]?.videoId, 'c');
 });
 
 test('shouldResumeAfterPrefetch triggers near end without isPlaying check', async t => {

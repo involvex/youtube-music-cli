@@ -123,6 +123,8 @@ export function buildModeStatusLine(state: {
 	isDiscoMode: boolean;
 	autoplay: boolean;
 	radioIsActive?: boolean;
+	explicitQueueLength?: number;
+	queueIndex?: number;
 }): string {
 	const shuffle = state.shuffle ? 'ON' : 'OFF';
 	const repeat =
@@ -130,7 +132,13 @@ export function buildModeStatusLine(state: {
 	const disco = state.isDiscoMode ? 'ON' : 'OFF';
 	const autoplay = state.autoplay ? 'ON' : 'OFF';
 	const radio = state.radioIsActive ? ' · Radio ON' : '';
-	return `Shuffle ${shuffle} · Repeat ${repeat} · Autoplay ${autoplay}${radio} · Disco ${disco}`;
+	const inSimilarPhase =
+		state.autoplay &&
+		(state.explicitQueueLength ?? 0) > 0 &&
+		state.queueIndex !== undefined &&
+		state.queueIndex >= (state.explicitQueueLength ?? 0);
+	const similar = inSimilarPhase ? ' · Similar' : '';
+	return `Shuffle ${shuffle} · Repeat ${repeat} · Autoplay ${autoplay}${radio}${similar} · Disco ${disco}`;
 }
 
 export function buildPlayerShortcutLine(maxWidth: number): string {

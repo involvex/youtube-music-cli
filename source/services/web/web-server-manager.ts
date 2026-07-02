@@ -34,6 +34,7 @@ class WebServerManager {
 		subtitle: null,
 		radioIsActive: false,
 		radioSeed: null,
+		explicitQueueLength: 0,
 	};
 
 	constructor() {

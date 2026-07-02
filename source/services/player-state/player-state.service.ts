@@ -20,6 +20,8 @@ export interface PersistedPlayerState {
 	shuffle: boolean;
 	repeat: 'off' | 'all' | 'one';
 	autoplay?: boolean;
+	sessionHistory?: string[];
+	explicitQueueLength?: number;
 	lastUpdated: string; // ISO timestamp
 }
 
