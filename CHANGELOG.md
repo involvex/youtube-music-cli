@@ -1,3 +1,10 @@
+## [0.0.94](https://github.com/involvex/youtube-music-cli/compare/v0.0.93...v0.0.94) (2026-07-02)
+
+### Features
+
+- **immersive:** Spotify-like infinite autoplay for Win32 ([125b4bf](https://github.com/involvex/youtube-music-cli/commit/125b4bf2af97cc1a0bedf6e674cf501e608fa009))
+- **immersive:** Win32 library favorites, playlist edit, and add-to-playlist ([d0791ef](https://github.com/involvex/youtube-music-cli/commit/d0791eff14526bf77791fe392ebff1633753057f))
+
 ## [0.0.93](https://github.com/involvex/youtube-music-cli/compare/v0.0.92...v0.0.93) (2026-07-01)
 
 ### Features
