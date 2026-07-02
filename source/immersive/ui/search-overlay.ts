@@ -296,7 +296,13 @@ export function handleSearchResultsMetaKey(
 }
 
 export type SearchResultsAction =
-	'none' | 'back' | 'play' | 'mix' | 'favorite' | 'download';
+	| 'none'
+	| 'back'
+	| 'play'
+	| 'mix'
+	| 'favorite'
+	| 'download'
+	| 'add_to_playlist';
 
 export function handleSearchResultsInput(
 	state: SearchOverlayState,
@@ -347,6 +353,10 @@ export function handleSearchResultsInput(
 
 	if (key === 'f') {
 		return 'favorite';
+	}
+
+	if (key === 'a') {
+		return 'add_to_playlist';
 	}
 
 	if (key === 'Shift+D') {

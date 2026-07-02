@@ -535,6 +535,7 @@ test('search overlay handles query and results phases', async t => {
 	t.is(handleSearchResultsInput(overlay, 'enter'), 'play');
 	t.is(handleSearchResultsInput(overlay, 'm'), 'mix');
 	t.is(handleSearchResultsInput(overlay, 'f'), 'favorite');
+	t.is(handleSearchResultsInput(overlay, 'a'), 'add_to_playlist');
 
 	t.is(handleSearchResultsInput(overlay, 'escape'), 'back');
 	t.is(overlay.phase, 'query');
@@ -549,11 +550,15 @@ test('library overlay navigates menu, playlists, and favorites', async t => {
 		closeLibraryOverlay,
 		createLibraryOverlayState,
 		formatFavoriteLine,
+		handleLibraryAddToPlaylistInput,
 		handleLibraryFavoritesInput,
 		handleLibraryMenuInput,
+		handleLibraryPlaylistEditInput,
 		handleLibraryPlaylistInput,
+		openAddToPlaylistPicker,
 		openFavoritesPicker,
 		openLibraryMenu,
+		openPlaylistEdit,
 		openPlaylistPicker,
 	} = await import('../source/immersive/ui/library-overlay.ts');
 
@@ -570,6 +575,8 @@ test('library overlay navigates menu, playlists, and favorites', async t => {
 	t.is(handleLibraryFavoritesInput(overlay, 'down', 2), 'none');
 	t.is(overlay.selectedIndex, 1);
 	t.is(handleLibraryFavoritesInput(overlay, 'enter', 2), 'play_favorite');
+	t.is(handleLibraryFavoritesInput(overlay, 'f', 2), 'remove_favorite');
+	t.is(handleLibraryFavoritesInput(overlay, 'a', 2), 'pick_add_to_playlist');
 	t.is(handleLibraryFavoritesInput(overlay, 'escape', 2), 'back_to_menu');
 	t.is(overlay.view, 'menu');
 
@@ -577,8 +584,35 @@ test('library overlay navigates menu, playlists, and favorites', async t => {
 	t.is(overlay.view, 'playlists');
 	t.is(handleLibraryPlaylistInput(overlay, 'down', 3), 'none');
 	t.is(overlay.selectedIndex, 1);
+	t.is(handleLibraryPlaylistInput(overlay, 'e', 3), 'edit_playlist');
 	t.is(handleLibraryPlaylistInput(overlay, 'escape', 3), 'back_to_menu');
 	t.is(overlay.view, 'menu');
+
+	openPlaylistEdit(overlay, 'playlist-1');
+	t.is(overlay.view, 'playlist_edit');
+	t.is(
+		handleLibraryPlaylistEditInput(overlay, 'd', 2),
+		'remove_playlist_track',
+	);
+	t.is(
+		handleLibraryPlaylistEditInput(overlay, 'a', 2),
+		'add_current_to_playlist',
+	);
+
+	openAddToPlaylistPicker(
+		overlay,
+		{videoId: 'x', title: 'Track', artists: []},
+		{returnToSearch: true},
+	);
+	t.is(overlay.view, 'add_to_playlist');
+	t.is(
+		handleLibraryAddToPlaylistInput(overlay, 'enter', 2),
+		'confirm_add_to_playlist',
+	);
+	t.is(
+		handleLibraryAddToPlaylistInput(overlay, 'escape', 2),
+		'cancel_add_to_playlist',
+	);
 
 	const line = formatFavoriteLine(
 		{videoId: 'a', title: 'Favorite Song', artists: [{name: 'Artist'}]},
@@ -588,6 +622,62 @@ test('library overlay navigates menu, playlists, and favorites', async t => {
 
 	closeLibraryOverlay(overlay);
 	t.false(overlay.active);
+});
+
+test('playback-actions playlist mutations add and remove tracks', async t => {
+	const {getConfigService} =
+		await import('../source/services/config/config.service.ts');
+	const {
+		addTrackToSavedPlaylist,
+		loadPlaylists,
+		removeTrackFromSavedPlaylist,
+		trackFromSearchResult,
+	} = await import('../source/immersive/actions/playback-actions.ts');
+
+	const config = getConfigService();
+	const previousPlaylists = config.get('playlists');
+	config.set('playlists', [
+		{
+			playlistId: 'p1',
+			name: 'Test',
+			tracks: [{videoId: 'a', title: 'A', artists: []}],
+		},
+	]);
+
+	t.is(
+		addTrackToSavedPlaylist('p1', {
+			videoId: 'b',
+			title: 'B',
+			artists: [],
+		}),
+		'added',
+	);
+	t.is(loadPlaylists()[0].tracks.length, 2);
+	t.is(
+		addTrackToSavedPlaylist('p1', {
+			videoId: 'b',
+			title: 'B',
+			artists: [],
+		}),
+		'duplicate',
+	);
+	t.true(removeTrackFromSavedPlaylist('p1', 0));
+	t.is(loadPlaylists()[0].tracks[0].videoId, 'b');
+
+	const track = trackFromSearchResult({
+		type: 'song',
+		data: {videoId: 'c', title: 'C', artists: []},
+	});
+	t.is(track?.videoId, 'c');
+	t.is(
+		trackFromSearchResult({
+			type: 'album',
+			data: {albumId: 'x', name: 'Album', artists: []},
+		}),
+		null,
+	);
+
+	config.set('playlists', previousPlaylists);
 });
 
 test('playback-actions dedupe tracks and favorites manager toggles', async t => {

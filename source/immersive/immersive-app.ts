@@ -40,9 +40,11 @@ import {getRadioService} from '../services/radio/radio.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
 import {ImmersiveEngine} from './immersive-engine.ts';
 import {
+	addTrackToSavedPlaylist,
 	createMixFromResult,
 	loadPlaylists,
 	playSearchResult,
+	removeTrackFromSavedPlaylist,
 } from './actions/playback-actions.ts';
 import {
 	advanceQueue,
@@ -918,6 +920,52 @@ export async function startImmersiveApp(
 			const startIndex = resolveRandomFavoriteStartIndex(favorites.length);
 			await queueAndPlay(favorites, startIndex);
 			return null;
+		},
+		onRemoveFavoriteTrack: async (track: Track) => {
+			await favoritesManager.remove(track.videoId);
+			return 'Removed from favorites';
+		},
+		onAddTrackToPlaylist: async (playlistId: string, track: Track) => {
+			const result = addTrackToSavedPlaylist(playlistId, track);
+			if (result === 'missing') {
+				throw new Error('Playlist not found');
+			}
+			if (result === 'duplicate') {
+				return 'Track already in playlist';
+			}
+			const playlist = loadPlaylists().find(
+				item => item.playlistId === playlistId,
+			);
+			return playlist ? `Added to "${playlist.name}"` : 'Added to playlist';
+		},
+		onRemoveTrackFromPlaylist: async (
+			playlistId: string,
+			trackIndex: number,
+		) => {
+			const removed = removeTrackFromSavedPlaylist(playlistId, trackIndex);
+			if (!removed) {
+				throw new Error('Failed to remove track');
+			}
+			return 'Track removed';
+		},
+		onAddCurrentTrackToPlaylist: async (playlistId: string) => {
+			const currentTrack = state.currentTrack;
+			if (!currentTrack) {
+				throw new Error('Nothing playing — start playback first');
+			}
+			const result = addTrackToSavedPlaylist(playlistId, currentTrack);
+			if (result === 'missing') {
+				throw new Error('Playlist not found');
+			}
+			if (result === 'duplicate') {
+				return 'Current track already in playlist';
+			}
+			const playlist = loadPlaylists().find(
+				item => item.playlistId === playlistId,
+			);
+			return playlist
+				? `Added "${currentTrack.title}" to "${playlist.name}"`
+				: 'Track added';
 		},
 		onToggleShuffle: () => {
 			const enabled = toggleShuffle(state);

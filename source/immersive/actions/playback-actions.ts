@@ -46,6 +46,74 @@ export function createSavedPlaylist(name: string, tracks: Track[]): Playlist {
 	return playlist;
 }
 
+export type AddTrackToPlaylistResult = 'added' | 'duplicate' | 'missing';
+
+export function addTrackToSavedPlaylist(
+	playlistId: string,
+	track: Track,
+	force = false,
+): AddTrackToPlaylistResult {
+	const playlists = loadPlaylists();
+	const playlistIndex = playlists.findIndex(
+		playlist => playlist.playlistId === playlistId,
+	);
+	if (playlistIndex === -1) {
+		return 'missing';
+	}
+
+	const playlist = playlists[playlistIndex]!;
+	const isDuplicate = playlist.tracks.some(
+		existing => existing.videoId === track.videoId,
+	);
+	if (isDuplicate && !force) {
+		return 'duplicate';
+	}
+
+	const updatedPlaylists = [...playlists];
+	updatedPlaylists[playlistIndex] = {
+		...playlist,
+		tracks: [...playlist.tracks, {...track}],
+	};
+	savePlaylists(updatedPlaylists);
+	return 'added';
+}
+
+export function removeTrackFromSavedPlaylist(
+	playlistId: string,
+	trackIndex: number,
+): boolean {
+	const playlists = loadPlaylists();
+	const playlistIndex = playlists.findIndex(
+		playlist => playlist.playlistId === playlistId,
+	);
+	if (playlistIndex === -1) {
+		return false;
+	}
+
+	const playlist = playlists[playlistIndex]!;
+	if (trackIndex < 0 || trackIndex >= playlist.tracks.length) {
+		return false;
+	}
+
+	const updatedTracks = [...playlist.tracks];
+	updatedTracks.splice(trackIndex, 1);
+	const updatedPlaylists = [...playlists];
+	updatedPlaylists[playlistIndex] = {
+		...playlist,
+		tracks: updatedTracks,
+	};
+	savePlaylists(updatedPlaylists);
+	return true;
+}
+
+export function trackFromSearchResult(result: SearchResult): Track | null {
+	if (result.type !== 'song') {
+		return null;
+	}
+
+	return result.data as Track;
+}
+
 export function dedupeTracks(tracks: Track[]): Track[] {
 	const unique: Track[] = [];
 	const seen = new Set<string>();

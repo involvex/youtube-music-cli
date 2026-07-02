@@ -51,11 +51,18 @@ import {
 	formatPlaylistLine,
 	handleLibraryFavoritesInput,
 	handleLibraryMenuInput,
+	handleLibraryPlaylistEditInput,
 	handleLibraryPlaylistInput,
+	handleLibraryAddToPlaylistInput,
 	LIBRARY_MENU_ITEMS,
+	openAddToPlaylistPicker,
 	openFavoritesPicker,
 	openLibraryMenu,
+	openPlaylistEdit,
 	openPlaylistPicker,
+	closeAddToPlaylistPicker,
+	closePlaylistEdit,
+	formatPlaylistTrackLine,
 	type LibraryOverlayState,
 } from './ui/library-overlay.ts';
 import {
@@ -118,6 +125,16 @@ export interface ImmersiveOptions {
 		result: SearchResult,
 	) => Promise<string | null>;
 	onDownloadSearchResult?: (result: SearchResult) => Promise<string | null>;
+	onRemoveFavoriteTrack?: (track: Track) => Promise<string | null>;
+	onAddTrackToPlaylist?: (
+		playlistId: string,
+		track: Track,
+	) => Promise<string | null>;
+	onRemoveTrackFromPlaylist?: (
+		playlistId: string,
+		trackIndex: number,
+	) => Promise<string | null>;
+	onAddCurrentTrackToPlaylist?: (playlistId: string) => Promise<string | null>;
 	getSavedPlaylists?: () => Playlist[];
 	getFavoriteTracks?: () => Track[];
 	getRecentFavorites?: () => Track[];
@@ -461,13 +478,13 @@ export class ImmersiveEngine {
 	}
 
 	private routeKey(keyName: string): void {
-		if (this.searchOverlay.active) {
-			void this.handleSearchKey(keyName);
+		if (this.libraryOverlay.active) {
+			void this.handleLibraryKey(keyName);
 			return;
 		}
 
-		if (this.libraryOverlay.active) {
-			void this.handleLibraryKey(keyName);
+		if (this.searchOverlay.active) {
+			void this.handleSearchKey(keyName);
 			return;
 		}
 
@@ -605,7 +622,7 @@ export class ImmersiveEngine {
 				return;
 			}
 
-			if (action !== 'play_favorite') {
+			if (action === 'none') {
 				return;
 			}
 
@@ -615,12 +632,146 @@ export class ImmersiveEngine {
 				return;
 			}
 
+			if (action === 'remove_favorite') {
+				try {
+					const message = await this.options.onRemoveFavoriteTrack?.(track);
+					const updated = this.options.getFavoriteTracks?.() ?? [];
+					this.libraryOverlay.selectedIndex = Math.min(
+						this.libraryOverlay.selectedIndex,
+						Math.max(0, updated.length - 1),
+					);
+					this.libraryOverlay.status = message ?? 'Removed from favorites';
+				} catch (error) {
+					this.libraryOverlay.status =
+						error instanceof Error
+							? error.message
+							: 'Failed to remove favorite';
+				}
+				return;
+			}
+
+			if (action === 'pick_add_to_playlist') {
+				openAddToPlaylistPicker(this.libraryOverlay, track, {
+					returnView: 'favorites',
+				});
+				return;
+			}
+
+			if (action !== 'play_favorite') {
+				return;
+			}
+
 			try {
 				await this.options.onPlayFavoriteTrack?.(track);
 				closeLibraryOverlay(this.libraryOverlay);
 			} catch (error) {
 				this.libraryOverlay.status =
 					error instanceof Error ? error.message : 'Failed to play favorite';
+			}
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'add_to_playlist') {
+			const playlists = this.options.getSavedPlaylists?.() ?? [];
+			const action = handleLibraryAddToPlaylistInput(
+				this.libraryOverlay,
+				key,
+				playlists.length,
+			);
+
+			if (action === 'cancel_add_to_playlist') {
+				return;
+			}
+
+			if (action === 'none') {
+				return;
+			}
+
+			const track = this.libraryOverlay.pendingTrack;
+			const playlist = playlists[this.libraryOverlay.selectedIndex];
+			if (!track || !playlist) {
+				this.libraryOverlay.status = 'No saved playlists';
+				return;
+			}
+
+			try {
+				const message = await this.options.onAddTrackToPlaylist?.(
+					playlist.playlistId,
+					track,
+				);
+				const statusMessage = message ?? `Added to "${playlist.name}"`;
+				if (this.searchOverlay.active) {
+					this.searchOverlay.status = statusMessage;
+				} else {
+					this.libraryOverlay.status = statusMessage;
+				}
+				closeAddToPlaylistPicker(this.libraryOverlay);
+			} catch (error) {
+				this.libraryOverlay.status =
+					error instanceof Error ? error.message : 'Failed to add to playlist';
+			}
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'playlist_edit') {
+			const playlists = this.options.getSavedPlaylists?.() ?? [];
+			const playlist = playlists.find(
+				item => item.playlistId === this.libraryOverlay.editingPlaylistId,
+			);
+			const tracks = playlist?.tracks ?? [];
+			const action = handleLibraryPlaylistEditInput(
+				this.libraryOverlay,
+				key,
+				tracks.length,
+			);
+
+			if (action === 'back_to_menu') {
+				return;
+			}
+
+			if (action === 'none') {
+				return;
+			}
+
+			if (!playlist) {
+				closePlaylistEdit(this.libraryOverlay);
+				this.libraryOverlay.status = 'Playlist not found';
+				return;
+			}
+
+			if (action === 'remove_playlist_track') {
+				try {
+					const message = await this.options.onRemoveTrackFromPlaylist?.(
+						playlist.playlistId,
+						this.libraryOverlay.selectedIndex,
+					);
+					const updated = this.options.getSavedPlaylists?.() ?? [];
+					const updatedPlaylist = updated.find(
+						item => item.playlistId === playlist.playlistId,
+					);
+					const trackCount = updatedPlaylist?.tracks.length ?? 0;
+					this.libraryOverlay.selectedIndex = Math.min(
+						this.libraryOverlay.selectedIndex,
+						Math.max(0, trackCount - 1),
+					);
+					this.libraryOverlay.status = message ?? 'Track removed';
+				} catch (error) {
+					this.libraryOverlay.status =
+						error instanceof Error ? error.message : 'Failed to remove track';
+				}
+				return;
+			}
+
+			if (action === 'add_current_to_playlist') {
+				try {
+					const message = await this.options.onAddCurrentTrackToPlaylist?.(
+						playlist.playlistId,
+					);
+					this.libraryOverlay.status = message ?? 'Track added';
+				} catch (error) {
+					this.libraryOverlay.status =
+						error instanceof Error ? error.message : 'Failed to add track';
+				}
 			}
 			return;
 		}
@@ -636,13 +787,22 @@ export class ImmersiveEngine {
 			return;
 		}
 
-		if (action !== 'play_playlist') {
+		if (action === 'none') {
 			return;
 		}
 
 		const playlist = playlists[this.libraryOverlay.selectedIndex];
 		if (!playlist) {
 			this.libraryOverlay.status = 'No saved playlists';
+			return;
+		}
+
+		if (action === 'edit_playlist') {
+			openPlaylistEdit(this.libraryOverlay, playlist.playlistId);
+			return;
+		}
+
+		if (action !== 'play_playlist') {
 			return;
 		}
 
@@ -801,6 +961,19 @@ export class ImmersiveEngine {
 				this.searchOverlay.status =
 					error instanceof Error ? error.message : 'Mix failed';
 			}
+			return;
+		}
+
+		if (action === 'add_to_playlist' && selected) {
+			if (selected.type !== 'song') {
+				this.searchOverlay.status = 'Only songs can be added to playlists';
+				return;
+			}
+
+			const track = selected.data as Track;
+			openAddToPlaylistPicker(this.libraryOverlay, track, {
+				returnToSearch: true,
+			});
 			return;
 		}
 
@@ -1214,15 +1387,21 @@ function renderControls(
 				'[Tab] Type   [Ctrl+A] Artist   [Ctrl+L] Album   [+/−] Limit   [Enter] Search   [Esc] Cancel';
 		} else {
 			controls =
-				'[↑↓] Select   [Enter] Play   [Shift+D] Download   [M] Mix   [F] Favorite   [Ctrl+A/L] Filter   [Esc] Back';
+				'[↑↓] Select   [Enter] Play   [A] Playlist   [Shift+D] Download   [M] Mix   [F] Favorite   [Ctrl+A/L] Filter   [Esc] Back';
 		}
 	} else if (libraryOverlay.active) {
 		if (libraryOverlay.view === 'menu') {
 			controls = '[↑↓] Navigate   [Enter] Select   [Esc] Close';
 		} else if (libraryOverlay.view === 'favorites') {
-			controls = '[↑↓] Select favorite   [Enter] Play   [Esc] Back';
+			controls =
+				'[↑↓] Select   [Enter] Play   [A] Add to playlist   [F] Remove   [Esc] Back';
+		} else if (libraryOverlay.view === 'playlist_edit') {
+			controls =
+				'[↑↓] Select track   [A] Add current   [D] Remove   [Esc] Back';
+		} else if (libraryOverlay.view === 'add_to_playlist') {
+			controls = '[↑↓] Select playlist   [Enter] Add   [Esc] Cancel';
 		} else {
-			controls = '[↑↓] Select playlist   [Enter] Play   [Esc] Back';
+			controls = '[↑↓] Select   [Enter] Play   [E] Edit   [Esc] Back';
 		}
 	} else if (settingsOverlay.active) {
 		controls = '[↑↓] Navigate   [Enter] Cycle   [Esc] Close';
@@ -1416,6 +1595,97 @@ function renderLibraryOverlay(
 				fb.setText(
 					boxX + 2,
 					boxY + 2 + i,
+					line,
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
+		}
+	} else if (overlay.view === 'playlist_edit') {
+		const playlist = playlists.find(
+			item => item.playlistId === overlay.editingPlaylistId,
+		);
+		const title = playlist ? ` EDIT: ${playlist.name} ` : ' EDIT PLAYLIST ';
+		fb.setText(boxX + 2, boxY, truncateText(title, boxW - 4), null, null, {
+			bold: true,
+		});
+		const tracks = playlist?.tracks ?? [];
+		if (tracks.length === 0) {
+			fb.setText(
+				boxX + 2,
+				boxY + 2,
+				'No tracks — press A to add current track',
+				null,
+				null,
+				{dim: true},
+			);
+		} else {
+			const maxLines = boxH - 4;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, tracks.length - maxLines),
+				),
+			);
+			const visible = tracks.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const track = visible[i];
+				if (!track) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				const line = truncateText(
+					`${marker} ${formatPlaylistTrackLine(track, boxW - 8)}`,
+					boxW - 4,
+				);
+				fb.setText(
+					boxX + 2,
+					boxY + 2 + i,
+					line,
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
+		}
+	} else if (overlay.view === 'add_to_playlist') {
+		fb.setText(boxX + 2, boxY, ' ADD TO PLAYLIST ', null, null, {bold: true});
+		const trackTitle = overlay.pendingTrack?.title ?? 'Selected track';
+		fb.setText(
+			boxX + 2,
+			boxY + 1,
+			truncateText(trackTitle, boxW - 4),
+			null,
+			null,
+			{dim: true},
+		);
+		if (playlists.length === 0) {
+			fb.setText(boxX + 2, boxY + 3, 'No saved playlists', null, null, {
+				dim: true,
+			});
+		} else {
+			const maxLines = boxH - 5;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, playlists.length - maxLines),
+				),
+			);
+			const visible = playlists.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const playlist = visible[i];
+				if (!playlist) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				const line = truncateText(
+					`${marker} ${formatPlaylistLine(playlist, boxW - 8)}`,
+					boxW - 4,
+				);
+				fb.setText(
+					boxX + 2,
+					boxY + 3 + i,
 					line,
 					null,
 					null,
