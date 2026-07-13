@@ -1,3 +1,9 @@
+## [0.0.96](https://github.com/involvex/youtube-music-cli/compare/v0.0.95...v0.0.96) (2026-07-13)
+
+### Bug Fixes
+
+- prevent infinite loop on unavailable tracks, fix playlist name resolution, add proxy support, and reduce suggestion API calls ([eaa4727](https://github.com/involvex/youtube-music-cli/commit/eaa47277c35796489a35262a0e16386d34cbaabe))
+
 ## [0.0.95](https://github.com/involvex/youtube-music-cli/compare/v0.0.94...v0.0.95) (2026-07-13)
 
 ### Bug Fixes
