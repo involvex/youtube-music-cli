@@ -16,6 +16,13 @@ import {
 } from './services/completions/completions.service.ts';
 import {getConfigService} from './services/config/config.service.ts';
 import {getPlayerService} from './services/player/player.service.ts';
+import {
+	showLogs,
+	openLogs,
+	showLogPath,
+	setLogPath,
+} from './services/logs/logs-handler.ts';
+import {runConfigDoctor} from './services/config/config-doctor.ts';
 import {APP_VERSION} from './utils/constants.ts';
 import {ensurePlaybackDependencies} from './services/player/dependency-check.service.ts';
 import {getMusicService} from './services/youtube-music/api.ts';
@@ -74,6 +81,16 @@ const cli = meow(
 	  $ youtube-music-cli import spotify <url-or-id>
 	  $ youtube-music-cli import youtube <url-or-id>
 
+	📋 Logs Commands
+	  $ youtube-music-cli logs                    Show recent debug logs
+	  $ youtube-music-cli logs --open             Open log file in default editor
+	  $ youtube-music-cli logs --get-path         Print log file path
+	  $ youtube-music-cli logs --set-path <path>  Set custom log file path
+
+	🔧 Config Commands
+	  $ youtube-music-cli config doctor           Check config for issues
+	  $ youtube-music-cli config doctor --fix     Auto-fix config issues
+
 	⚙️  Options
 	  --theme, -t          Theme to use (dark, light, midnight, matrix, etc.)
 	  --volume, -v         Initial volume (0-100)
@@ -87,7 +104,8 @@ const cli = meow(
 	  --web-port           Web server port (default: 8080)
 	  --web-only           Run web server without CLI UI
 	  --web-auth           Authentication token for web server
-	  --name               Custom name for imported playlist
+	--name               Custom name for imported playlist
+	  --verbose, -V        Enable verbose logging output
 	  --help, -h           Show this help
 
 	🐚 Shell Completions
@@ -104,7 +122,7 @@ const cli = meow(
 	  $ youtube-music-cli plugins install adblock
 	  $ youtube-music-cli import spotify "https://open.spotify.com/playlist/..."
 	  $ youtube-music-cli --web --web-port 3000
-	  $ youtube-music-cli completions powershell | Out-File $PROFILE
+	  $ youtube-music-cli completions powershell | Out-String | Invoke-Expression
 `,
 	{
 		importMeta: import.meta,
@@ -165,6 +183,29 @@ const cli = meow(
 				shortFlag: 'h',
 				default: false,
 			},
+			// Logs command flags
+			open: {
+				type: 'boolean',
+				default: false,
+			},
+			getPath: {
+				type: 'boolean',
+				default: false,
+			},
+			setPath: {
+				type: 'string',
+			},
+			// Config doctor flags
+			fix: {
+				type: 'boolean',
+				default: false,
+			},
+			// Verbose logging flag
+			verbose: {
+				type: 'boolean',
+				shortFlag: 'V',
+				default: false,
+			},
 		},
 		autoVersion: true,
 		autoHelp: false,
@@ -175,9 +216,32 @@ if (cli.flags.help) {
 	cli.showHelp(0);
 }
 
+// Enable verbose mode if --verbose flag is passed
+if (cli.flags.verbose) {
+	logger.setVerbose(true);
+}
+
 // Handle plugin commands
 const command = cli.input[0];
 const args = cli.input.slice(1);
+
+// Handle logs command
+if (command === 'logs') {
+	if (cli.flags.open) {
+		openLogs();
+	} else if (cli.flags.getPath) {
+		showLogPath();
+	} else if (cli.flags.setPath) {
+		setLogPath(cli.flags.setPath);
+	} else {
+		showLogs();
+	}
+}
+
+// Handle config doctor command
+if (command === 'config' && args[0] === 'doctor') {
+	runConfigDoctor(cli.flags.fix);
+}
 
 const isInteractiveTerminal = Boolean(
 	process.stdin.isTTY && process.stdout.isTTY,

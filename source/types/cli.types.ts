@@ -28,4 +28,12 @@ export interface Flags {
 	webAuth?: string;
 	// Windows immersive mode flag
 	win32?: boolean;
+	// Logs command flags
+	open?: boolean;
+	getPath?: boolean;
+	setPath?: string;
+	// Config doctor flags
+	fix?: boolean;
+	// Verbose logging flag
+	verbose?: boolean;
 }

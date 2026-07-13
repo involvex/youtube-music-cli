@@ -1,6 +1,6 @@
 // Configuration management service
 import {CONFIG_DIR, CONFIG_FILE} from '../../utils/constants.ts';
-import {readFileSync, existsSync} from 'node:fs';
+import {readFileSync, existsSync, writeFileSync, unlinkSync, renameSync} from 'node:fs';
 import {writeFile, unlink, rename, mkdir} from 'node:fs/promises';
 import type {Config} from '../../types/config.types.ts';
 import {BUILTIN_THEMES, DEFAULT_THEME} from '../../config/themes.config.ts';
@@ -129,6 +129,17 @@ class ConfigService {
 	set<K extends keyof Config>(key: K, value: Config[K]): void {
 		this.config[key] = value;
 		this.save();
+	}
+
+	setSync<K extends keyof Config>(key: K, value: Config[K]): void {
+		this.config[key] = value;
+		// Write synchronously for critical operations
+		const tempFile = `${this.configPath}.tmp`;
+		writeFileSync(tempFile, JSON.stringify(this.config, null, 2), 'utf8');
+		if (process.platform === 'win32' && existsSync(this.configPath)) {
+			unlinkSync(this.configPath);
+		}
+		renameSync(tempFile, this.configPath);
 	}
 
 	updateTheme(themeName: string): void {

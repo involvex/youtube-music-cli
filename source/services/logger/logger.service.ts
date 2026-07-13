@@ -24,7 +24,17 @@ if (fs.existsSync(DEBUG_FILE)) {
 	}
 }
 
+let verboseMode = false;
+
 class Logger {
+	setVerbose(enabled: boolean): void {
+		verboseMode = enabled;
+	}
+
+	isVerbose(): boolean {
+		return verboseMode;
+	}
+
 	private writeToFile(
 		level: string,
 		category: string,
@@ -51,14 +61,16 @@ class Logger {
 
 	info(category: string, message: string, data?: unknown) {
 		this.writeToFile('INFO', category, message, data);
-		// Disabled: console.log causes Ink to re-render constantly
-		// console.log(`[${category}] ${message}`);
+		if (verboseMode) {
+			console.log(`[INFO] [${category}] ${message}`);
+		}
 	}
 
 	warn(category: string, message: string, data?: unknown) {
 		this.writeToFile('WARN', category, message, data);
-		// Disabled: console.warn causes Ink to re-render
-		// console.warn(`[${category}] ${message}`);
+		if (verboseMode) {
+			console.warn(`[WARN] [${category}] ${message}`);
+		}
 	}
 
 	error(category: string, message: string, data?: unknown) {
@@ -74,6 +86,13 @@ class Logger {
 			}
 		}
 		console.error(`[${category}] ${message}${extra}`);
+	}
+
+	verbose(category: string, message: string, data?: unknown) {
+		if (verboseMode) {
+			this.writeToFile('VERBOSE', category, message, data);
+			console.log(`[VERBOSE] [${category}] ${message}`);
+		}
 	}
 
 	getLogPath(): string {

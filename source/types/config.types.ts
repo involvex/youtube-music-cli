@@ -63,6 +63,7 @@ export interface Config {
 		timestamp?: string;
 	};
 	lastVersionCheck?: string;
+	logFilePath?: string;
 	llmEnabled?: boolean;
 	llm?: LLMConfig;
 	llmUsage?: LLMUsage;

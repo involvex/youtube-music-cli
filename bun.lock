@@ -70,8 +70,8 @@
     },
   },
   "patchedDependencies": {
-    "tr46@0.0.3": "patches/tr46@0.0.3.patch",
     "whatwg-url@5.0.0": "patches/whatwg-url@5.0.0.patch",
+    "tr46@0.0.3": "patches/tr46@0.0.3.patch",
   },
   "overrides": {
     "minimatch": "^10.2.1",

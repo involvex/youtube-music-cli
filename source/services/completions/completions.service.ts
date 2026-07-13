@@ -13,6 +13,8 @@ const COMMANDS = [
 	'plugins',
 	'import',
 	'completions',
+	'logs',
+	'config',
 ];
 
 const PLUGINS_SUBCOMMANDS = [
@@ -34,6 +36,10 @@ const COMPLETIONS_SUBCOMMANDS: ShellType[] = [
 	'fish',
 ];
 
+const LOGS_SUBCOMMANDS = ['--open', '--get-path', '--set-path'];
+
+const CONFIG_SUBCOMMANDS = ['doctor'];
+
 const FLAGS = [
 	'--theme',
 	'--volume',
@@ -49,6 +55,11 @@ const FLAGS = [
 	'--name',
 	'--help',
 	'--version',
+	'--open',
+	'--get-path',
+	'--set-path',
+	'--fix',
+	'--verbose',
 ];
 
 export function generateCompletion(shell: ShellType): string {
@@ -69,6 +80,8 @@ function generateBashCompletion(): string {
 	const pluginsSubs = PLUGINS_SUBCOMMANDS.join(' ');
 	const importSubs = IMPORT_SUBCOMMANDS.join(' ');
 	const completionsSubs = COMPLETIONS_SUBCOMMANDS.join(' ');
+	const logsSubs = LOGS_SUBCOMMANDS.join(' ');
+	const configSubs = CONFIG_SUBCOMMANDS.join(' ');
 	const flags = FLAGS.join(' ');
 
 	return `# youtube-music-cli bash completion
@@ -94,11 +107,20 @@ _ymc_completions() {
         completions)
             COMPREPLY=($(compgen -W "${completionsSubs}" -- "$cur"))
             return ;;
+        logs)
+            COMPREPLY=($(compgen -W "${logsSubs}" -- "$cur"))
+            return ;;
+        config)
+            COMPREPLY=($(compgen -W "${configSubs}" -- "$cur"))
+            return ;;
         --theme|-t)
             COMPREPLY=($(compgen -W "dark light midnight matrix" -- "$cur"))
             return ;;
         --repeat|-r)
             COMPREPLY=($(compgen -W "off all one" -- "$cur"))
+            return ;;
+        --set-path)
+            COMPREPLY=($(compgen -f -- "$cur"))
             return ;;
     esac
 
@@ -136,6 +158,8 @@ _ymc() {
         'plugins:Manage plugins'
         'import:Import playlists from Spotify or YouTube'
         'completions:Generate shell completion scripts'
+        'logs:View and manage debug logs'
+        'config:Manage configuration'
     )
 
     flags=(
@@ -152,6 +176,10 @@ _ymc() {
         '--name[Custom name for imported playlist]:name:'
         '--help[Show help]'
         '--version[Show version]'
+        '--open[Open log file in default editor]'
+        '--get-path[Print log file path]'
+        '--set-path[Set custom log file path]:path:_files'
+        '--fix[Auto-fix config issues]'
     )
 
     case $words[2] in
@@ -178,6 +206,22 @@ _ymc() {
             shells=('bash:Bash completion' 'zsh:Zsh completion' 'powershell:PowerShell completion' 'fish:Fish completion')
             _describe 'shells' shells
             return ;;
+        logs)
+            local -a logs_opts
+            logs_opts=(
+                '--open[Open log file in default editor]'
+                '--get-path[Print log file path]'
+                '--set-path[Set custom log file path]:path:_files'
+            )
+            _describe 'logs options' logs_opts
+            return ;;
+        config)
+            local -a config_cmds
+            config_cmds=(
+                'doctor:Check config for issues'
+            )
+            _describe 'config commands' config_cmds
+            return ;;
     esac
 
     _arguments -s \\
@@ -202,13 +246,13 @@ function generatePowerShellCompletion(): string {
 	const pluginsSubs = PLUGINS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const importSubs = IMPORT_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const completionsSubs = COMPLETIONS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
+	const logsSubs = LOGS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
+	const configSubs = CONFIG_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const flags = FLAGS.map(f => `'${f}'`).join(', ');
 
 	return `# youtube-music-cli PowerShell completion
 # Add to your PowerShell profile ($PROFILE):
-#   ymc completions powershell | Out-File -Append $PROFILE
-#   # or:
-#   Invoke-Expression (ymc completions powershell | Out-String)
+#   ymc completions powershell | Out-String | Invoke-Expression
 
 $ymcCompleterBlock = {
     param($wordToComplete, $commandAst, $cursorPosition)
@@ -217,6 +261,8 @@ $ymcCompleterBlock = {
     $pluginsSubCommands = @(${pluginsSubs})
     $importSubCommands = @(${importSubs})
     $completionsSubCommands = @(${completionsSubs})
+    $logsSubCommands = @(${logsSubs})
+    $configSubCommands = @(${configSubs})
     $flags = @(${flags})
     $themes = @('dark', 'light', 'midnight', 'matrix')
     $repeatModes = @('off', 'all', 'one')
@@ -239,6 +285,16 @@ $ymcCompleterBlock = {
         }
         'completions' {
             $completionsSubCommands | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+            return
+        }
+        'logs' {
+            $logsSubCommands | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+            return
+        }
+        'config' {
+            $configSubCommands | Where-Object { $_ -like "$wordToComplete*" } |
                 ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
             return
         }
@@ -288,6 +344,16 @@ function generateFishCompletion(): string {
 			`complete -c ymc -n '__fish_seen_subcommand_from completions' -f -a '${sub}'`,
 	).join('\n');
 
+	const logsCompletions = LOGS_SUBCOMMANDS.map(
+		sub =>
+			`complete -c ymc -n '__fish_seen_subcommand_from logs' -f -a '${sub}'`,
+	).join('\n');
+
+	const configCompletions = CONFIG_SUBCOMMANDS.map(
+		sub =>
+			`complete -c ymc -n '__fish_seen_subcommand_from config' -f -a '${sub}'`,
+	).join('\n');
+
 	return `# youtube-music-cli fish completion
 # Save to: ~/.config/fish/completions/ymc.fish
 #   ymc completions fish > ~/.config/fish/completions/ymc.fish
@@ -307,6 +373,12 @@ ${importCompletions}
 # Completions subcommands
 ${completionsCompletions}
 
+# Logs subcommands
+${logsCompletions}
+
+# Config subcommands
+${configCompletions}
+
 # Flags
 complete -c ymc -l theme -s t -d 'Theme to use' -r -a 'dark light midnight matrix'
 complete -c ymc -l volume -s v -d 'Initial volume (0-100)' -r
@@ -321,6 +393,11 @@ complete -c ymc -l web-auth -d 'Authentication token for web server' -r
 complete -c ymc -l name -d 'Custom name for imported playlist' -r
 complete -c ymc -l help -s h -d 'Show help'
 complete -c ymc -l version -d 'Show version'
+complete -c ymc -l open -d 'Open log file in default editor'
+complete -c ymc -l get-path -d 'Print log file path'
+complete -c ymc -l set-path -d 'Set custom log file path' -r -F
+complete -c ymc -l fix -d 'Auto-fix config issues'
+complete -c ymc -l verbose -s V -d 'Enable verbose logging output'
 
 # Also register for youtube-music-cli
 complete -c youtube-music-cli -w ymc
@@ -340,6 +417,8 @@ function getFishDescription(cmd: string): string {
 		plugins: 'Manage plugins',
 		import: 'Import playlists from Spotify or YouTube',
 		completions: 'Generate shell completion scripts',
+		logs: 'View and manage debug logs',
+		config: 'Manage configuration',
 	};
 	return descriptions[cmd] ?? cmd;
 }
