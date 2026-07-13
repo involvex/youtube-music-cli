@@ -1,3 +1,13 @@
+## [0.0.95](https://github.com/involvex/youtube-music-cli/compare/v0.0.94...v0.0.95) (2026-07-13)
+
+### Bug Fixes
+
+- **static-file-service:** correct path traversal validation in resolveSafeFilePath ([4aa17d3](https://github.com/involvex/youtube-music-cli/commit/4aa17d3dbd3f77b72cff8fa8d8da240e3ab0cf4e))
+
+### Features
+
+- add logs and config doctor CLI commands ([2d08033](https://github.com/involvex/youtube-music-cli/commit/2d08033ea6f44c40be26292c0fd9d928130359f7))
+
 ## [0.0.94](https://github.com/involvex/youtube-music-cli/compare/v0.0.93...v0.0.94) (2026-07-02)
 
 ### Features
