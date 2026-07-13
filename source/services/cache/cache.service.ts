@@ -85,3 +85,12 @@ export const getSearchCache = (): CacheService => {
 	}
 	return searchCacheInstance;
 };
+
+// Shared suggestions cache (100 entries, 5min TTL)
+let suggestionsCacheInstance: CacheService | null = null;
+export const getSuggestionsCache = (): CacheService => {
+	if (!suggestionsCacheInstance) {
+		suggestionsCacheInstance = new CacheService(100, 5 * 60 * 1000);
+	}
+	return suggestionsCacheInstance;
+};

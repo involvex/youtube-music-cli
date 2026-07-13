@@ -803,10 +803,20 @@ class PlayerService {
 
 		if (this.mpvProcess) {
 			try {
-				this.mpvProcess.kill('SIGTERM');
+				// On Windows, use taskkill to kill the entire process tree
+				// (mpv spawns yt-dlp as a child — SIGTERM only kills mpv, not yt-dlp)
+				if (process.platform === 'win32' && this.mpvProcess.pid) {
+					spawn('taskkill', ['/F', '/T', '/PID', String(this.mpvProcess.pid)], {
+						stdio: 'ignore',
+						detached: true,
+					}).unref();
+				} else {
+					this.mpvProcess.kill('SIGTERM');
+				}
+
 				this.mpvProcess = null;
 				this.isPlaying = false;
-				this.currentTrackId = null; // Clear track ID on stop
+				this.currentTrackId = null;
 				logger.info('PlayerService', 'mpv process killed');
 			} catch (error) {
 				logger.error('PlayerService', 'Error killing mpv process', {

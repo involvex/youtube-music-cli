@@ -303,6 +303,15 @@ class ConfigService {
 		this.config.llm = config;
 		this.save();
 	}
+
+	setProxy(proxy: string | undefined): void {
+		this.config.proxy = proxy;
+		this.save();
+	}
+
+	getProxy(): string | undefined {
+		return this.config.proxy;
+	}
 }
 
 // Singleton instance

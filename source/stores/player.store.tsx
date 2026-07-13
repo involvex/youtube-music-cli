@@ -413,9 +413,19 @@ function PlayerManager() {
 	// Register event handler for mpv IPC events
 	const eofTimestampRef = useRef(0);
 	const lastAutoNextRef = useRef(0);
+	const currentVideoIdForEventsRef = useRef<string | undefined>(undefined);
+
+	// Sync ref outside of render via effect so the event handler always sees the latest videoId
+	useEffect(() => {
+		currentVideoIdForEventsRef.current = state.currentTrack?.videoId;
+	});
+
 	useEffect(() => {
 		let lastProgressUpdate = 0;
 		const PROGRESS_THROTTLE_MS = 1000; // Update progress max once per second
+		// Track whether the current track received any progress events.
+		// If EOF fires without any progress, the track was unavailable/failed.
+		let hasProgress = false;
 
 		playerService.onEvent(event => {
 			// Log all events at debug level to trace volume-pause correlation
@@ -433,6 +443,7 @@ function PlayerManager() {
 			}
 
 			if (event.timePos !== undefined) {
+				hasProgress = true;
 				// Throttle progress updates to reduce re-renders
 				const now = Date.now();
 				if (now - lastProgressUpdate >= PROGRESS_THROTTLE_MS) {
@@ -442,12 +453,30 @@ function PlayerManager() {
 			}
 
 			if (event.eof) {
-				// Track ended — record timestamp so we can suppress mpv's spurious
-				// pause event that immediately follows EOF (idle state).
 				const now = Date.now();
 				eofTimestampRef.current = now;
-				next();
-				lastAutoNextRef.current = now;
+
+				if (hasProgress) {
+					// Track ended normally — advance to next track
+					next();
+					lastAutoNextRef.current = now;
+				} else {
+					// No progress received — track was unavailable or failed to play.
+					// Set error instead of looping infinitely.
+					logger.warn(
+						'PlayerManager',
+						'EOF without progress — track may be unavailable',
+						{
+							videoId: currentVideoIdForEventsRef.current,
+						},
+					);
+					dispatch({
+						category: 'SET_ERROR',
+						error: 'Track unavailable or failed to play',
+					});
+				}
+
+				hasProgress = false;
 			}
 
 			if (event.paused !== undefined) {
@@ -807,6 +836,8 @@ function PlayerManager() {
 	// Smart autoplay: fetch suggestions when near end of queue
 	const fetchedForRef = useRef<string | null>(null);
 	const isFetchingAutoplayRef = useRef(false);
+	const lastAutoplayFetchRef = useRef<number>(0);
+	const AUTOPLAY_FETCH_COOLDOWN_MS = 2000;
 
 	useEffect(() => {
 		if (state.currentTrack?.videoId) {
@@ -838,6 +869,12 @@ function PlayerManager() {
 		) {
 			return;
 		}
+
+		const now = Date.now();
+		if (now - lastAutoplayFetchRef.current < AUTOPLAY_FETCH_COOLDOWN_MS) {
+			return;
+		}
+		lastAutoplayFetchRef.current = now;
 
 		const trackId = state.currentTrack!.videoId;
 		const trackTitle = state.currentTrack!.title;
@@ -928,7 +965,8 @@ function PlayerManager() {
 			});
 	}, [
 		state.autoplay,
-		state.currentTrack,
+		state.currentTrack?.videoId,
+		state.currentTrack?.title,
 		state.isPlaying,
 		state.repeat,
 		state.shuffle,

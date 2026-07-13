@@ -18,7 +18,8 @@ import type {
 } from '../../types/youtubei.types.ts';
 import {Innertube, Log} from 'youtubei.js';
 import {logger} from '../logger/logger.service.ts';
-import {getSearchCache} from '../cache/cache.service.ts';
+import {getSearchCache, getSuggestionsCache} from '../cache/cache.service.ts';
+import {getConfigService} from '../config/config.service.ts';
 
 // Initialize YouTube client
 let ytClient: Innertube | null = null;
@@ -161,6 +162,13 @@ async function getClient() {
 	if (!ytClient) {
 		// Suppress noisy youtubei.js parser warnings in TUI output.
 		Log.setLevel(Log.Level.ERROR);
+		const proxy = getConfigService().getProxy();
+		if (proxy) {
+			// Set proxy environment variables for fetch/HTTP clients
+			process.env.HTTPS_PROXY = proxy;
+			process.env.HTTP_PROXY = proxy;
+		}
+
 		ytClient = await Innertube.create();
 	}
 	return ytClient;
@@ -384,11 +392,43 @@ class MusicService {
 			return null;
 		}
 
-		return {
-			videoId: normalizedVideoId,
-			title: 'Unknown Track',
-			artists: [],
-		};
+		try {
+			// Validate the video exists by fetching basic info from YouTube
+			const yt = await getClient();
+			const info = await yt.getBasicInfo(normalizedVideoId);
+
+			// Check if the video is actually playable
+			const status = info.playability_status?.status;
+			if (status && status !== 'OK') {
+				logger.warn('MusicService', 'Track not playable', {
+					videoId: normalizedVideoId,
+					status,
+					reason: info.playability_status?.reason,
+				});
+				return null;
+			}
+
+			const basicInfo = info.basic_info;
+			return {
+				videoId: normalizedVideoId,
+				title: basicInfo.title ?? 'Unknown Track',
+				artists: basicInfo.channel
+					? [
+							{
+								artistId: basicInfo.channel.id ?? '',
+								name: basicInfo.channel.name ?? 'Unknown',
+							},
+						]
+					: [],
+				duration: basicInfo.duration ?? 0,
+			};
+		} catch (error) {
+			logger.warn('MusicService', 'Failed to fetch track info', {
+				videoId: normalizedVideoId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return null;
+		}
 	}
 
 	async getAlbum(albumId: string): Promise<Album> {
@@ -413,6 +453,9 @@ class MusicService {
 			const playlistData = (await yt.music.getPlaylist(playlistId)) as {
 				title?: string;
 				name?: string;
+				header?: {
+					title?: string | {text?: string};
+				};
 				contents?: Array<{
 					id?: string;
 					video_id?: string;
@@ -428,6 +471,15 @@ class MusicService {
 					duration?: number | {seconds?: number};
 				}>;
 			};
+
+			// Extract playlist name: try header.title first (youtubei.js Playlist class),
+			// then top-level title/name, fallback to 'Unknown Playlist'
+			const headerTitle = playlistData.header?.title;
+			const resolvedName =
+				(typeof headerTitle === 'string' ? headerTitle : headerTitle?.text) ||
+				playlistData.title ||
+				playlistData.name ||
+				'Unknown Playlist';
 
 			const rows = [
 				...(playlistData.contents ?? []),
@@ -458,7 +510,7 @@ class MusicService {
 
 			return {
 				playlistId,
-				name: playlistData.title || playlistData.name || 'Unknown Playlist',
+				name: resolvedName,
 				tracks,
 			};
 		} catch (error) {
@@ -625,6 +677,18 @@ class MusicService {
 	}
 
 	async getSuggestions(trackId: string): Promise<Track[]> {
+		const cache = getSuggestionsCache();
+		const cacheKey = `suggestions:${trackId}`;
+
+		const cached = cache.get(cacheKey) as Track[] | null;
+		if (cached) {
+			logger.debug('MusicService', 'Returning cached suggestions', {
+				trackId,
+				resultCount: cached.length,
+			});
+			return cached;
+		}
+
 		try {
 			const yt = await getClient();
 
@@ -662,12 +726,15 @@ class MusicService {
 				});
 			}
 
+			const result = tracks.slice(0, 15);
+			cache.set(cacheKey, result as unknown);
+
 			logger.debug('MusicService', 'getSuggestions success', {
 				trackId,
-				count: tracks.length,
+				count: result.length,
 			});
 
-			return tracks.slice(0, 15);
+			return result;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			logger.warn('MusicService', 'getSuggestions failed', {error: message});
