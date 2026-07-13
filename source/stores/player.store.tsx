@@ -965,8 +965,7 @@ function PlayerManager() {
 			});
 	}, [
 		state.autoplay,
-		state.currentTrack?.videoId,
-		state.currentTrack?.title,
+		state.currentTrack,
 		state.isPlaying,
 		state.repeat,
 		state.shuffle,
