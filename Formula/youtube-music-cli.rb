@@ -9,8 +9,7 @@ class YoutubeMusicCli < Formula
 
   def install
     system "npm", "install", *std_npm_args
-    bin.install_symlink libexec/"bin/youtube-music-cli"
-    bin.install_symlink libexec/"bin/ymc"
+    bin.install_symlink Dir["#{libexec}/bin/*"]
   end
 
   test do
