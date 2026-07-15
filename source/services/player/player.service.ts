@@ -172,6 +172,7 @@ class PlayerService {
 	private ipcConnectRetries = 0;
 	private readonly maxIpcRetries = 10;
 	private ipcConnectGeneration = 0;
+	private ipcConnectPending: Promise<void> | null = null;
 	private pendingIpcTimers: ReturnType<typeof setTimeout>[] = [];
 	private currentTrackId: string | null = null; // Track currently playing
 	private playSessionId = 0; // Incremented per play() call for unique IPC paths
@@ -653,12 +654,16 @@ class PlayerService {
 				const ipcDelay = process.platform === 'win32' ? 500 : 200;
 				const connectGeneration = this.ipcConnectGeneration;
 				this.scheduleIpcTimer(ipcDelay, connectGeneration, () => {
-					this.connectIpc(playUrl)
+					const pending = this.connectIpc(playUrl);
+					this.ipcConnectPending = pending;
+					pending
 						.then(() => {
 							// IPC connected and loadfile sent - playback starting
+							this.ipcConnectPending = null;
 							handleSuccess();
 						})
 						.catch(error => {
+							this.ipcConnectPending = null;
 							logger.warn('PlayerService', 'Failed to connect IPC', {
 								error: formatError(error),
 							});
@@ -758,14 +763,27 @@ class PlayerService {
 		}
 	}
 
-	resume(): void {
+	async resume(): Promise<void> {
 		logger.debug('PlayerService', 'resume() called', {
 			isPlaying: this.isPlaying,
 			hasIpcSocket: Boolean(this.ipcSocket),
 			ipcDestroyed: this.ipcSocket?.destroyed ?? true,
 			hasMpvProcess: Boolean(this.mpvProcess),
+			hasPendingConnect: Boolean(this.ipcConnectPending),
 			currentTrackId: this.currentTrackId,
 		});
+
+		// An IPC connection may still be in flight (mpv is spawned but the
+		// socket connects ~200ms later). Wait for it instead of falling
+		// through to the restart fallback, which would replay the track
+		// from the beginning.
+		if (this.ipcConnectPending) {
+			try {
+				await this.ipcConnectPending;
+			} catch {
+				// Connection genuinely failed; fall through to the fallback below.
+			}
+		}
 
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
 			this.isPlaying = true;
@@ -775,6 +793,7 @@ class PlayerService {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
+
 			return;
 		}
 
@@ -798,6 +817,7 @@ class PlayerService {
 		});
 
 		this.invalidateIpcConnect();
+		this.ipcConnectPending = null;
 		this.playGeneration++;
 		this.destroyIpcSocket();
 
