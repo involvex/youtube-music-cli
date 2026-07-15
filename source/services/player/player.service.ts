@@ -172,6 +172,8 @@ class PlayerService {
 	private ipcConnectRetries = 0;
 	private readonly maxIpcRetries = 10;
 	private ipcConnectGeneration = 0;
+	private ipcConnectPending: Promise<void> | null = null;
+	private ipcConnectAbort: ((error: Error) => void) | null = null;
 	private pendingIpcTimers: ReturnType<typeof setTimeout>[] = [];
 	private currentTrackId: string | null = null; // Track currently playing
 	private playSessionId = 0; // Incremented per play() call for unique IPC paths
@@ -228,6 +230,13 @@ class PlayerService {
 
 		this.pendingIpcTimers = [];
 		this.ipcConnectRetries = 0;
+
+		if (this.ipcConnectAbort) {
+			this.ipcConnectAbort(new Error('IPC connection aborted'));
+			this.ipcConnectAbort = null;
+		}
+
+		this.ipcConnectPending = null;
 	}
 
 	private scheduleIpcTimer(
@@ -649,24 +658,38 @@ class PlayerService {
 					}
 				};
 
-				// Connect to IPC socket after a delay (longer on Windows)
+				// Connect to IPC socket after a delay (longer on Windows).
+				// Expose the pending promise before the delay so resume() during
+				// the connect window awaits instead of restarting the track.
 				const ipcDelay = process.platform === 'win32' ? 500 : 200;
 				const connectGeneration = this.ipcConnectGeneration;
-				this.scheduleIpcTimer(ipcDelay, connectGeneration, () => {
-					this.connectIpc(playUrl)
-						.then(() => {
-							// IPC connected and loadfile sent - playback starting
-							handleSuccess();
-						})
-						.catch(error => {
-							logger.warn('PlayerService', 'Failed to connect IPC', {
-								error: formatError(error),
+				this.ipcConnectPending = new Promise<void>((resolve, reject) => {
+					this.ipcConnectAbort = reject;
+					this.scheduleIpcTimer(ipcDelay, connectGeneration, () => {
+						this.connectIpc(playUrl)
+							.then(() => {
+								this.ipcConnectAbort = null;
+								this.ipcConnectPending = null;
+								resolve();
+								handleSuccess();
+							})
+							.catch(error => {
+								this.ipcConnectAbort = null;
+								this.ipcConnectPending = null;
+								reject(error);
+								logger.warn('PlayerService', 'Failed to connect IPC', {
+									error: formatError(error),
+								});
+								// IPC failed - mpv is idle with no URL loaded, clean it up
+								this.stop();
+								handleError(
+									new Error(`IPC connection failed: ${error.message}`),
+								);
 							});
-							// IPC failed - mpv is idle with no URL loaded, clean it up
-							this.stop();
-							handleError(new Error(`IPC connection failed: ${error.message}`));
-						});
+					});
 				});
+				// Avoid unhandledRejection when stop() aborts with no resume() waiter.
+				void this.ipcConnectPending.catch(() => {});
 
 				// Handle stdout (should be minimal with --really-quiet)
 				spawnedProcess.stdout.on('data', (data: Buffer) => {
@@ -758,14 +781,37 @@ class PlayerService {
 		}
 	}
 
-	resume(): void {
+	async resume(): Promise<void> {
+		const resumeGeneration = this.playGeneration;
+
 		logger.debug('PlayerService', 'resume() called', {
 			isPlaying: this.isPlaying,
 			hasIpcSocket: Boolean(this.ipcSocket),
 			ipcDestroyed: this.ipcSocket?.destroyed ?? true,
 			hasMpvProcess: Boolean(this.mpvProcess),
+			hasPendingConnect: Boolean(this.ipcConnectPending),
 			currentTrackId: this.currentTrackId,
 		});
+
+		// An IPC connection may still be in flight (mpv is spawned but the
+		// socket connects ~200ms later). Wait for it instead of falling
+		// through to the restart fallback, which would replay the track
+		// from the beginning.
+		if (this.ipcConnectPending) {
+			try {
+				await this.ipcConnectPending;
+			} catch {
+				// Connection failed or aborted; generation check below decides.
+			}
+		}
+
+		if (resumeGeneration !== this.playGeneration) {
+			logger.debug(
+				'PlayerService',
+				'resume() aborted: play generation changed',
+			);
+			return;
+		}
 
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
 			this.isPlaying = true;
@@ -775,6 +821,7 @@ class PlayerService {
 					this.sendIpcCommand(['set_property', 'volume', this.currentVolume]);
 				}, 100);
 			}
+
 			return;
 		}
 
