@@ -123,9 +123,15 @@ export function buildModeStatusLine(state: {
 	isDiscoMode: boolean;
 	autoplay: boolean;
 	radioIsActive?: boolean;
+	playbackMode?: 'youtube' | 'stream';
+	currentStation?: {name: string} | null;
 	explicitQueueLength?: number;
 	queueIndex?: number;
 }): string {
+	if (state.playbackMode === 'stream' && state.currentStation) {
+		return `LIVE · ${state.currentStation.name}`;
+	}
+
 	const shuffle = state.shuffle ? 'ON' : 'OFF';
 	const repeat =
 		state.repeat === 'all' ? 'ALL' : state.repeat === 'one' ? 'ONE' : 'OFF';
@@ -150,6 +156,7 @@ export function buildPlayerShortcutLine(maxWidth: number): string {
 		'[R] Repeat',
 		'[F] Fav',
 		'[L] Library',
+		'[I] Radio',
 		'[,] Settings',
 		'[/] Search',
 		'[Q] Quit',

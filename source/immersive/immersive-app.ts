@@ -1,5 +1,6 @@
 import process from 'node:process';
 import type {Flags} from '../types/cli.types.ts';
+import type {RadioStation} from '../types/radio-station.types.ts';
 import type {
 	Playlist,
 	SearchResult,
@@ -373,6 +374,8 @@ export async function startImmersiveApp(
 
 		state.queueIndex = index;
 		state.currentTrack = track;
+		state.playbackMode = 'youtube';
+		state.currentStation = null;
 		fetchedForVideoId = null;
 		sessionHistory = recordSessionTrack(sessionHistory, track.videoId);
 
@@ -448,6 +451,50 @@ export async function startImmersiveApp(
 		}
 	};
 
+	const playRadioStream = async (station: RadioStation): Promise<void> => {
+		state.playbackMode = 'stream';
+		state.currentStation = station;
+		state.currentTrack = null;
+		state.queue = [];
+		state.queueIndex = 0;
+		state.explicitQueueLength = 0;
+		state.radioIsActive = false;
+		state.radioSeed = null;
+		state.autoplay = false;
+		state.currentTime = 0;
+		state.duration = 0;
+		fetchedForVideoId = null;
+		waitingForAutoplayAtQueueEnd = false;
+		radioPhaseNotified = false;
+
+		const notificationsEnabled = config.get('notifications') ?? false;
+		isAdvancing = true;
+		beginAdvanceGrace();
+
+		try {
+			await playerService.play(station.streamUrl, {
+				...getPlaybackOptions(state.volume),
+				trackId: station.id,
+			});
+			playerService.resume();
+			state.isPlaying = true;
+			updateTrayIcon(`${station.name} - LIVE`);
+			if (notificationsEnabled) {
+				showTrackChangeToast(station.name, 'LIVE');
+			}
+		} catch (error) {
+			state.isPlaying = false;
+			clearAdvanceGrace();
+			playerService.stop();
+			const message =
+				error instanceof Error ? error.message : 'Stream playback failed';
+			showTrackChangeToast('Playback error', message);
+		} finally {
+			isAdvancing = false;
+			persistImmersivePlayerState();
+		}
+	};
+
 	const playCurrent = async (): Promise<void> => {
 		if (!state.currentTrack) {
 			return;
@@ -459,6 +506,27 @@ export async function startImmersiveApp(
 		const hasSession = playerService.hasActivePlaybackSession();
 		const loadedTrackId = playerService.getCurrentTrackId();
 		const currentVideoId = state.currentTrack?.videoId ?? null;
+
+		if (state.playbackMode === 'stream' && state.currentStation) {
+			if (hasSession && state.isPlaying) {
+				playerService.pause();
+				state.isPlaying = false;
+				return;
+			}
+
+			if (
+				hasSession &&
+				!state.isPlaying &&
+				loadedTrackId === state.currentStation.id
+			) {
+				playerService.resume();
+				state.isPlaying = true;
+				return;
+			}
+
+			await playRadioStream(state.currentStation);
+			return;
+		}
 
 		if (hasSession && state.isPlaying) {
 			playerService.pause();
@@ -727,6 +795,10 @@ export async function startImmersiveApp(
 		}
 
 		if (event.eof) {
+			if (state.playbackMode === 'stream') {
+				return;
+			}
+
 			eofTimestamp = Date.now();
 			if (state.repeat === 'one' && state.currentTrack) {
 				state.currentTime = 0;
@@ -1010,6 +1082,9 @@ export async function startImmersiveApp(
 			const startIndex = resolveRandomFavoriteStartIndex(favorites.length);
 			await queueAndPlay(favorites, startIndex);
 			return null;
+		},
+		onPlayRadioStation: async (station: RadioStation) => {
+			await playRadioStream(station);
 		},
 		onRemoveFavoriteTrack: async (track: Track) => {
 			await favoritesManager.remove(track.videoId);

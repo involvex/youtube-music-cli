@@ -77,6 +77,17 @@ import {
 } from './ui/settings-overlay.ts';
 import type {SettingsTextField} from './settings/settings-items.ts';
 import {
+	createRadioOverlayState,
+	closeRadioOverlay,
+	handleRadioOverlayInput,
+	getSelectedStation,
+	openRadioOverlay,
+	renderRadioOverlay,
+	type RadioOverlayState,
+} from './ui/radio-overlay.ts';
+import type {RadioStation} from '../types/radio-station.types.ts';
+import {getBuiltinStations} from '../services/radio-stations/radio-stations.service.ts';
+import {
 	getUpcomingTracks,
 	trackArtists,
 	type ImmersivePlayerState,
@@ -142,6 +153,7 @@ export interface ImmersiveOptions {
 	onPlayFavoriteTrack?: (track: Track) => Promise<void>;
 	onPlayAllFavorites?: () => Promise<string | null>;
 	onPlayRandomFavorite?: () => Promise<string | null>;
+	onPlayRadioStation?: (station: RadioStation) => Promise<void>;
 	onToggleShuffle?: () => void;
 	onToggleRepeat?: () => void;
 	onToggleAutoplay?: () => void;
@@ -165,6 +177,7 @@ export class ImmersiveEngine {
 	private searchOverlay: SearchOverlayState = createSearchOverlayState();
 	private libraryOverlay: LibraryOverlayState = createLibraryOverlayState();
 	private settingsOverlay: SettingsOverlayState = createSettingsOverlayState();
+	private radioOverlay: RadioOverlayState = createRadioOverlayState();
 
 	private options: ImmersiveOptions;
 	private effectiveWidth: number;
@@ -406,6 +419,7 @@ export class ImmersiveEngine {
 				this.searchOverlay,
 				this.libraryOverlay,
 				this.settingsOverlay,
+				this.radioOverlay,
 			);
 			renderSearchOverlay(fb, tw, th, this.searchOverlay);
 			renderLibraryOverlay(
@@ -423,6 +437,7 @@ export class ImmersiveEngine {
 				this.settingsOverlay,
 				this.options.getSettingsRows?.() ?? [],
 			);
+			renderRadioOverlay(fb, tw, th, this.radioOverlay);
 
 			const isDisco =
 				playerState?.isDiscoMode ?? this.options.discoMode ?? false;
@@ -457,6 +472,13 @@ export class ImmersiveEngine {
 			return {
 				title: state.currentTrack.title,
 				artist: trackArtists(state.currentTrack),
+			};
+		}
+
+		if (state?.playbackMode === 'stream' && state.currentStation) {
+			return {
+				title: state.currentStation.name,
+				artist: 'LIVE',
 			};
 		}
 
@@ -520,6 +542,11 @@ export class ImmersiveEngine {
 			return;
 		}
 
+		if (this.radioOverlay.active) {
+			void this.handleRadioKey(keyName);
+			return;
+		}
+
 		if (this.searchOverlay.active) {
 			void this.handleSearchKey(keyName);
 			return;
@@ -548,6 +575,9 @@ export class ImmersiveEngine {
 				break;
 			case 'l':
 				openLibraryMenu(this.libraryOverlay);
+				break;
+			case 'i':
+				openRadioOverlay(this.radioOverlay);
 				break;
 			case 'p':
 				openPlaylistPicker(this.libraryOverlay);
@@ -849,6 +879,36 @@ export class ImmersiveEngine {
 		} catch (error) {
 			this.libraryOverlay.status =
 				error instanceof Error ? error.message : 'Failed to play playlist';
+		}
+	}
+
+	private async handleRadioKey(key: string): Promise<void> {
+		const stationCount = getBuiltinStations().length;
+		const action = handleRadioOverlayInput(
+			this.radioOverlay,
+			key,
+			stationCount,
+		);
+		if (action === 'close') {
+			return;
+		}
+
+		if (action !== 'play') {
+			return;
+		}
+
+		const station = getSelectedStation(this.radioOverlay);
+		if (!station) {
+			return;
+		}
+
+		try {
+			this.radioOverlay.status = `Connecting to ${station.name}...`;
+			await this.options.onPlayRadioStation?.(station);
+			closeRadioOverlay(this.radioOverlay);
+		} catch (error) {
+			this.radioOverlay.status =
+				error instanceof Error ? error.message : 'Failed to play station';
 		}
 	}
 
@@ -1233,9 +1293,44 @@ function renderNowPlaying(
 	const innerX = layout.nowPlayingX + 2;
 	let y = layout.nowPlayingY + 1;
 
-	if (!state?.currentTrack) {
-		const idleText = 'Press / to search  •  Space to play';
+	if (!state?.currentTrack && state?.playbackMode !== 'stream') {
+		const idleText = 'Press / to search  •  I for radio  •  Space to play';
 		fb.setText(innerX, y + 2, idleText, null, null, {dim: true});
+		return;
+	}
+
+	if (state.playbackMode === 'stream' && state.currentStation) {
+		const station = state.currentStation;
+		const maxTextW = layout.nowPlayingW - 4;
+		const innerH = layout.nowPlayingH - 2;
+		const showVolume = innerH >= 7;
+
+		fb.setText(innerX, y, 'NOW PLAYING', accent, null, {dim: true});
+		y += 1;
+		fb.setText(innerX, y, truncateText(station.name, maxTextW), null, null, {
+			bold: true,
+		});
+		y += 1;
+		fb.setText(innerX, y, truncateText('LIVE', maxTextW), null, null, {
+			dim: true,
+		});
+		y += 1;
+		const statusText = state.isPlaying ? '▶  LIVE' : '⏸  PAUSED';
+		fb.setText(innerX, y, statusText, accent, null, {bold: true});
+		y += 1;
+
+		if (showVolume) {
+			const progressW = Math.max(10, layout.nowPlayingW - 4);
+			const volBarW = Math.min(18, progressW - 12);
+			const volumeLine = `[+/-] ${buildVolumeBar(state.volume, volBarW)} ${Math.round(state.volume)}%`;
+			fb.setText(innerX, y, truncateText(volumeLine, maxTextW), null, null, {
+				dim: true,
+			});
+		}
+		return;
+	}
+
+	if (!state?.currentTrack) {
 		return;
 	}
 
@@ -1404,6 +1499,7 @@ function renderControls(
 	searchOverlay: SearchOverlayState,
 	libraryOverlay: LibraryOverlayState,
 	settingsOverlay: SettingsOverlayState,
+	radioOverlay: RadioOverlayState,
 ): void {
 	const separatorY = layoutFooterY(height, 0);
 	const modeY = layoutFooterY(height, 1);
@@ -1442,6 +1538,8 @@ function renderControls(
 		}
 	} else if (settingsOverlay.active) {
 		controls = '[↑↓] Navigate   [Enter] Cycle   [Esc] Close';
+	} else if (radioOverlay.active) {
+		controls = '[↑↓] Select   [Enter] Play   [Esc] Close';
 	} else if (playerState) {
 		modeLine = buildModeStatusLine(playerState);
 		controls = buildPlayerShortcutLine(width - 4);

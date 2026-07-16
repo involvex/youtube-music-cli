@@ -1,5 +1,9 @@
 import {shouldLoopExplicitQueue} from '../../services/player/autoplay-coordinator.ts';
 import type {RadioSeed} from '../../types/radio.types.ts';
+import type {
+	PlaybackMode,
+	RadioStation,
+} from '../../types/radio-station.types.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
 export type RepeatMode = 'off' | 'all' | 'one';
@@ -21,6 +25,8 @@ export interface ImmersivePlayerState {
 	explicitQueueLength: number;
 	radioIsActive: boolean;
 	radioSeed: RadioSeed | null;
+	playbackMode: PlaybackMode;
+	currentStation: RadioStation | null;
 }
 
 export function createInitialImmersiveState(
@@ -42,6 +48,8 @@ export function createInitialImmersiveState(
 		explicitQueueLength: 0,
 		radioIsActive: false,
 		radioSeed: null,
+		playbackMode: 'youtube',
+		currentStation: null,
 		...overrides,
 	};
 }

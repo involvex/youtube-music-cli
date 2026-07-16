@@ -15,6 +15,8 @@ export type PlayOptions = {
 	equalizerPreset?: EqualizerPreset;
 	volumeFadeDuration?: number;
 	duration?: number;
+	/** Stable id for non-YouTube streams (internet radio). */
+	trackId?: string;
 };
 
 export type MpvArgsOptions = PlayOptions & {
@@ -568,23 +570,27 @@ class PlayerService {
 			volume: options?.volume || this.currentVolume,
 		});
 
-		// Extract videoId from URL
 		const videoIdMatch = url.match(/[?&]v=([^&]+)/);
 		const videoId = videoIdMatch ? videoIdMatch[1] : null;
+		const playbackId = options?.trackId ?? videoId;
 
-		// Guard: Don't spawn if same track already playing
-		if (this.currentTrackId === videoId && this.mpvProcess && this.isPlaying) {
+		if (
+			playbackId &&
+			this.currentTrackId === playbackId &&
+			this.mpvProcess &&
+			this.isPlaying
+		) {
 			logger.info(
 				'PlayerService',
 				'Same track already playing, skipping spawn',
 				{
-					videoId,
+					playbackId,
 				},
 			);
 			return;
 		}
 
-		this.currentTrackId = videoId || null;
+		this.currentTrackId = playbackId ?? null;
 
 		// Stop any existing playback
 		this.stop();

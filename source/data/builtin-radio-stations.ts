@@ -1,0 +1,60 @@
+import type {RadioStation} from '../types/radio-station.types.ts';
+
+export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
+	{
+		id: 'rockland-kl',
+		name: 'Rockland Radio — Kaiserslautern',
+		streamUrl: 'https://streams.rockland.de/kl/mp3-192/',
+		region: 'Kaiserslautern',
+		genre: "Rock 'n' Pop",
+	},
+	{
+		id: 'rockland-koblenz',
+		name: 'Rockland Radio — Koblenz',
+		streamUrl: 'https://streams.rockland.de/koblenz/mp3-192/',
+		region: 'Koblenz',
+		genre: "Rock 'n' Pop",
+	},
+	{
+		id: 'rockland-badkreuz',
+		name: 'Rockland Radio — Bad Kreuznach',
+		streamUrl: 'https://streams.rockland.de/badkreuz/mp3-192/',
+		region: 'Bad Kreuznach',
+		genre: "Rock 'n' Pop",
+	},
+	{
+		id: 'rockland-bitburg',
+		name: 'Rockland Radio — Bitburg',
+		streamUrl: 'https://streams.rockland.de/bitburg/mp3-192/',
+		region: 'Bitburg',
+		genre: "Rock 'n' Pop",
+	},
+	{
+		id: 'rockland-trier',
+		name: 'Rockland Radio — Trier',
+		streamUrl: 'https://streams.rockland.de/trier/mp3-192/direkt/',
+		region: 'Trier',
+		genre: "Rock 'n' Pop",
+	},
+	{
+		id: 'deutschlandfunk',
+		name: 'Deutschlandfunk',
+		streamUrl: 'https://st01.sslstream.dlf.de/dlf/dlf/mp3/128/stream.mp3',
+		region: 'Germany',
+		genre: 'News & Culture',
+	},
+	{
+		id: 'swr3',
+		name: 'SWR3',
+		streamUrl: 'https://liveradio.swr.de/sw331ch/swr3/',
+		region: 'Baden-Württemberg / Rheinland-Pfalz',
+		genre: 'Pop',
+	},
+	{
+		id: 'radio21-mainz',
+		name: 'Radio 21 — Mainz',
+		streamUrl: 'https://radio21.streamabc.net/radio21-mainz-mp3-192-5314942',
+		region: 'Mainz',
+		genre: 'Rock',
+	},
+] as const;

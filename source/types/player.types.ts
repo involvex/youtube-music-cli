@@ -1,5 +1,6 @@
 // Player store type definitions
 import type {RadioSeed} from './radio.types.ts';
+import type {PlaybackMode, RadioStation} from './radio-station.types.ts';
 import type {Track} from './youtube-music.types.ts';
 import type {
 	PlayAction,
@@ -31,6 +32,7 @@ import type {
 	SetSpeedAction,
 	StartRadioAction,
 	StopRadioAction,
+	PlayStreamAction,
 } from './actions.ts';
 
 export interface PlayerState {
@@ -53,6 +55,8 @@ export interface PlayerState {
 	radioIsActive: boolean;
 	radioSeed: RadioSeed | null;
 	explicitQueueLength: number;
+	playbackMode: PlaybackMode;
+	currentStation: RadioStation | null;
 }
 
 export type PlayerAction =
@@ -88,4 +92,5 @@ export type PlayerAction =
 	| import('./actions.ts').SetSubtitleAction
 	| StartRadioAction
 	| StopRadioAction
-	| import('./actions.ts').ToggleRadioAction;
+	| import('./actions.ts').ToggleRadioAction
+	| PlayStreamAction;

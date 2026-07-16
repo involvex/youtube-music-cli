@@ -35,6 +35,8 @@ class WebServerManager {
 		radioIsActive: false,
 		radioSeed: null,
 		explicitQueueLength: 0,
+		playbackMode: 'youtube',
+		currentStation: null,
 	};
 
 	constructor() {

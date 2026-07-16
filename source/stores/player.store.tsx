@@ -52,6 +52,8 @@ const initialState: PlayerState = {
 	radioIsActive: false,
 	radioSeed: null,
 	explicitQueueLength: 0,
+	playbackMode: 'youtube',
+	currentStation: null,
 };
 
 let inkSessionHistory: string[] = [];
@@ -68,6 +70,8 @@ export function playerReducer(
 		case 'PLAY':
 			return {
 				...state,
+				playbackMode: 'youtube',
+				currentStation: null,
 				currentTrack: action.track,
 				isPlaying: true,
 				progress: 0,
@@ -102,6 +106,8 @@ export function playerReducer(
 				isPlaying: false,
 				progress: 0,
 				currentTrack: null,
+				playbackMode: 'youtube',
+				currentStation: null,
 			};
 
 		case 'NEXT': {
@@ -332,6 +338,25 @@ export function playerReducer(
 				radioSeed: null,
 			};
 
+		case 'PLAY_STREAM':
+			return {
+				...state,
+				playbackMode: 'stream',
+				currentStation: action.station,
+				currentTrack: null,
+				queue: [],
+				queuePosition: 0,
+				explicitQueueLength: 0,
+				radioIsActive: false,
+				radioSeed: null,
+				autoplay: false,
+				isPlaying: true,
+				progress: 0,
+				duration: 0,
+				error: null,
+				playRequestId: state.playRequestId + 1,
+			};
+
 		case 'RESTORE_STATE':
 			logger.info('PlayerReducer', 'RESTORE_STATE', {
 				hasTrack: !!action.currentTrack,
@@ -346,8 +371,10 @@ export function playerReducer(
 				repeat: action.repeat,
 				autoplay: action.autoplay ?? true,
 				explicitQueueLength: action.explicitQueueLength ?? action.queue.length,
-				isPlaying: false, // Don't auto-play restored state
+				isPlaying: false,
 				abLoop: {a: null, b: null},
+				playbackMode: 'youtube',
+				currentStation: null,
 			};
 
 		default:
@@ -412,8 +439,13 @@ function PlayerManager() {
 
 	// Register event handler for mpv IPC events
 	const eofTimestampRef = useRef(0);
+	const playbackModeRef = useRef(state.playbackMode);
 	const lastAutoNextRef = useRef(0);
 	const currentVideoIdForEventsRef = useRef<string | undefined>(undefined);
+
+	useEffect(() => {
+		playbackModeRef.current = state.playbackMode;
+	}, [state.playbackMode]);
 
 	// Sync ref outside of render via effect so the event handler always sees the latest videoId
 	useEffect(() => {
@@ -453,6 +485,10 @@ function PlayerManager() {
 			}
 
 			if (event.eof) {
+				if (playbackModeRef.current === 'stream') {
+					return;
+				}
+
 				const now = Date.now();
 				eofTimestampRef.current = now;
 
@@ -701,6 +737,86 @@ function PlayerManager() {
 		state.playRequestId,
 		dispatch,
 		musicService,
+	]);
+
+	useEffect(() => {
+		const station = state.currentStation;
+		if (state.playbackMode !== 'stream' || !station) {
+			return;
+		}
+
+		if (!state.isPlaying) {
+			return;
+		}
+
+		const currentTrackId = playerService.getCurrentTrackId() || '';
+		const isSameStation = currentTrackId === station.id;
+		const isNewPlayRequest =
+			state.playRequestId !== lastPlayedRequestId.current;
+		if (isSameStation && !isNewPlayRequest) {
+			return;
+		}
+
+		lastPlayedRequestId.current = state.playRequestId;
+
+		const loadAndPlayStream = async () => {
+			dispatch({category: 'SET_LOADING', loading: true});
+			const config = getConfigService();
+			const MAX_RETRIES = 3;
+			const RETRY_DELAY_MS = 1500;
+
+			for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+				try {
+					await playerService.play(station.streamUrl, {
+						volume: state.volume,
+						trackId: station.id,
+						audioNormalization: config.get('audioNormalization') ?? false,
+						proxy: config.get('proxy'),
+						gaplessPlayback: config.get('gaplessPlayback') ?? true,
+						crossfadeDuration: config.get('crossfadeDuration') ?? 0,
+						equalizerPreset: config.get('equalizerPreset') ?? 'flat',
+						volumeFadeDuration: config.get('volumeFadeDuration') ?? 0,
+					});
+
+					if (attempt === 1 && config.get('notifications')) {
+						const notificationService = getNotificationService();
+						notificationService.setEnabled(true);
+						void notificationService.notifyTrackChange(station.name, 'LIVE');
+					}
+
+					dispatch({category: 'SET_LOADING', loading: false});
+					return;
+				} catch (error) {
+					logger.error('PlayerManager', 'Failed to load radio stream', {
+						error: error instanceof Error ? error.message : String(error),
+						station: {id: station.id, name: station.name},
+						attempt,
+					});
+
+					if (attempt < MAX_RETRIES) {
+						await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+					} else {
+						dispatch({
+							category: 'SET_ERROR',
+							error:
+								error instanceof Error
+									? `${error.message} (after ${MAX_RETRIES} attempts)`
+									: 'Failed to load radio stream',
+						});
+					}
+				}
+			}
+		};
+
+		void loadAndPlayStream();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		state.playbackMode,
+		state.currentStation,
+		state.isPlaying,
+		state.playRequestId,
+		dispatch,
+		playerService,
 	]);
 
 	// Handle progress tracking

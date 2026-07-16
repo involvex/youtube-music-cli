@@ -37,6 +37,37 @@ export default function NowPlaying() {
 		};
 	}, [sleepTimer]);
 
+	if (playerState.playbackMode === 'stream' && playerState.currentStation) {
+		const station = playerState.currentStation;
+		return (
+			<Box
+				flexDirection="column"
+				borderStyle="round"
+				borderColor={theme.colors.primary}
+				paddingX={1}
+			>
+				<Box>
+					<Text bold color={theme.colors.primary}>
+						{station.name}
+					</Text>
+					<Text color={theme.colors.dim}> • </Text>
+					<Text color={theme.colors.accent}>LIVE</Text>
+				</Box>
+				{station.region ? (
+					<Text color={theme.colors.dim}>{station.region}</Text>
+				) : null}
+				<Box>
+					<Text color={theme.colors.secondary}>
+						{playerState.isPlaying ? '▶ Playing' : '⏸ Paused'}
+					</Text>
+					{playerState.isLoading ? (
+						<Text color={theme.colors.dim}> • Loading…</Text>
+					) : null}
+				</Box>
+			</Box>
+		);
+	}
+
 	if (!playerState.currentTrack) {
 		return (
 			<Box borderStyle="round" borderColor={theme.colors.dim} paddingX={1}>

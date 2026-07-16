@@ -5,6 +5,7 @@ import {getConfigService} from '../services/config/config.service.ts';
 import {getRadioService} from '../services/radio/radio.service.ts';
 import type {Track} from '../types/youtube-music.types.ts';
 import type {RadioSeed} from '../types/radio.types.ts';
+import type {RadioStation} from '../types/radio-station.types.ts';
 
 export function usePlayer() {
 	const {state, dispatch, ...playerStore} = usePlayerStore();
@@ -67,6 +68,13 @@ export function usePlayer() {
 		dispatch({category: 'STOP_RADIO'});
 	}, [dispatch]);
 
+	const playStream = useCallback(
+		(station: RadioStation) => {
+			dispatch({category: 'PLAY_STREAM', station});
+		},
+		[dispatch],
+	);
+
 	return {
 		...playerStore,
 		state,
@@ -74,5 +82,6 @@ export function usePlayer() {
 		play,
 		startRadio,
 		stopRadio,
+		playStream,
 	};
 }
