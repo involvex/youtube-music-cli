@@ -1,3 +1,16 @@
+## [0.0.97](https://github.com/involvex/youtube-music-cli/compare/v0.0.96...v0.0.97) (2026-07-16)
+
+### Bug Fixes
+
+- link binaries from libexec/bin to Homebrew prefix bin ([4d1706f](https://github.com/involvex/youtube-music-cli/commit/4d1706f72dfd6e886585b7933fd50f7181d1643a))
+- **player:** await in-flight IPC connection in resume() to prevent track restart ([95acc49](https://github.com/involvex/youtube-music-cli/commit/95acc4994825712ad4a88ac8a8987cf3edad9aec))
+- **player:** cover IPC delay window and abort stale resume awaits ([9765a9c](https://github.com/involvex/youtube-music-cli/commit/9765a9c8c3c9f5cf12a2c260cffe67f3ec5fe8ea))
+- symlink all Homebrew libexec binaries with Dir glob ([1726aaa](https://github.com/involvex/youtube-music-cli/commit/1726aaa2c4c1183992795631d2407266510d5d89))
+
+### Features
+
+- add internet radio streams view for Ink TUI and immersive mode ([5febede](https://github.com/involvex/youtube-music-cli/commit/5febedea32fb42392da17ad83a0ea463c4db22a3))
+
 ## [0.0.96](https://github.com/involvex/youtube-music-cli/compare/v0.0.95...v0.0.96) (2026-07-13)
 
 ### Bug Fixes
