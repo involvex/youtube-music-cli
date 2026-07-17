@@ -117,8 +117,8 @@ youtube-music-cli --headless         # Run without TUI
 
 ### Audio Streaming
 
-- High-quality audio URLs are obtained via `youtube-ext` and `youtubei.js`
-- Audio is played via `play-sound` service
+- High-quality audio for downloads: **yt-dlp** first, then **youtubei.js**, then **Invidious** (health persisted under `~/.youtube-music-cli/invidious-health.json`)
+- Playback passes YouTube watch URLs to mpv (yt-dlp resolves streams)
 - **Security**: Always sanitize audio URLs to prevent shell injection
 
 ### Search & Results

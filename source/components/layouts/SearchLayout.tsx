@@ -196,10 +196,12 @@ function SearchLayout() {
 		if (actionTimeoutRef.current) {
 			clearTimeout(actionTimeoutRef.current);
 		}
+		// Downloads can take minutes; keep status visible between track updates.
+		const clearAfterMs = message.startsWith('[') ? 90_000 : 8_000;
 		actionTimeoutRef.current = setTimeout(() => {
 			setActionMessage(null);
 			actionTimeoutRef.current = null;
-		}, 4000);
+		}, clearAfterMs);
 	}, []);
 
 	useEffect(() => {

@@ -93,7 +93,9 @@ test('playStationStream passes direct stream URL and station id to mpv', async t
 
 	t.is(capturedUrl, station.streamUrl);
 	t.is(capturedTrackId, station.id);
-	t.false(capturedUrl.includes('youtube.com'));
+	const hostname = new URL(capturedUrl).hostname;
+	t.not(hostname, 'youtube.com');
+	t.false(hostname.endsWith('.youtube.com'));
 });
 
 test('radio overlay selects and plays a station', t => {

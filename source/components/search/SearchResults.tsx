@@ -16,6 +16,7 @@ import {logger} from '../../services/logger/logger.service.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {getDownloadService} from '../../services/download/download.service.ts';
+import {formatDownloadProgress} from '../../utils/download-progress.ts';
 
 // Generate unique component instance ID
 let instanceCounter = 0;
@@ -294,9 +295,13 @@ function SearchResults({
 			}
 
 			downloadStatusRef.current?.(
-				`Downloading ${target.tracks.length} track(s) from "${target.name}"... this can take a few minutes.`,
+				`Downloading ${target.tracks.length} track(s) from "${target.name}"...`,
 			);
-			const summary = await downloadService.downloadTracks(target.tracks);
+			const summary = await downloadService.downloadTracks(target.tracks, {
+				onProgress: info => {
+					downloadStatusRef.current?.(formatDownloadProgress(info));
+				},
+			});
 			downloadStatusRef.current?.(
 				`Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
 			);

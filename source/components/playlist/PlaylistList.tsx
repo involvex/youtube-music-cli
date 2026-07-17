@@ -10,6 +10,7 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {KEYBINDINGS} from '../../utils/constants.ts';
 import {getDownloadService} from '../../services/download/download.service.ts';
+import {formatDownloadProgress} from '../../utils/download-progress.ts';
 
 export default function PlaylistList() {
 	const {theme} = useTheme();
@@ -114,11 +115,15 @@ export default function PlaylistList() {
 		}
 
 		setDownloadStatus(
-			`Downloading ${target.tracks.length} track(s) from "${playlist.name}"... this can take a few minutes.`,
+			`Downloading ${target.tracks.length} track(s) from "${playlist.name}"...`,
 		);
 		try {
 			setIsDownloading(true);
-			const summary = await downloadService.downloadTracks(target.tracks);
+			const summary = await downloadService.downloadTracks(target.tracks, {
+				onProgress: info => {
+					setDownloadStatus(formatDownloadProgress(info));
+				},
+			});
 			setDownloadStatus(
 				`Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
 			);

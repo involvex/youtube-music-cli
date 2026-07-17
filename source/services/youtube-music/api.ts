@@ -20,6 +20,7 @@ import {Innertube, Log} from 'youtubei.js';
 import {logger} from '../logger/logger.service.ts';
 import {getSearchCache, getSuggestionsCache} from '../cache/cache.service.ts';
 import {getConfigService} from '../config/config.service.ts';
+import {getInvidiousHealthService} from '../invidious/invidious-health.service.ts';
 
 // Initialize YouTube client
 let ytClient: Innertube | null = null;
@@ -971,117 +972,39 @@ class MusicService {
 
 	async getStreamUrl(videoId: string): Promise<string> {
 		logger.info('MusicService', 'Starting stream extraction', {videoId});
-		const isBunRuntime =
-			typeof (globalThis as {Bun?: unknown}).Bun !== 'undefined';
 
-		// Try Method 1: @distube/ytdl-core (skip under Bun due undici incompatibility)
-		if (isBunRuntime) {
-			logger.warn(
-				'MusicService',
-				'Skipping ytdl-core extraction on Bun runtime',
-				{videoId},
-			);
-		} else {
-			try {
-				logger.debug('MusicService', 'Attempting ytdl-core extraction', {
-					videoId,
-				});
-				const ytdl = await import('@distube/ytdl-core');
-				const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-				const info = await ytdl.default.getInfo(videoUrl);
-				logger.debug('MusicService', 'ytdl-core getInfo succeeded', {
-					formatCount: info.formats.length,
-				});
-
-				const audioFormats = ytdl.default.filterFormats(
-					info.formats,
-					'audioonly',
-				);
-				logger.debug('MusicService', 'ytdl-core audio formats filtered', {
-					audioFormatCount: audioFormats.length,
-				});
-
-				if (audioFormats.length > 0) {
-					// Get highest quality audio
-					const bestAudio = audioFormats.sort((a, b) => {
-						const aBitrate = Number.parseInt(String(a.audioBitrate || 0));
-						const bBitrate = Number.parseInt(String(b.audioBitrate || 0));
-						return bBitrate - aBitrate;
-					})[0];
-
-					if (bestAudio?.url) {
-						logger.info('MusicService', 'Using ytdl-core stream', {
-							bitrate: bestAudio.audioBitrate,
-							urlLength: bestAudio.url.length,
-							mimeType: bestAudio.mimeType,
-						});
-						return bestAudio.url;
-					}
-				}
-
-				logger.warn(
-					'MusicService',
-					'ytdl-core: No audio formats with URL found',
-				);
-			} catch (error) {
-				logger.error('MusicService', 'ytdl-core extraction failed', {
-					error: error instanceof Error ? error.message : String(error),
-					stack: error instanceof Error ? error.stack : undefined,
-				});
-			}
-		}
-
-		// Try Method 2: youtube-ext (lightweight, no parser path)
+		// Method 1: youtubei.js (already used for search/metadata)
 		try {
-			logger.debug('MusicService', 'Attempting youtube-ext extraction', {
+			logger.debug('MusicService', 'Attempting youtubei.js extraction', {
 				videoId,
 			});
-			const {videoInfo, getFormats} = await import('youtube-ext');
-			const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-			const info = await videoInfo(videoUrl);
-			logger.debug('MusicService', 'youtube-ext videoInfo succeeded');
-
-			// Decode stream URLs first
-			const decodedFormats = await getFormats(info.stream);
-			logger.debug('MusicService', 'youtube-ext formats decoded', {
-				formatCount: decodedFormats.length,
+			const yt = await getClient();
+			const info = await yt.getBasicInfo(videoId);
+			const format = info.chooseFormat({
+				type: 'audio',
+				quality: 'best',
 			});
+			const streamUrl =
+				typeof format?.decipher === 'function'
+					? format.decipher(yt.session.player)
+					: format?.url;
 
-			// Get best audio format from decoded adaptive formats
-			const audioFormats = decodedFormats.filter(
-				f => f.mimeType?.includes('audio') && f.url,
-			);
-			logger.debug('MusicService', 'youtube-ext audio formats filtered', {
-				audioFormatCount: audioFormats.length,
-			});
-
-			if (audioFormats.length > 0) {
-				// Sort by bitrate descending and get best quality
-				const bestAudio = audioFormats.sort(
-					(a, b) => (b.bitrate || 0) - (a.bitrate || 0),
-				)[0];
-				if (bestAudio?.url) {
-					logger.info('MusicService', 'Using youtube-ext stream', {
-						bitrate: bestAudio.bitrate,
-						urlLength: bestAudio.url.length,
-					});
-					return bestAudio.url;
-				}
+			if (streamUrl && typeof streamUrl === 'string') {
+				logger.info('MusicService', 'Using youtubei.js stream', {
+					urlLength: streamUrl.length,
+				});
+				return streamUrl;
 			}
 
-			logger.warn(
-				'MusicService',
-				'youtube-ext: No audio formats with URL found',
-			);
+			logger.warn('MusicService', 'youtubei.js: No audio format URL found');
 		} catch (error) {
-			logger.error('MusicService', 'youtube-ext extraction failed', {
+			logger.error('MusicService', 'youtubei.js extraction failed', {
 				error: error instanceof Error ? error.message : String(error),
 				stack: error instanceof Error ? error.stack : undefined,
 			});
 		}
 
-		// Try Method 3: Invidious API (last resort)
+		// Method 2: Invidious API (last resort)
 		try {
 			logger.debug('MusicService', 'Attempting Invidious extraction', {
 				videoId,
@@ -1098,7 +1021,6 @@ class MusicService {
 			});
 		}
 
-		// All methods failed
 		logger.error('MusicService', 'All stream extraction methods failed', {
 			videoId,
 		});
@@ -1106,19 +1028,19 @@ class MusicService {
 	}
 
 	private async getInvidiousStreamUrl(videoId: string): Promise<string> {
-		// Try multiple Invidious instances as fallback
-		const instances = [
-			'https://vid.puffyan.us',
-			'https://invidious.perennialte.ch',
-			'https://yewtu.be',
-		];
+		const health = getInvidiousHealthService();
+		const instances = await health.ensureFreshInstances();
 
 		for (const instance of instances) {
+			const startedAt = Date.now();
 			try {
 				logger.debug('MusicService', 'Trying Invidious instance', {instance});
-				const response = await fetch(`${instance}/api/v1/videos/${videoId}`);
+				const response = await fetch(`${instance}/api/v1/videos/${videoId}`, {
+					signal: AbortSignal.timeout(12_000),
+				});
 
 				if (!response.ok) {
+					health.recordFailure(instance);
 					logger.debug('MusicService', 'Invidious instance returned non-OK', {
 						instance,
 						status: response.status,
@@ -1131,7 +1053,6 @@ class MusicService {
 					formatStreams?: Array<{url?: string; type?: string}>;
 				};
 
-				// Look for audio-only streams
 				const audioFormats = [
 					...(videoData.adaptiveFormats || []),
 					...(videoData.formatStreams || []),
@@ -1145,6 +1066,7 @@ class MusicService {
 				if (audioFormats.length > 0) {
 					const firstAudio = audioFormats[0];
 					if (firstAudio?.url) {
+						health.recordSuccess(instance, Date.now() - startedAt);
 						logger.debug('MusicService', 'Invidious stream URL obtained', {
 							instance,
 							urlLength: firstAudio.url.length,
@@ -1153,17 +1075,18 @@ class MusicService {
 						return firstAudio.url;
 					}
 				}
+
+				health.recordFailure(instance);
 			} catch (error) {
+				health.recordFailure(instance);
 				logger.debug('MusicService', 'Invidious instance error', {
 					instance,
 					error: error instanceof Error ? error.message : String(error),
 				});
-				// Try next instance
 				continue;
 			}
 		}
 
-		// If all Invidious instances fail, throw error instead of returning watch URL
 		throw new Error('No Invidious instance returned a valid stream URL');
 	}
 }

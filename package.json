@@ -80,7 +80,6 @@
 	"dependencies": {
 		"@bun-win32/kernel32": "^2.0.1",
 		"@bun-win32/user32": "^4.0.1",
-		"@distube/ytdl-core": "^4.16.12",
 		"ansi-escapes": "^7.3.0",
 		"discord-rpc": "^4.0.1",
 		"ink": "^7.1.0",
@@ -92,7 +91,6 @@
 		"play-sound": "^1.1.6",
 		"react": "^19.2.7",
 		"ws": "^8.21.1",
-		"youtube-ext": "^1.1.25",
 		"youtubei.js": "^17.2.0"
 	},
 	"devDependencies": {

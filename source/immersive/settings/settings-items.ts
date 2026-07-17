@@ -8,6 +8,7 @@ import type {
 	DownloadFormat,
 	EqualizerPreset,
 } from '../../types/config.types.ts';
+import {ensureDownloadDirectory} from '../../utils/download-path.ts';
 import {formatTime} from '../../utils/format.ts';
 import type {SettingsRow} from '../ui/settings-overlay.ts';
 
@@ -218,8 +219,18 @@ export function saveSettingsTextField(
 			if (!trimmed) {
 				return 'Download folder cannot be empty';
 			}
-			config.set('downloadDirectory', trimmed);
-			return null;
+			try {
+				const normalized = ensureDownloadDirectory(trimmed);
+				config.setSync('downloadDirectory', normalized);
+				if (!(config.get('downloadsEnabled') ?? false)) {
+					return 'Saved download folder (enable Download Feature to use)';
+				}
+				return 'Saved download folder';
+			} catch (error) {
+				return error instanceof Error
+					? error.message
+					: 'Failed to save download folder';
+			}
 		}
 	}
 }

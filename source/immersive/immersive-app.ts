@@ -10,6 +10,7 @@ import {getConfigService} from '../services/config/config.service.ts';
 import {getMusicService} from '../services/youtube-music/api.ts';
 import {getPlayerService} from '../services/player/player.service.ts';
 import {getDownloadService} from '../services/download/download.service.ts';
+import {formatDownloadProgress} from '../utils/download-progress.ts';
 import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {ensurePlaybackDependencies} from '../services/player/dependency-check.service.ts';
 import {
@@ -1024,7 +1025,7 @@ export async function startImmersiveApp(
 			const added = await favoritesManager.toggle(track);
 			return added ? 'Added to favorites' : 'Removed from favorites';
 		},
-		onDownloadSearchResult: async (result: SearchResult) => {
+		onDownloadSearchResult: async (result: SearchResult, onProgress) => {
 			if (immersiveDownloadInProgress) {
 				return 'Download already in progress. Please wait.';
 			}
@@ -1046,7 +1047,11 @@ export async function startImmersiveApp(
 					'Download',
 					`Downloading ${target.tracks.length} track(s)...`,
 				);
-				const summary = await downloadService.downloadTracks(target.tracks);
+				const summary = await downloadService.downloadTracks(target.tracks, {
+					onProgress: info => {
+						onProgress?.(formatDownloadProgress(info));
+					},
+				});
 				return `Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`;
 			} catch (error) {
 				return error instanceof Error ? error.message : 'Download failed.';
