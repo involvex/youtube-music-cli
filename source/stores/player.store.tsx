@@ -14,7 +14,10 @@ import {
 	savePlayerState,
 } from '../services/player-state/player-state.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
-import {shouldApplyMpvPauseSync} from '../services/player/mpv-event-policy.ts';
+import {
+	PLAYBACK_STALL_MS,
+	shouldApplyMpvPauseSync,
+} from '../services/player/mpv-event-policy.ts';
 import {
 	buildAutoplaySeedPlan,
 	mergeSuggestionTracksForAutoplay,
@@ -302,11 +305,13 @@ export function playerReducer(
 			return {...state, isLoading: action.loading};
 
 		case 'SET_ERROR':
+			// Only force paused on a real error — clearing (`null`) must not flip
+			// isPlaying or the UI can show paused while orphan mpv keeps playing.
 			return {
 				...state,
 				error: action.error,
 				isLoading: false,
-				isPlaying: false,
+				...(action.error ? {isPlaying: false} : {}),
 			};
 
 		case 'SET_SPEED': {
@@ -442,10 +447,20 @@ function PlayerManager() {
 	const playbackModeRef = useRef(state.playbackMode);
 	const lastAutoNextRef = useRef(0);
 	const currentVideoIdForEventsRef = useRef<string | undefined>(undefined);
+	const isPlayingRef = useRef(state.isPlaying);
+	const lastProgressAtRef = useRef(0);
+	const ipcReconnectAttemptRef = useRef(0);
 
 	useEffect(() => {
 		playbackModeRef.current = state.playbackMode;
 	}, [state.playbackMode]);
+
+	useEffect(() => {
+		isPlayingRef.current = state.isPlaying;
+		if (state.isPlaying && lastProgressAtRef.current === 0) {
+			lastProgressAtRef.current = Date.now();
+		}
+	}, [state.isPlaying]);
 
 	// Sync ref outside of render via effect so the event handler always sees the latest videoId
 	useEffect(() => {
@@ -459,6 +474,32 @@ function PlayerManager() {
 		// If EOF fires without any progress, the track was unavailable/failed.
 		let hasProgress = false;
 
+		const attemptIpcRecover = async (): Promise<void> => {
+			ipcReconnectAttemptRef.current += 1;
+			const attempt = ipcReconnectAttemptRef.current;
+			logger.warn('PlayerManager', 'Recovering from IPC disconnect', {
+				attempt,
+			});
+			const reconnected = await playerService.tryReconnectIpc();
+			if (attempt !== ipcReconnectAttemptRef.current) {
+				return;
+			}
+			if (reconnected) {
+				lastProgressAtRef.current = Date.now();
+				if (isPlayingRef.current) {
+					await playerService.resume();
+					dispatch({category: 'RESUME'});
+				}
+				dispatch({category: 'SET_ERROR', error: null});
+				return;
+			}
+
+			dispatch({
+				category: 'SET_ERROR',
+				error: 'Lost connection to mpv — press Space to resume',
+			});
+		};
+
 		playerService.onEvent(event => {
 			// Log all events at debug level to trace volume-pause correlation
 			if (event.paused !== undefined || event.eof !== undefined) {
@@ -470,12 +511,18 @@ function PlayerManager() {
 				});
 			}
 
+			if (event.ipcDisconnected) {
+				void attemptIpcRecover();
+				return;
+			}
+
 			if (event.duration !== undefined) {
 				dispatch({category: 'SET_DURATION', duration: event.duration});
 			}
 
 			if (event.timePos !== undefined) {
 				hasProgress = true;
+				lastProgressAtRef.current = Date.now();
 				// Throttle progress updates to reduce re-renders
 				const now = Date.now();
 				if (now - lastProgressUpdate >= PROGRESS_THROTTLE_MS) {
@@ -538,6 +585,57 @@ function PlayerManager() {
 			}
 		});
 	}, [playerService, dispatch, next]);
+
+	// Recover when progress freezes while UI thinks we are playing (IPC often dropped).
+	useEffect(() => {
+		const stallWatchdog = setInterval(() => {
+			if (!isPlayingRef.current) {
+				lastProgressAtRef.current = Date.now();
+				return;
+			}
+
+			if (Date.now() - lastProgressAtRef.current < PLAYBACK_STALL_MS) {
+				return;
+			}
+
+			if (playerService.hasActivePlaybackSession()) {
+				// Socket alive but no ticks — likely buffering; keep waiting.
+				return;
+			}
+
+			if (!playerService.hasMpvProcess()) {
+				dispatch({
+					category: 'SET_ERROR',
+					error: 'Playback stopped unexpectedly',
+				});
+				return;
+			}
+
+			logger.warn(
+				'PlayerManager',
+				'Progress stalled without IPC — attempting reconnect',
+			);
+			void playerService.tryReconnectIpc().then(async ok => {
+				if (!isPlayingRef.current) {
+					return;
+				}
+				if (ok) {
+					lastProgressAtRef.current = Date.now();
+					await playerService.resume();
+					dispatch({category: 'SET_ERROR', error: null});
+					return;
+				}
+				dispatch({
+					category: 'SET_ERROR',
+					error: 'Lost connection to mpv — press Space to resume',
+				});
+			});
+		}, 1000);
+
+		return () => {
+			clearInterval(stallWatchdog);
+		};
+	}, [dispatch, playerService]);
 
 	// Initialize audio on mount
 	useEffect(() => {
@@ -880,15 +978,19 @@ function PlayerManager() {
 				stateVideoId: state.currentTrack?.videoId,
 			});
 			if (!currentTrackId || state.currentTrack?.videoId === currentTrackId) {
-				playerService.resume();
+				void playerService.resume();
 			} else {
 				logger.debug('PlayerManager', 'Skipping resume', {
 					currentTrackId,
 					stateVideoId: state.currentTrack?.videoId,
 				});
 			}
-		} else {
-			playerService.pause();
+		} else if (
+			playerService.hasActivePlaybackSession() ||
+			playerService.hasMpvProcess()
+		) {
+			// Reconnect-capable pause — keeps UI and orphan mpv in sync on Windows.
+			void playerService.pause();
 		}
 	}, [state.isPlaying, state.currentTrack, playerService]);
 
