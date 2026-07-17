@@ -505,22 +505,24 @@ export async function startImmersiveApp(
 
 	const togglePlayback = async (): Promise<void> => {
 		const hasSession = playerService.hasActivePlaybackSession();
+		const hasMpv = playerService.hasMpvProcess();
 		const loadedTrackId = playerService.getCurrentTrackId();
 		const currentVideoId = state.currentTrack?.videoId ?? null;
+		const canControl = hasSession || hasMpv;
 
 		if (state.playbackMode === 'stream' && state.currentStation) {
-			if (hasSession && state.isPlaying) {
-				playerService.pause();
+			if (canControl && state.isPlaying) {
+				await playerService.pause();
 				state.isPlaying = false;
 				return;
 			}
 
 			if (
-				hasSession &&
+				canControl &&
 				!state.isPlaying &&
 				loadedTrackId === state.currentStation.id
 			) {
-				playerService.resume();
+				await playerService.resume();
 				state.isPlaying = true;
 				return;
 			}
@@ -529,20 +531,20 @@ export async function startImmersiveApp(
 			return;
 		}
 
-		if (hasSession && state.isPlaying) {
-			playerService.pause();
+		if (canControl && state.isPlaying) {
+			await playerService.pause();
 			state.isPlaying = false;
 			return;
 		}
 
 		if (
-			hasSession &&
+			canControl &&
 			!state.isPlaying &&
 			loadedTrackId &&
 			currentVideoId &&
 			loadedTrackId === currentVideoId
 		) {
-			playerService.resume();
+			await playerService.resume();
 			state.isPlaying = true;
 			return;
 		}
@@ -574,7 +576,7 @@ export async function startImmersiveApp(
 
 		waitingForAutoplayAtQueueEnd = false;
 		clearAdvanceGrace();
-		playerService.pause();
+		void playerService.pause();
 		state.isPlaying = false;
 	};
 
@@ -678,7 +680,7 @@ export async function startImmersiveApp(
 				) {
 					waitingForAutoplayAtQueueEnd = false;
 					clearAdvanceGrace();
-					playerService.pause();
+					void playerService.pause();
 					state.isPlaying = false;
 					showTrackChangeToast('Autoplay', 'Could not find new tracks to play');
 				} else if (waitingAtQueueEnd || wasAtEndOfQueue) {
@@ -743,7 +745,7 @@ export async function startImmersiveApp(
 			) {
 				waitingForAutoplayAtQueueEnd = false;
 				clearAdvanceGrace();
-				playerService.pause();
+				void playerService.pause();
 				state.isPlaying = false;
 				showTrackChangeToast('Autoplay', 'Failed to fetch suggestions');
 			} else if (waitingAtQueueEnd) {
@@ -776,6 +778,21 @@ export async function startImmersiveApp(
 	};
 
 	playerService.onEvent(event => {
+		if (event.ipcDisconnected) {
+			void playerService.tryReconnectIpc().then(async ok => {
+				if (!ok) {
+					showTrackChangeToast('Lost mpv connection', 'Press Space to resume');
+					return;
+				}
+				lastTimePosChangeAt = Date.now();
+				stallNotified = false;
+				if (state.isPlaying) {
+					await playerService.resume();
+				}
+			});
+			return;
+		}
+
 		if (event.duration !== undefined) {
 			state.duration = event.duration;
 		}
@@ -854,9 +871,35 @@ export async function startImmersiveApp(
 			!state.isPlaying ||
 			isAdvancing ||
 			inAdvanceGrace ||
-			waitingForAutoplayAtQueueEnd ||
-			!playerService.hasActivePlaybackSession()
+			waitingForAutoplayAtQueueEnd
 		) {
+			lastTimePosChangeAt = now;
+			return;
+		}
+
+		const hasSession = playerService.hasActivePlaybackSession();
+		if (!hasSession) {
+			if (playerService.hasMpvProcess()) {
+				if (now - lastTimePosChangeAt < PLAYBACK_STALL_MS || stallNotified) {
+					return;
+				}
+				stallNotified = true;
+				void playerService.tryReconnectIpc().then(async ok => {
+					if (!state.isPlaying) {
+						return;
+					}
+					if (ok) {
+						lastTimePosChangeAt = Date.now();
+						stallNotified = false;
+						await playerService.resume();
+						return;
+					}
+					state.isPlaying = false;
+					showTrackChangeToast('Lost mpv connection', 'Press Space to resume');
+				});
+				return;
+			}
+
 			lastTimePosChangeAt = now;
 			return;
 		}
@@ -1164,7 +1207,7 @@ export async function startImmersiveApp(
 			cycleImmersiveSetting(config, index, {
 				sleepTimer: sleepTimerState,
 				onSleepTimerExpire: () => {
-					playerService.pause();
+					void playerService.pause();
 					state.isPlaying = false;
 					sleepTimerState.lastPreset = null;
 				},

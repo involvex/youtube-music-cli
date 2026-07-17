@@ -108,6 +108,7 @@ export type PlayerEventCallback = (event: {
 	paused?: boolean;
 	eof?: boolean;
 	subtitle?: string | null;
+	ipcDisconnected?: boolean;
 }) => void;
 
 export function isValidIpcPipePath(
@@ -181,6 +182,8 @@ class PlayerService {
 	private playSessionId = 0; // Incremented per play() call for unique IPC paths
 	private playGeneration = 0; // Invalidates stale play() promises when stop() kills mpv
 	private lastVolumeChangeTimestamp = 0; // For correlating volume changes with pause events
+	private intentionalIpcTeardown = false;
+	private ipcReconnectInFlight: Promise<boolean> | null = null;
 
 	private constructor() {}
 
@@ -265,9 +268,11 @@ class PlayerService {
 			return;
 		}
 
+		this.intentionalIpcTeardown = true;
 		this.ipcSocket.removeAllListeners();
 		this.ipcSocket.destroy();
 		this.ipcSocket = null;
+		this.intentionalIpcTeardown = false;
 	}
 
 	/**
@@ -409,19 +414,47 @@ class PlayerService {
 					logger.debug('PlayerService', 'IPC socket error', {
 						error: formatError(err),
 						attempt: this.ipcConnectRetries + 1,
+						settled,
 					});
+
+					const mpvAlive = Boolean(this.mpvProcess && !this.mpvProcess.killed);
+					const wasEstablished = settled && this.ipcSocket === socket;
 
 					if (this.ipcSocket === socket) {
 						this.destroyIpcSocket();
 					}
 
-					scheduleRetry();
+					if (!settled) {
+						scheduleRetry();
+						return;
+					}
+
+					// Post-handshake disconnect: notify UI so it can reconnect.
+					if (wasEstablished && mpvAlive) {
+						logger.warn('PlayerService', 'IPC error while mpv still running');
+						this.eventCallback?.({ipcDisconnected: true});
+					}
 				});
 
 				socket.on('close', () => {
-					logger.debug('PlayerService', 'IPC socket closed');
+					logger.debug('PlayerService', 'IPC socket closed', {
+						intentional: this.intentionalIpcTeardown,
+						hasMpvProcess: Boolean(this.mpvProcess),
+					});
 					if (this.ipcSocket === socket) {
 						this.ipcSocket = null;
+					}
+
+					if (
+						!this.intentionalIpcTeardown &&
+						this.mpvProcess &&
+						!this.mpvProcess.killed
+					) {
+						logger.warn(
+							'PlayerService',
+							'IPC disconnected while mpv still running',
+						);
+						this.eventCallback?.({ipcDisconnected: true});
 					}
 				});
 			};
@@ -779,11 +812,32 @@ class PlayerService {
 		});
 	}
 
-	pause(): void {
-		logger.debug('PlayerService', 'pause() called');
+	async pause(): Promise<void> {
+		logger.debug('PlayerService', 'pause() called', {
+			hasIpcSocket: Boolean(this.ipcSocket),
+			ipcDestroyed: this.ipcSocket?.destroyed ?? true,
+			hasMpvProcess: this.hasMpvProcess(),
+		});
 		this.isPlaying = false;
+
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
 			this.sendIpcCommand(['set_property', 'pause', true]);
+			return;
+		}
+
+		// IPC dropped but mpv still running — reconnect so pause actually reaches mpv.
+		if (this.hasMpvProcess() && isValidIpcPipePath(this.ipcPath)) {
+			const reconnected = await this.tryReconnectIpc();
+			if (reconnected && this.ipcSocket && !this.ipcSocket.destroyed) {
+				this.sendIpcCommand(['set_property', 'pause', true]);
+				return;
+			}
+
+			logger.warn(
+				'PlayerService',
+				'pause() could not reach orphan mpv — stopping process',
+			);
+			this.stop();
 		}
 	}
 
@@ -831,6 +885,19 @@ class PlayerService {
 			return;
 		}
 
+		// IPC dropped but mpv is still alive — reconnect before restarting.
+		if (this.hasMpvProcess() && isValidIpcPipePath(this.ipcPath)) {
+			const reconnected = await this.tryReconnectIpc();
+			if (resumeGeneration !== this.playGeneration) {
+				return;
+			}
+			if (reconnected && this.ipcSocket && !this.ipcSocket.destroyed) {
+				this.isPlaying = true;
+				this.sendIpcCommand(['set_property', 'pause', false]);
+				return;
+			}
+		}
+
 		if (this.currentUrl) {
 			logger.info('PlayerService', 'Resume fallback: restarting track');
 			this.isPlaying = true;
@@ -843,6 +910,47 @@ class PlayerService {
 
 	hasActivePlaybackSession(): boolean {
 		return Boolean(this.ipcSocket && !this.ipcSocket.destroyed);
+	}
+
+	hasMpvProcess(): boolean {
+		return Boolean(this.mpvProcess && !this.mpvProcess.killed);
+	}
+
+	/**
+	 * Reconnect IPC to a still-running mpv without reloading the current file.
+	 */
+	async tryReconnectIpc(): Promise<boolean> {
+		if (this.ipcSocket && !this.ipcSocket.destroyed) {
+			return true;
+		}
+
+		if (!isValidIpcPipePath(this.ipcPath)) {
+			return false;
+		}
+
+		if (this.ipcReconnectInFlight) {
+			return this.ipcReconnectInFlight;
+		}
+
+		this.ipcReconnectInFlight = (async () => {
+			try {
+				logger.info('PlayerService', 'Attempting IPC reconnect', {
+					ipcPath: this.ipcPath,
+				});
+				await this.connectIpc();
+				logger.info('PlayerService', 'IPC reconnect succeeded');
+				return true;
+			} catch (error) {
+				logger.warn('PlayerService', 'IPC reconnect failed', {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return false;
+			} finally {
+				this.ipcReconnectInFlight = null;
+			}
+		})();
+
+		return this.ipcReconnectInFlight;
 	}
 
 	stop(): void {

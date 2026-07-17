@@ -201,11 +201,11 @@ class WebServerManager {
 			}
 			case 'PAUSE':
 				this.internalState.isPlaying = false;
-				playerService.pause();
+				void playerService.pause();
 				break;
 			case 'RESUME':
 				this.internalState.isPlaying = true;
-				playerService.resume();
+				void playerService.resume();
 				break;
 			case 'STOP':
 				this.internalState.isPlaying = false;
