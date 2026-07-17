@@ -9,6 +9,7 @@ import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {useSleepTimer} from '../../hooks/useSleepTimer.ts';
 import {formatTime} from '../../utils/format.ts';
+import {ensureDownloadDirectory} from '../../utils/download-path.ts';
 import type {
 	DownloadFormat,
 	EqualizerPreset,
@@ -107,6 +108,9 @@ export default function Settings() {
 	);
 	const [isEditingDownloadDirectory, setIsEditingDownloadDirectory] =
 		useState(false);
+	const [downloadFolderFeedback, setDownloadFolderFeedback] = useState<
+		string | null
+	>(null);
 	const [isEditingApiKey, setIsEditingApiKey] = useState(false);
 	const [isEditingBaseUrl, setIsEditingBaseUrl] = useState(false);
 	const {
@@ -627,14 +631,25 @@ export default function Settings() {
 						value={downloadDirectory}
 						onChange={setDownloadDirectory}
 						onSubmit={value => {
-							const normalized = value.trim();
-							if (!normalized) {
+							try {
+								const normalized = ensureDownloadDirectory(value);
+								setDownloadDirectory(normalized);
+								config.setSync('downloadDirectory', normalized);
 								setIsEditingDownloadDirectory(false);
-								return;
+								if (!(config.get('downloadsEnabled') ?? false)) {
+									setDownloadFolderFeedback(
+										'Saved download folder (enable Download Feature to use)',
+									);
+								} else {
+									setDownloadFolderFeedback('Saved download folder');
+								}
+							} catch (error) {
+								setDownloadFolderFeedback(
+									error instanceof Error
+										? error.message
+										: 'Failed to save download folder',
+								);
 							}
-							setDownloadDirectory(normalized);
-							config.set('downloadDirectory', normalized);
-							setIsEditingDownloadDirectory(false);
 						}}
 						placeholder="Download directory"
 						focus
@@ -653,6 +668,11 @@ export default function Settings() {
 					</Text>
 				)}
 			</Box>
+			{downloadFolderFeedback ? (
+				<Box paddingX={1}>
+					<Text color={theme.colors.secondary}>{downloadFolderFeedback}</Text>
+				</Box>
+			) : null}
 
 			{/* Download Format */}
 			<Box paddingX={1}>

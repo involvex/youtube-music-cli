@@ -174,7 +174,7 @@ Use `useKeyBinding` hook instead of raw stdin listeners to avoid `MaxListenersEx
 
 ### Audio URLs
 
-Always sanitize audio URLs to prevent shell injection. Use the `youtube-ext` and `youtubei.js` services for obtaining streams.
+Always sanitize audio URLs to prevent shell injection. Stream URLs for downloads come from **yt-dlp** (primary), then **youtubei.js**, then **Invidious** (with persisted instance health / auto-discovery). Playback passes watch URLs to mpv/yt-dlp directly.
 
 ### Store Usage
 
@@ -252,3 +252,5 @@ youtube-music-cli --win32            # Windows immersive mode (Bun native)
 - Ink TUI and immersive share favorites via `getFavoritesManager()` in `source/services/favorites/favorites.service.ts`, persisting to `~/.youtube-music-cli/favorites.json` (`schemaVersion` + `tracks` + `lastUpdated`); do not write favorites before hydration completes; `saveFavorites()` refuses empty overwrite unless `allowEmptyOverwrite`; tests must use `resetFavoritesManagerForTests()` / `setFavoritesFilePathForTests()`
 - mpv 0.41+ subtitle language uses `--slang=en` in `buildMpvArgs`, not `--sub-lang=en` — the old flag makes mpv exit immediately when subtitles are enabled; `PlayerService` uses `playGeneration` to invalidate stale `play()` promises after `stop()`, `isValidIpcPipePath()` for Windows pipe paths, and aborts stale IPC connect retries on stop
 - `SET_ERROR` in `player.store.tsx` sets both `isLoading: false` and `isPlaying: false` so the UI does not show playing after a playback failure
+- Downloads prefer **yt-dlp**, then youtubei.js stream URLs, then Invidious; progress is reported via `onProgress` (`formatDownloadProgress`) in Ink search/playlist and immersive search overlay
+- Invidious instance health / discovery lives in `source/services/invidious/invidious-health.service.ts`, persisted to `~/.youtube-music-cli/invidious-health.json` (24h discovery TTL from `api.invidious.io/instances.json`)

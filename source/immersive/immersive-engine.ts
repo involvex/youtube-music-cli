@@ -135,7 +135,10 @@ export interface ImmersiveOptions {
 	onToggleFavoriteSearchResult?: (
 		result: SearchResult,
 	) => Promise<string | null>;
-	onDownloadSearchResult?: (result: SearchResult) => Promise<string | null>;
+	onDownloadSearchResult?: (
+		result: SearchResult,
+		onProgress?: (message: string) => void,
+	) => Promise<string | null>;
 	onRemoveFavoriteTrack?: (track: Track) => Promise<string | null>;
 	onAddTrackToPlaylist?: (
 		playlistId: string,
@@ -922,13 +925,14 @@ export class ImmersiveEngine {
 						field,
 						this.settingsOverlay.textDraft,
 					);
-					if (message) {
+					// Errors keep the editor open; success messages (null or "Saved…") close it.
+					if (message && !message.startsWith('Saved')) {
 						this.settingsOverlay.status = message;
 						return;
 					}
 					this.settingsOverlay.textEdit = null;
 					this.settingsOverlay.textDraft = '';
-					this.settingsOverlay.status = 'Saved';
+					this.settingsOverlay.status = message ?? 'Saved';
 				}
 			}
 			return;
@@ -1036,7 +1040,12 @@ export class ImmersiveEngine {
 		if (action === 'download' && selected) {
 			this.searchOverlay.status = 'Starting download...';
 			try {
-				const message = await this.options.onDownloadSearchResult?.(selected);
+				const message = await this.options.onDownloadSearchResult?.(
+					selected,
+					progress => {
+						this.searchOverlay.status = progress;
+					},
+				);
 				this.searchOverlay.status = message ?? 'Download finished';
 			} catch (error) {
 				this.searchOverlay.status =

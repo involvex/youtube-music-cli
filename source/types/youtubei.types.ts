@@ -73,7 +73,8 @@ export interface VideoInfo {
 		contents: RelatedContent[];
 	};
 	chooseFormat?: (options: {type: string; quality: string}) => {
-		url: string;
+		url?: string;
+		decipher?: (player: unknown) => string;
 	} | null;
 	[key: string]: unknown;
 }

@@ -4,6 +4,7 @@ import {spawn} from 'node:child_process';
 import {getConfigService} from '../config/config.service.ts';
 import {logger} from '../logger/logger.service.ts';
 import {getMusicService} from '../youtube-music/api.ts';
+import {ensureDownloadDirectory} from '../../utils/download-path.ts';
 import type {DownloadFormat} from '../../types/config.types.ts';
 import type {
 	Playlist,
@@ -21,6 +22,20 @@ type DownloadResult = {
 type DownloadTarget = {
 	name: string;
 	tracks: Track[];
+};
+
+export type DownloadProgressPhase = 'start' | 'done' | 'skip' | 'fail';
+
+export type DownloadProgressInfo = {
+	current: number;
+	total: number;
+	track: Track;
+	phase: DownloadProgressPhase;
+	error?: string;
+};
+
+export type DownloadTracksOptions = {
+	onProgress?: (info: DownloadProgressInfo) => void;
 };
 
 class DownloadService {
@@ -89,19 +104,22 @@ class DownloadService {
 		};
 	}
 
-	async downloadTracks(tracks: Track[]): Promise<DownloadResult> {
+	async downloadTracks(
+		tracks: Track[],
+		options: DownloadTracksOptions = {},
+	): Promise<DownloadResult> {
 		if (this.activeDownload) {
 			throw new Error(
 				'A download is already in progress. Please wait for it to finish.',
 			);
 		}
 
-		const {directory, format} = this.getConfig();
-		if (!directory) {
+		const {directory: configuredDirectory, format} = this.getConfig();
+		if (!configuredDirectory) {
 			throw new Error('No download directory configured.');
 		}
 
-		mkdirSync(directory, {recursive: true});
+		const directory = ensureDownloadDirectory(configuredDirectory);
 		await this.ensureFfmpeg();
 		this.activeDownload = true;
 
@@ -111,9 +129,13 @@ class DownloadService {
 			failed: 0,
 			errors: [],
 		};
+		const total = tracks.length;
+		const {onProgress} = options;
 
 		try {
-			for (const track of tracks) {
+			for (let index = 0; index < tracks.length; index++) {
+				const track = tracks[index]!;
+				const current = index + 1;
 				const destination = this.getDestinationPath(track, directory, format);
 				const tempSource = `${destination}.source`;
 				const tempCover = `${destination}.cover.jpg`;
@@ -122,50 +144,18 @@ class DownloadService {
 						videoId: track.videoId,
 						title: track.title,
 					});
+					onProgress?.({current, total, track, phase: 'start'});
 					mkdirSync(path.dirname(destination), {recursive: true});
 					if (existsSync(destination)) {
 						result.skipped++;
+						onProgress?.({current, total, track, phase: 'skip'});
 						logger.debug('DownloadService', 'Skipping existing file', {
 							destination,
 						});
 						continue;
 					}
 
-					try {
-						const streamUrl = await this.musicService.getStreamUrl(
-							track.videoId,
-						);
-						const audioBuffer = await this.fetchAudio(streamUrl);
-						writeFileSync(tempSource, audioBuffer);
-					} catch (streamError) {
-						logger.warn(
-							'DownloadService',
-							'Stream URL extraction failed, falling back to yt-dlp',
-							{
-								videoId: track.videoId,
-								error:
-									streamError instanceof Error
-										? streamError.message
-										: String(streamError),
-							},
-						);
-						try {
-							await this.recordViaYtDlp(track.videoId, tempSource);
-						} catch (ytdlpError) {
-							logger.warn(
-								'DownloadService',
-								'yt-dlp fallback failed, falling back to mpv recording',
-								{
-									videoId: track.videoId,
-									error:
-										ytdlpError instanceof Error
-											? ytdlpError.message
-											: String(ytdlpError),
-								},
-							);
-							await this.recordViaMpv(track.videoId, tempSource);
-						}
-					}
+					await this.acquireAudioSource(track.videoId, tempSource);
 
 					const hasCover = await this.downloadCoverArt(
 						track.videoId,
@@ -179,6 +169,7 @@ class DownloadService {
 						hasCover ? tempCover : undefined,
 					);
 					result.downloaded++;
+					onProgress?.({current, total, track, phase: 'done'});
 					logger.info('DownloadService', 'Track download complete', {
 						videoId: track.videoId,
 						destination,
@@ -188,6 +179,13 @@ class DownloadService {
 					const message =
 						error instanceof Error ? error.message : 'Unknown download failure';
 					result.errors.push(message);
+					onProgress?.({
+						current,
+						total,
+						track,
+						phase: 'fail',
+						error: message,
+					});
 					logger.error('DownloadService', 'Track download failed', {
 						videoId: track.videoId,
 						title: track.title,
@@ -236,6 +234,73 @@ class DownloadService {
 
 	private sanitizeFilename(value: string): string {
 		return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim();
+	}
+
+	/**
+	 * Prefer yt-dlp (same dependency as playback), then in-process stream URL
+	 * extraction, then mpv --stream-record.
+	 */
+	private async acquireAudioSource(
+		videoId: string,
+		tempSource: string,
+	): Promise<void> {
+		const errors: string[] = [];
+
+		try {
+			logger.debug('DownloadService', 'Attempting yt-dlp download', {videoId});
+			await this.recordViaYtDlp(videoId, tempSource);
+			logger.info('DownloadService', 'Downloaded via yt-dlp', {videoId});
+			return;
+		} catch (ytdlpError) {
+			const message =
+				ytdlpError instanceof Error ? ytdlpError.message : String(ytdlpError);
+			errors.push(`yt-dlp: ${message}`);
+			logger.warn(
+				'DownloadService',
+				'yt-dlp download failed, trying stream URL extraction',
+				{videoId, error: message},
+			);
+		}
+
+		try {
+			logger.debug('DownloadService', 'Attempting stream URL extraction', {
+				videoId,
+			});
+			const streamUrl = await this.musicService.getStreamUrl(videoId);
+			const audioBuffer = await this.fetchAudio(streamUrl);
+			writeFileSync(tempSource, audioBuffer);
+			logger.info('DownloadService', 'Downloaded via stream URL', {videoId});
+			return;
+		} catch (streamError) {
+			const message =
+				streamError instanceof Error
+					? streamError.message
+					: String(streamError);
+			errors.push(`stream: ${message}`);
+			logger.warn(
+				'DownloadService',
+				'Stream URL extraction failed, falling back to mpv recording',
+				{videoId, error: message},
+			);
+		}
+
+		try {
+			await this.recordViaMpv(videoId, tempSource);
+			logger.info('DownloadService', 'Downloaded via mpv recording', {
+				videoId,
+			});
+			return;
+		} catch (mpvError) {
+			const message =
+				mpvError instanceof Error ? mpvError.message : String(mpvError);
+			errors.push(`mpv: ${message}`);
+		}
+
+		throw new Error(
+			`Download failed. Install or update yt-dlp and ffmpeg, then retry. (${errors.join(
+				'; ',
+			)})`,
+		);
 	}
 
 	private async fetchAudio(url: string): Promise<Buffer> {
