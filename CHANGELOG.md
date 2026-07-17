@@ -1,3 +1,10 @@
+## [0.0.98](https://github.com/involvex/youtube-music-cli/compare/v0.0.97...v0.0.98) (2026-07-17)
+
+### Bug Fixes
+
+- reconnect mpv IPC when UI and playback desync ([11b1793](https://github.com/involvex/youtube-music-cli/commit/11b1793390751163ee0bed31a62b5bc1c4e67563))
+- restore downloads via yt-dlp/youtubei and improve download UX ([27e6f9c](https://github.com/involvex/youtube-music-cli/commit/27e6f9cbee9e633af0d8655cd33f6fde88c0ae3e))
+
 ## [0.0.97](https://github.com/involvex/youtube-music-cli/compare/v0.0.96...v0.0.97) (2026-07-16)
 
 ### Bug Fixes
