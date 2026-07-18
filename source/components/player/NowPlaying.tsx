@@ -39,6 +39,13 @@ export default function NowPlaying() {
 
 	if (playerState.playbackMode === 'stream' && playerState.currentStation) {
 		const station = playerState.currentStation;
+		const nowPlaying = playerState.streamNowPlaying;
+		const songLine = nowPlaying
+			? nowPlaying.artist && nowPlaying.title
+				? `${nowPlaying.artist} — ${nowPlaying.title}`
+				: (nowPlaying.title ?? nowPlaying.raw)
+			: null;
+
 		return (
 			<Box
 				flexDirection="column"
@@ -53,7 +60,12 @@ export default function NowPlaying() {
 					<Text color={theme.colors.dim}> • </Text>
 					<Text color={theme.colors.accent}>LIVE</Text>
 				</Box>
-				{station.region ? (
+				{songLine ? (
+					<Text color={theme.colors.secondary}>{songLine}</Text>
+				) : station.region ? (
+					<Text color={theme.colors.dim}>{station.region}</Text>
+				) : null}
+				{songLine && station.region ? (
 					<Text color={theme.colors.dim}>{station.region}</Text>
 				) : null}
 				<Box>

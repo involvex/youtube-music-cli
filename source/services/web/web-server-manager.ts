@@ -37,6 +37,7 @@ class WebServerManager {
 		explicitQueueLength: 0,
 		playbackMode: 'youtube',
 		currentStation: null,
+		streamNowPlaying: null,
 	};
 
 	constructor() {

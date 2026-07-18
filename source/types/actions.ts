@@ -137,6 +137,11 @@ export interface SetSubtitleAction {
 	subtitle: string | null;
 }
 
+export interface SetStreamNowPlayingAction {
+	readonly category: 'SET_STREAM_NOW_PLAYING';
+	streamNowPlaying: import('./radio-station.types.ts').StreamNowPlaying | null;
+}
+
 export interface SetABLoopAction {
 	readonly category: 'SET_AB_LOOP';
 	a: number | null;

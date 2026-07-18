@@ -5,6 +5,8 @@ import {logger} from '../logger/logger.service.ts';
 import {formatError, formatErrorData} from '../../utils/error.ts';
 import type {EqualizerPreset} from '../../types/config.types.ts';
 import {getConfigService} from '../config/config.service.ts';
+import {parseStreamMetadata} from '../radio-stations/stream-metadata.ts';
+import type {StreamNowPlaying} from '../../types/radio-station.types.ts';
 
 export type PlayOptions = {
 	volume?: number;
@@ -109,6 +111,7 @@ export type PlayerEventCallback = (event: {
 	eof?: boolean;
 	subtitle?: string | null;
 	ipcDisconnected?: boolean;
+	streamMetadata?: StreamNowPlaying | null;
 }) => void;
 
 export function isValidIpcPipePath(
@@ -380,6 +383,7 @@ class PlayerService {
 					this.sendIpcCommand(['observe_property', 2, 'duration']);
 					this.sendIpcCommand(['observe_property', 3, 'pause']);
 					this.sendIpcCommand(['observe_property', 4, 'eof-reached']);
+					this.sendIpcCommand(['observe_property', 6, 'metadata']);
 
 					// Observe subtitles if enabled
 					const config = getConfigService();
@@ -521,6 +525,7 @@ class PlayerService {
 			paused?: boolean;
 			eof?: boolean;
 			subtitle?: string | null;
+			streamMetadata?: StreamNowPlaying | null;
 		} = {};
 
 		switch (message.name) {
@@ -568,6 +573,10 @@ class PlayerService {
 				}
 				break;
 
+			case 'metadata':
+				event.streamMetadata = parseStreamMetadata(message.data);
+				break;
+
 			default:
 				// Log any other property changes for investigation
 				logger.debug('PlayerService', 'Other property change', {
@@ -585,7 +594,8 @@ class PlayerService {
 			message.name !== 'duration' &&
 			message.name !== 'pause' &&
 			message.name !== 'eof-reached' &&
-			message.name !== 'sub-text'
+			message.name !== 'sub-text' &&
+			message.name !== 'metadata'
 		) {
 			logger.debug('PlayerService', 'Unhandled property change', {
 				property: message.name,

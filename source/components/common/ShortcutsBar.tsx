@@ -4,7 +4,8 @@ import {Box, Text} from 'ink';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {KEYBINDINGS} from '../../utils/constants.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
+import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {logger} from '../../services/logger/logger.service.ts';
 
@@ -12,6 +13,8 @@ const FLASH_DURATION_MS = 300;
 
 export default function ShortcutsBar() {
 	const {theme} = useTheme();
+	const {state: navState} = useNavigation();
+	const radioView = navState.currentView === VIEW.RADIO;
 	const {
 		state: playerState,
 		pause,
@@ -90,7 +93,7 @@ export default function ShortcutsBar() {
 		flash('shuffle');
 		toggleShuffle();
 	});
-	useKeyBinding(KEYBINDINGS.REPEAT, () => {
+	useKeyBinding(radioView ? [] : KEYBINDINGS.REPEAT, () => {
 		flash('repeat');
 		toggleRepeat();
 	});
@@ -98,7 +101,7 @@ export default function ShortcutsBar() {
 		flash('autoplay');
 		toggleAutoplay();
 	});
-	useKeyBinding(KEYBINDINGS.TOGGLE_RADIO, () => {
+	useKeyBinding(radioView ? [] : KEYBINDINGS.TOGGLE_RADIO, () => {
 		flash('radio');
 		if (playerState.radioIsActive) {
 			stopRadio();

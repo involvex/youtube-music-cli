@@ -79,14 +79,18 @@ import type {SettingsTextField} from './settings/settings-items.ts';
 import {
 	createRadioOverlayState,
 	closeRadioOverlay,
+	getRadioOverlayStations,
 	handleRadioOverlayInput,
 	getSelectedStation,
 	openRadioOverlay,
+	preloadRadioOverlayStations,
 	renderRadioOverlay,
+	runRadioOverlayRandom,
+	runRadioOverlaySearch,
+	toggleSelectedRadioFavorite,
 	type RadioOverlayState,
 } from './ui/radio-overlay.ts';
 import type {RadioStation} from '../types/radio-station.types.ts';
-import {getBuiltinStations} from '../services/radio-stations/radio-stations.service.ts';
 import {
 	getUpcomingTracks,
 	trackArtists,
@@ -479,9 +483,15 @@ export class ImmersiveEngine {
 		}
 
 		if (state?.playbackMode === 'stream' && state.currentStation) {
+			const nowPlaying = state.streamNowPlaying;
+			const song = nowPlaying
+				? nowPlaying.artist && nowPlaying.title
+					? `${nowPlaying.artist} — ${nowPlaying.title}`
+					: (nowPlaying.title ?? nowPlaying.raw)
+				: null;
 			return {
 				title: state.currentStation.name,
-				artist: 'LIVE',
+				artist: song ?? 'LIVE',
 			};
 		}
 
@@ -581,6 +591,7 @@ export class ImmersiveEngine {
 				break;
 			case 'i':
 				openRadioOverlay(this.radioOverlay);
+				void preloadRadioOverlayStations(this.radioOverlay);
 				break;
 			case 'p':
 				openPlaylistPicker(this.libraryOverlay);
@@ -886,13 +897,51 @@ export class ImmersiveEngine {
 	}
 
 	private async handleRadioKey(key: string): Promise<void> {
-		const stationCount = getBuiltinStations().length;
+		const stationCount = getRadioOverlayStations(this.radioOverlay).length;
 		const action = handleRadioOverlayInput(
 			this.radioOverlay,
 			key,
 			stationCount,
 		);
+
 		if (action === 'close') {
+			return;
+		}
+
+		if (action === 'load-browse') {
+			await preloadRadioOverlayStations(this.radioOverlay);
+			return;
+		}
+
+		if (action === 'cycle-country') {
+			await preloadRadioOverlayStations(this.radioOverlay);
+			return;
+		}
+
+		if (action === 'toggle-favorite') {
+			toggleSelectedRadioFavorite(this.radioOverlay);
+			return;
+		}
+
+		if (action === 'search') {
+			await runRadioOverlaySearch(this.radioOverlay);
+			return;
+		}
+
+		if (action === 'random') {
+			const station = await runRadioOverlayRandom(this.radioOverlay);
+			if (!station) {
+				return;
+			}
+
+			try {
+				this.radioOverlay.status = `Connecting to ${station.name}...`;
+				await this.options.onPlayRadioStation?.(station);
+				closeRadioOverlay(this.radioOverlay);
+			} catch (error) {
+				this.radioOverlay.status =
+					error instanceof Error ? error.message : 'Failed to play station';
+			}
 			return;
 		}
 
@@ -1313,6 +1362,12 @@ function renderNowPlaying(
 		const maxTextW = layout.nowPlayingW - 4;
 		const innerH = layout.nowPlayingH - 2;
 		const showVolume = innerH >= 7;
+		const nowPlaying = state.streamNowPlaying;
+		const songLine = nowPlaying
+			? nowPlaying.artist && nowPlaying.title
+				? `${nowPlaying.artist} — ${nowPlaying.title}`
+				: (nowPlaying.title ?? nowPlaying.raw)
+			: null;
 
 		fb.setText(innerX, y, 'NOW PLAYING', accent, null, {dim: true});
 		y += 1;
@@ -1320,9 +1375,14 @@ function renderNowPlaying(
 			bold: true,
 		});
 		y += 1;
-		fb.setText(innerX, y, truncateText('LIVE', maxTextW), null, null, {
-			dim: true,
-		});
+		fb.setText(
+			innerX,
+			y,
+			truncateText(songLine ?? 'LIVE', maxTextW),
+			null,
+			null,
+			{dim: true},
+		);
 		y += 1;
 		const statusText = state.isPlaying ? '▶  LIVE' : '⏸  PAUSED';
 		fb.setText(innerX, y, statusText, accent, null, {bold: true});

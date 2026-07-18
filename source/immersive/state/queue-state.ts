@@ -3,6 +3,7 @@ import type {RadioSeed} from '../../types/radio.types.ts';
 import type {
 	PlaybackMode,
 	RadioStation,
+	StreamNowPlaying,
 } from '../../types/radio-station.types.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
@@ -27,6 +28,7 @@ export interface ImmersivePlayerState {
 	radioSeed: RadioSeed | null;
 	playbackMode: PlaybackMode;
 	currentStation: RadioStation | null;
+	streamNowPlaying: StreamNowPlaying | null;
 }
 
 export function createInitialImmersiveState(
@@ -50,6 +52,7 @@ export function createInitialImmersiveState(
 		radioSeed: null,
 		playbackMode: 'youtube',
 		currentStation: null,
+		streamNowPlaying: null,
 		...overrides,
 	};
 }

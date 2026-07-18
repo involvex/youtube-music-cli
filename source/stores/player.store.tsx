@@ -57,6 +57,7 @@ const initialState: PlayerState = {
 	explicitQueueLength: 0,
 	playbackMode: 'youtube',
 	currentStation: null,
+	streamNowPlaying: null,
 };
 
 let inkSessionHistory: string[] = [];
@@ -75,6 +76,7 @@ export function playerReducer(
 				...state,
 				playbackMode: 'youtube',
 				currentStation: null,
+				streamNowPlaying: null,
 				currentTrack: action.track,
 				isPlaying: true,
 				progress: 0,
@@ -111,6 +113,7 @@ export function playerReducer(
 				currentTrack: null,
 				playbackMode: 'youtube',
 				currentStation: null,
+				streamNowPlaying: null,
 			};
 
 		case 'NEXT': {
@@ -348,6 +351,7 @@ export function playerReducer(
 				...state,
 				playbackMode: 'stream',
 				currentStation: action.station,
+				streamNowPlaying: null,
 				currentTrack: null,
 				queue: [],
 				queuePosition: 0,
@@ -360,6 +364,12 @@ export function playerReducer(
 				duration: 0,
 				error: null,
 				playRequestId: state.playRequestId + 1,
+			};
+
+		case 'SET_STREAM_NOW_PLAYING':
+			return {
+				...state,
+				streamNowPlaying: action.streamNowPlaying,
 			};
 
 		case 'RESTORE_STATE':
@@ -380,6 +390,7 @@ export function playerReducer(
 				abLoop: {a: null, b: null},
 				playbackMode: 'youtube',
 				currentStation: null,
+				streamNowPlaying: null,
 			};
 
 		default:
@@ -581,6 +592,19 @@ function PlayerManager() {
 				} else {
 					logger.debug('PlayerManager', 'Dispatching RESUME action from event');
 					dispatch({category: 'RESUME'});
+				}
+			}
+
+			if (event.subtitle !== undefined) {
+				dispatch({category: 'SET_SUBTITLE', subtitle: event.subtitle});
+			}
+
+			if (event.streamMetadata !== undefined) {
+				if (playbackModeRef.current === 'stream') {
+					dispatch({
+						category: 'SET_STREAM_NOW_PLAYING',
+						streamNowPlaying: event.streamMetadata,
+					});
 				}
 			}
 		});

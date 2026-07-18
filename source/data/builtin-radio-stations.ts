@@ -7,6 +7,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://streams.rockland.de/kl/mp3-192/',
 		region: 'Kaiserslautern',
 		genre: "Rock 'n' Pop",
+		source: 'builtin',
 	},
 	{
 		id: 'rockland-koblenz',
@@ -14,6 +15,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://streams.rockland.de/koblenz/mp3-192/',
 		region: 'Koblenz',
 		genre: "Rock 'n' Pop",
+		source: 'builtin',
 	},
 	{
 		id: 'rockland-badkreuz',
@@ -21,6 +23,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://streams.rockland.de/badkreuz/mp3-192/',
 		region: 'Bad Kreuznach',
 		genre: "Rock 'n' Pop",
+		source: 'builtin',
 	},
 	{
 		id: 'rockland-bitburg',
@@ -28,6 +31,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://streams.rockland.de/bitburg/mp3-192/',
 		region: 'Bitburg',
 		genre: "Rock 'n' Pop",
+		source: 'builtin',
 	},
 	{
 		id: 'rockland-trier',
@@ -35,6 +39,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://streams.rockland.de/trier/mp3-192/direkt/',
 		region: 'Trier',
 		genre: "Rock 'n' Pop",
+		source: 'builtin',
 	},
 	{
 		id: 'deutschlandfunk',
@@ -42,6 +47,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://st01.sslstream.dlf.de/dlf/dlf/mp3/128/stream.mp3',
 		region: 'Germany',
 		genre: 'News & Culture',
+		source: 'builtin',
 	},
 	{
 		id: 'swr3',
@@ -49,6 +55,7 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://liveradio.swr.de/sw331ch/swr3/',
 		region: 'Baden-Württemberg / Rheinland-Pfalz',
 		genre: 'Pop',
+		source: 'builtin',
 	},
 	{
 		id: 'radio21-mainz',
@@ -56,5 +63,6 @@ export const BUILTIN_RADIO_STATIONS: readonly RadioStation[] = [
 		streamUrl: 'https://radio21.streamabc.net/radio21-mainz-mp3-192-5314942',
 		region: 'Mainz',
 		genre: 'Rock',
+		source: 'builtin',
 	},
 ] as const;

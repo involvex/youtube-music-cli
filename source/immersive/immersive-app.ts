@@ -377,6 +377,7 @@ export async function startImmersiveApp(
 		state.currentTrack = track;
 		state.playbackMode = 'youtube';
 		state.currentStation = null;
+		state.streamNowPlaying = null;
 		fetchedForVideoId = null;
 		sessionHistory = recordSessionTrack(sessionHistory, track.videoId);
 
@@ -455,6 +456,7 @@ export async function startImmersiveApp(
 	const playRadioStream = async (station: RadioStation): Promise<void> => {
 		state.playbackMode = 'stream';
 		state.currentStation = station;
+		state.streamNowPlaying = null;
 		state.currentTrack = null;
 		state.queue = [];
 		state.queueIndex = 0;
@@ -473,6 +475,12 @@ export async function startImmersiveApp(
 		beginAdvanceGrace();
 
 		try {
+			const {notifyStationClick} =
+				await import('../services/radio-stations/radio-browser.service.ts');
+			if (station.stationuuid) {
+				notifyStationClick(station.stationuuid);
+			}
+
 			await playerService.play(station.streamUrl, {
 				...getPlaybackOptions(state.volume),
 				trackId: station.id,
@@ -847,6 +855,19 @@ export async function startImmersiveApp(
 			state.isPlaying = !event.paused;
 			if (event.paused) {
 				stallNotified = false;
+			}
+		}
+
+		if (event.streamMetadata !== undefined && state.playbackMode === 'stream') {
+			state.streamNowPlaying = event.streamMetadata;
+			if (state.currentStation && event.streamMetadata) {
+				const song =
+					event.streamMetadata.artist && event.streamMetadata.title
+						? `${event.streamMetadata.artist} — ${event.streamMetadata.title}`
+						: (event.streamMetadata.title ?? event.streamMetadata.raw);
+				if (song) {
+					updateTrayIcon(`${state.currentStation.name} - ${song}`);
+				}
 			}
 		}
 	});

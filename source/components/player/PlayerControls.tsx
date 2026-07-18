@@ -1,10 +1,11 @@
 // Player controls component
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
-import {KEYBINDINGS} from '../../utils/constants.ts';
+import {KEYBINDINGS, VIEW} from '../../utils/constants.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useFavorites} from '../../stores/favorites.store.tsx';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {Box, Text} from 'ink';
 import {useEffect, useState} from 'react';
 import {logger} from '../../services/logger/logger.service.ts';
@@ -31,6 +32,8 @@ const formatEqualizerLabel = (preset: EqualizerPreset) =>
 
 export default function PlayerControls() {
 	const instanceId = ++mountCount;
+	const {state: navState} = useNavigation();
+	const radioView = navState.currentView === VIEW.RADIO;
 
 	useEffect(() => {
 		logger.debug('PlayerControls', 'Component mounted', {instanceId});
@@ -127,7 +130,7 @@ export default function PlayerControls() {
 	useKeyBinding(KEYBINDINGS.AB_LOOP_A, handleABLoopA);
 	useKeyBinding(KEYBINDINGS.AB_LOOP_B, handleABLoopB);
 	useKeyBinding(KEYBINDINGS.AB_LOOP_CLEAR, handleABLoopClear);
-	useKeyBinding(KEYBINDINGS.TOGGLE_FAVORITE, () => {
+	useKeyBinding(radioView ? [] : KEYBINDINGS.TOGGLE_FAVORITE, () => {
 		if (playerState.currentTrack) {
 			toggleFavorite(playerState.currentTrack);
 		}
