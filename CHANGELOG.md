@@ -1,9 +1,13 @@
-## [0.0.98](https://github.com/involvex/youtube-music-cli/compare/v0.0.97...v0.0.98) (2026-07-17)
+## [0.0.99](https://github.com/involvex/youtube-music-cli/compare/v0.0.97...v0.0.99) (2026-07-18)
 
 ### Bug Fixes
 
-- reconnect mpv IPC when UI and playback desync ([11b1793](https://github.com/involvex/youtube-music-cli/commit/11b1793390751163ee0bed31a62b5bc1c4e67563))
-- restore downloads via yt-dlp/youtubei and improve download UX ([27e6f9c](https://github.com/involvex/youtube-music-cli/commit/27e6f9cbee9e633af0d8655cd33f6fde88c0ae3e))
+- reconnect mpv IPC when UI and playback desync ([c277e3b](https://github.com/involvex/youtube-music-cli/commit/c277e3bb033418de53b32b5b631ca74dbfc568d1))
+- restore downloads via yt-dlp/youtubei and improve download UX ([9ce89ba](https://github.com/involvex/youtube-music-cli/commit/9ce89bab3462d4ced2bf868269c17e2115341b54))
+
+### Features
+
+- enrich radio streams with Radio Browser, metadata, and favorites ([ca3f29d](https://github.com/involvex/youtube-music-cli/commit/ca3f29db08a222c3899963ffae75f7498abb9498))
 
 ## [0.0.97](https://github.com/involvex/youtube-music-cli/compare/v0.0.96...v0.0.97) (2026-07-16)
 
