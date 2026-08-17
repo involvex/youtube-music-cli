@@ -86,7 +86,7 @@
 		"play-sound": "^1.1.6",
 		"react": "19.2.8",
 		"ws": "^8.21.1",
-		"youtubei.js": "^17.2.0"
+		"youtubei.js": "^18.0.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
