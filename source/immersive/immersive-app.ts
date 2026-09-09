@@ -438,7 +438,9 @@ export async function startImmersiveApp(
 			state.isPlaying = false;
 			clearAdvanceGrace();
 			playerService.stop();
-			const message = formatPlaybackErrorMessage(error);
+			const message = formatPlaybackErrorMessage(error, {
+				knownYouTubeSource: resolved.source === 'youtube',
+			});
 			showTrackChangeToast('Playback error', message);
 		} finally {
 			isAdvancing = false;

@@ -927,7 +927,9 @@ function PlayerManager() {
 							);
 							dispatch({
 								category: 'SET_ERROR',
-								error: formatPlaybackErrorMessage(error),
+								error: formatPlaybackErrorMessage(error, {
+									knownYouTubeSource: resolved.source === 'youtube',
+								}),
 							});
 							return;
 						}
@@ -944,7 +946,9 @@ function PlayerManager() {
 						loadingStartedAtRef.current = 0;
 						dispatch({
 							category: 'SET_ERROR',
-							error: `${formatPlaybackErrorMessage(error)} (after ${MAX_RETRIES} attempts)`,
+							error: `${formatPlaybackErrorMessage(error, {
+								knownYouTubeSource: resolved.source === 'youtube',
+							})} (after ${MAX_RETRIES} attempts)`,
 						});
 					}
 				}
