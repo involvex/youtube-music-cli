@@ -11,10 +11,6 @@ export type InstallPlan = {
 const REQUIRED_DEPENDENCIES: PlaybackDependency[] = ['mpv', 'yt-dlp'];
 
 function getDependencyExecutable(dependency: PlaybackDependency): string {
-	if (process.platform === 'win32') {
-		return dependency === 'mpv' ? 'mpv.exe' : 'yt-dlp.exe';
-	}
-
 	return dependency;
 }
 
