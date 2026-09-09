@@ -6,12 +6,14 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 import {truncate} from '../../utils/format.ts';
 import {getSmartRecommendations} from '../../services/youtube-music/smart-recommendations.service.ts';
 
 export default function Suggestions() {
 	const {theme} = useTheme();
+	const {dispatch} = useNavigation();
 	const {state: playerState, play} = usePlayer();
 	const {isLoading: _isLoading} = useYouTubeMusic();
 	const [suggestions, setSuggestions] = useState<Track[]>([]);
@@ -58,6 +60,9 @@ export default function Suggestions() {
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
+	useKeyBinding(resolveKeybinding('BACK'), () => {
+		dispatch({category: 'GO_BACK'});
+	});
 
 	if (isLoading) {
 		return <Text color={theme.colors.accent}>Loading suggestions...</Text>;

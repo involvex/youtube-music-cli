@@ -21,7 +21,7 @@ const defaultSearchFilters: SearchFilters = {
 	duration: 'all',
 };
 
-const initialState: NavigationState = {
+export const initialState: NavigationState = {
 	currentView: VIEW.HOME,
 	previousView: null,
 	searchQuery: '',
@@ -36,12 +36,20 @@ const initialState: NavigationState = {
 	searchFilters: defaultSearchFilters,
 };
 
-function navigationReducer(
+export function navigationReducer(
 	state: NavigationState,
 	action: NavigationAction,
 ): NavigationState {
 	switch (action.category) {
 		case 'NAVIGATE':
+			// Navigating to the view we're already in is a no-op. Without
+			// this guard, repeat presses of a view's own shortcut (e.g. 'e'
+			// while in Explore, '/' while in Search) stack duplicate entries
+			// onto history, and a later GO_BACK pops back to the same view —
+			// making Escape appear to do nothing.
+			if (action.view === state.currentView) {
+				return state;
+			}
 			return {
 				...state,
 				currentView: action.view,
@@ -51,7 +59,18 @@ function navigationReducer(
 
 		case 'GO_BACK':
 			if (state.history.length === 0) {
-				return state;
+				// Nowhere to go back to: fall back to home (unless already
+				// there) so Escape always produces a visible result instead
+				// of silently doing nothing.
+				if (state.currentView === VIEW.HOME) {
+					return state;
+				}
+				return {
+					...state,
+					currentView: VIEW.HOME,
+					previousView: state.currentView,
+					history: [],
+				};
 			}
 			const previousViews = [...state.history];
 			const backView = previousViews.pop()!;

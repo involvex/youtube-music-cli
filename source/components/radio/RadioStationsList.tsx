@@ -341,7 +341,7 @@ export default function RadioStationsList() {
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
 	useKeyBinding(resolveKeybinding('QUIT'), goBack);
-	useKeyBinding(resolveKeybinding('BACK'), goBack);
+	useKeyBinding(resolveKeybinding('BACK'), goBack, {bypassBlock: true});
 	useKeyBinding(resolveKeybinding('SEARCH'), startSearch);
 	useKeyBinding(['r'], () => {
 		void playRandom();

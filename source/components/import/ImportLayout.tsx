@@ -1,11 +1,12 @@
 // Import layout component for playlist import
-import {useState, useCallback, useEffect} from 'react';
+import {useState, useCallback} from 'react';
 import {Box, Text} from 'ink';
 import TextInput from 'ink-text-input';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {KEYBINDINGS} from '../../utils/constants.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getImportService} from '../../services/import/import.service.ts';
 import type {ImportSource, ImportProgress} from '../../types/import.types.ts';
 import ImportProgressComponent from './ImportProgress.tsx';
@@ -34,29 +35,6 @@ export default function ImportLayout() {
 		errors: string[];
 	} | null>(null);
 	const [error, setError] = useState<string | null>(null);
-
-	const goBack = useCallback(() => {
-		if (step === 'source') {
-			dispatch({category: 'GO_BACK'});
-		} else if (step === 'url') {
-			setStep('source');
-		} else if (step === 'name') {
-			setStep('url');
-		} else if (step === 'result') {
-			setStep('source');
-			setResult(null);
-		}
-	}, [step, dispatch]);
-
-	const selectSource = useCallback(() => {
-		setStep('url');
-	}, []);
-
-	const submitUrl = useCallback(() => {
-		if (url.trim()) {
-			setStep('name');
-		}
-	}, [url]);
 
 	const startImport = useCallback(async () => {
 		setStep('importing');
@@ -89,48 +67,59 @@ export default function ImportLayout() {
 		}
 	}, [selectedSource, url, customName, importService]);
 
+	const goBack = useCallback(() => {
+		if (step === 'source') {
+			dispatch({category: 'GO_BACK'});
+		} else if (step === 'url') {
+			setStep('source');
+		} else if (step === 'name') {
+			// Name is optional: Escape skips it and starts the import.
+			void startImport();
+		} else if (step === 'result') {
+			setStep('source');
+			setResult(null);
+		}
+	}, [step, dispatch, startImport]);
+
+	const selectSource = useCallback(() => {
+		setStep('url');
+	}, []);
+
+	const submitUrl = useCallback(() => {
+		if (url.trim()) {
+			setStep('name');
+		}
+	}, [url]);
+
 	const submitName = useCallback(() => {
 		startImport();
 	}, [startImport]);
 
 	// Keyboard bindings
-	useKeyBinding(KEYBINDINGS.UP, () => {
+	useKeyBinding(resolveKeybinding('UP'), () => {
 		if (step === 'source') {
 			setSelectedSource(prev => Math.max(0, prev - 1));
 		}
 	});
 
-	useKeyBinding(KEYBINDINGS.DOWN, () => {
+	useKeyBinding(resolveKeybinding('DOWN'), () => {
 		if (step === 'source') {
 			setSelectedSource(prev => Math.min(SOURCES.length - 1, prev + 1));
 		}
 	});
 
-	useKeyBinding(KEYBINDINGS.SELECT, () => {
+	useKeyBinding(resolveKeybinding('SELECT'), () => {
 		if (step === 'source') selectSource();
 		else if (step === 'url') submitUrl();
 		else if (step === 'name') submitName();
 		else if (step === 'result') goBack();
 	});
 
-	useKeyBinding(KEYBINDINGS.BACK, goBack);
-
-	// Escape key for skip name
-	useEffect(() => {
-		if (step === 'name') {
-			const handleEscape = () => {
-				startImport();
-			};
-
-			const stdin = process.stdin;
-			stdin.on('keypress', handleEscape);
-
-			return () => {
-				stdin.off('keypress', handleEscape);
-			};
-		}
-		return undefined;
-	}, [step, startImport]);
+	// Block global shortcuts while typing the URL/name so pasted text can't
+	// trigger app actions. Escape still works via the bypass BACK handler.
+	const isTypingStep = step === 'url' || step === 'name';
+	useKeyboardBlocker(isTypingStep);
+	useKeyBinding(resolveKeybinding('BACK'), goBack, {bypassBlock: true});
 
 	return (
 		<Box flexDirection="column" gap={1} paddingX={1}>
@@ -277,7 +266,9 @@ export default function ImportLayout() {
 					<Text color={theme.colors.dim}>
 						{step === 'source'
 							? '↑↓ to select, Enter to continue, Esc/q to go back'
-							: 'Enter to continue, Esc to go back'}
+							: step === 'name'
+								? 'Enter to import, Esc to skip'
+								: 'Enter to continue, Esc to go back'}
 					</Text>
 				</Box>
 			)}

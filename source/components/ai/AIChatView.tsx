@@ -6,6 +6,7 @@ import type {ReactNode} from 'react';
 import {useChat} from '../../stores/chat.store.tsx';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {VIEW} from '../../utils/constants.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
@@ -14,6 +15,13 @@ export default function AIChatView(): ReactNode {
 	const {messages, isProcessing, error, sendMessage, isConfigured} = useChat();
 	const {dispatch} = useNavigation();
 	const [input, setInput] = useState('');
+
+	const llmEnabled = getConfigService().getLLMEnabled();
+	// The chat input is focused while this view is active: block global
+	// shortcuts so typing (e.g. 'q', space) doesn't trigger app actions.
+	// Escape still leaves via the bypass BACK handler below.
+	const chatActive = llmEnabled && isConfigured;
+	useKeyboardBlocker(chatActive);
 
 	const handleSubmit = async (): Promise<void> => {
 		if (!input.trim() || isProcessing) return;
@@ -27,8 +35,13 @@ export default function AIChatView(): ReactNode {
 	};
 
 	useKeyBinding(resolveKeybinding('SELECT'), goToSettings);
-
-	const llmEnabled = getConfigService().getLLMEnabled();
+	useKeyBinding(
+		resolveKeybinding('BACK'),
+		() => {
+			dispatch({category: 'GO_BACK'});
+		},
+		{bypassBlock: true},
+	);
 
 	if (!llmEnabled) {
 		return (

@@ -1,8 +1,10 @@
-import {Box, Text, useInput} from 'ink';
-import {useState, useEffect} from 'react';
+import {Box, Text} from 'ink';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import type {Release} from '../../types/youtube-music.types.ts';
 
@@ -45,51 +47,58 @@ export default function NewReleasesLayout() {
 	}, []);
 
 	const currentSection = sections[sectionIndex];
-	const releases = currentSection?.releases ?? [];
+	const releases = useMemo(
+		() => currentSection?.releases ?? [],
+		[currentSection],
+	);
 
-	useInput((input, key) => {
-		if (key.escape) {
-			dispatch({category: 'GO_BACK'});
-			return;
+	const playSelected = useCallback(() => {
+		const release = releases[releaseIndex];
+		if (release?.browseId) {
+			setIsLoading(true);
+			getMusicService()
+				.getReleaseTracks(release.browseId)
+				.then(tracks => {
+					setIsLoading(false);
+					if (tracks.length > 0) {
+						playerDispatch({category: 'CLEAR_QUEUE'});
+						playerDispatch({category: 'SET_QUEUE', queue: tracks});
+						playerDispatch({category: 'PLAY', track: tracks[0]!});
+					} else {
+						setError('No tracks found in release');
+					}
+				})
+				.catch((err: unknown) => {
+					setIsLoading(false);
+					setError(
+						err instanceof Error
+							? err.message
+							: 'Failed to load release tracks',
+					);
+				});
 		}
+	}, [releases, releaseIndex, playerDispatch]);
 
-		if (key.leftArrow || input === 'h') {
-			setSectionIndex(i => Math.max(0, i - 1));
-			setReleaseIndex(0);
-		} else if (key.rightArrow || input === 'l') {
-			setSectionIndex(i => Math.min(sections.length - 1, i + 1));
-			setReleaseIndex(0);
-		} else if (key.upArrow || input === 'k') {
-			setReleaseIndex(i => Math.max(0, i - 1));
-		} else if (key.downArrow || input === 'j') {
-			setReleaseIndex(i => Math.min(releases.length - 1, i + 1));
-		} else if (key.return) {
-			const release = releases[releaseIndex];
-			if (release?.browseId) {
-				setIsLoading(true);
-				getMusicService()
-					.getReleaseTracks(release.browseId)
-					.then(tracks => {
-						setIsLoading(false);
-						if (tracks.length > 0) {
-							playerDispatch({category: 'CLEAR_QUEUE'});
-							playerDispatch({category: 'SET_QUEUE', queue: tracks});
-							playerDispatch({category: 'PLAY', track: tracks[0]!});
-						} else {
-							setError('No tracks found in release');
-						}
-					})
-					.catch((err: unknown) => {
-						setIsLoading(false);
-						setError(
-							err instanceof Error
-								? err.message
-								: 'Failed to load release tracks',
-						);
-					});
-			}
-		}
+	const goBack = useCallback(() => {
+		dispatch({category: 'GO_BACK'});
+	}, [dispatch]);
+
+	useKeyBinding(['left'], () => {
+		setSectionIndex(i => Math.max(0, i - 1));
+		setReleaseIndex(0);
 	});
+	useKeyBinding(['right'], () => {
+		setSectionIndex(i => Math.min(sections.length - 1, i + 1));
+		setReleaseIndex(0);
+	});
+	useKeyBinding(resolveKeybinding('UP'), () => {
+		setReleaseIndex(i => Math.max(0, i - 1));
+	});
+	useKeyBinding(resolveKeybinding('DOWN'), () => {
+		setReleaseIndex(i => Math.min(releases.length - 1, i + 1));
+	});
+	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
+	useKeyBinding(resolveKeybinding('BACK'), goBack);
 
 	return (
 		<Box flexDirection="column" padding={1}>

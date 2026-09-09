@@ -3,6 +3,7 @@ import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useFavorites} from '../../stores/favorites.store.tsx';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {ICONS} from '../../utils/icons.ts';
@@ -11,6 +12,7 @@ import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 
 export default function FavoritesList() {
 	const {theme} = useTheme();
+	const {dispatch} = useNavigation();
 	const {favorites, removeFavorite} = useFavorites();
 	const {play, dispatch: playerDispatch, addToQueue, playNext} = usePlayer();
 	const {columns, rows} = useTerminalSize();
@@ -68,6 +70,9 @@ export default function FavoritesList() {
 	}, [favorites, selectedIndex, removeFavorite]);
 
 	// Key bindings
+	useKeyBinding(resolveKeybinding('BACK'), () => {
+		dispatch({category: 'GO_BACK'});
+	});
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), playSelected);

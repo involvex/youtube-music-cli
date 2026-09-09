@@ -55,15 +55,15 @@ These work from any screen.
 
 ## Search
 
-| Key        | Action                      |
-| ---------- | --------------------------- |
-| `/`        | Focus search input          |
-| `Enter`    | Execute search              |
-| `Esc`      | Clear search / Close        |
-| `]/` / `[` | More / fewer search results |
-| `W`        | Add track to playback queue |
-| `Y`        | Play track next in queue    |
-| `Shift+H`  | Queue & History view        |
+| Key        | Action                          |
+| ---------- | ------------------------------- |
+| `/`        | Focus search input              |
+| `Enter`    | Execute search                  |
+| `Esc`      | Back (results → typing → leave) |
+| `]/` / `[` | More / fewer search results     |
+| `W`        | Add track to playback queue     |
+| `Y`        | Play track next in queue        |
+| `Shift+H`  | Queue & History view            |
 
 ## Playlist
 

@@ -91,8 +91,9 @@ export default function LoginView() {
 		}
 	}, [status.loggedIn]);
 
-	// Allow R key to retry login
-	useKeyBinding(['R'], () => {
+	// Allow r key to retry login (lowercase: uppercase would imply Shift+R,
+	// which is already the global resume-background shortcut).
+	useKeyBinding(['r'], () => {
 		if (loginState === 'error' || showCookieFallback) {
 			setLoginState('idle');
 			setError(null);

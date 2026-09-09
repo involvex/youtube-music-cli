@@ -195,14 +195,22 @@ function MainLayout() {
 	// Global keyboard bindings
 	useKeyBinding(resolveKeybinding('QUIT'), handleQuit);
 
-	// Esc from player view goes back (player has no native back binding)
-	const handlePlayerBack = useCallback(() => {
-		if (navState.currentView === VIEW.PLAYER) {
-			dispatch({category: 'GO_BACK'});
+	// Global back fallback (lowest priority: MainLayout registers first, and
+	// KeyboardManager dispatches LIFO, so a focused view's own BACK handler
+	// always wins and this only fires when nothing more specific handled it).
+	// Previously this only worked in the player view and swallowed Escape
+	// everywhere else, making "Esc to go back" unreliable.
+	const handleGlobalBack = useCallback(() => {
+		if (navState.playerMode === 'mini') {
+			dispatch({category: 'TOGGLE_PLAYER_MODE'});
+			return;
 		}
-	}, [navState.currentView, dispatch]);
+		dispatch({category: 'GO_BACK'});
+	}, [dispatch, navState.playerMode]);
 
-	useKeyBinding(resolveKeybinding('BACK'), handlePlayerBack);
+	useKeyBinding(resolveKeybinding('BACK'), handleGlobalBack, {
+		bypassBlock: true,
+	});
 	useKeyBinding(
 		navState.currentView === VIEW.RADIO ||
 			navState.currentView === VIEW.LIVE_STREAMS
@@ -217,7 +225,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('HOME'), goToHome);
 	useKeyBinding(resolveKeybinding('SETTINGS'), goToSettings);
 	useKeyBinding(resolveKeybinding('HELP'), goToHelp);
-	useKeyBinding(['M'], togglePlayerMode);
+	useKeyBinding(['v'], togglePlayerMode);
 	useKeyBinding(['l'], goToLyrics);
 	useKeyBinding(['T'], goToTrending);
 	useKeyBinding(['e'], goToExplore);

@@ -127,7 +127,8 @@ export default function Help() {
 						<Text> | </Text>
 						<Text color={theme.colors.text}>Shift+D</Text> - Download selection
 						<Text> | </Text>
-						<Text color={theme.colors.text}>Esc</Text> - Clear Search
+						<Text color={theme.colors.text}>Esc</Text> - Back (staged: close
+						dialog, then view)
 						<Text> | </Text>
 						<Text color={theme.colors.text}>Shift+H</Text> - Queue & History
 						<Text> | </Text>
@@ -165,7 +166,7 @@ export default function Help() {
 				</Text>
 				<Box paddingX={2}>
 					<Text>
-						<Text color={theme.colors.text}>M</Text> - Toggle Mini Player
+						<Text color={theme.colors.text}>v</Text> - Toggle Mini Player
 						<Text> | </Text>
 						<Text color={theme.colors.text}>l</Text> - Lyrics
 						<Text> | </Text>

@@ -1,5 +1,5 @@
-import {Box, Text, useInput} from 'ink';
-import {useState} from 'react';
+import {Box, Text} from 'ink';
+import {useState, useCallback} from 'react';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useStats} from '../../stores/stats.store.tsx';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
@@ -25,33 +25,28 @@ export default function StatsDashboard() {
 		dispatch({category: 'GO_BACK'});
 	});
 
-	useInput((input, key) => {
-		if (key.ctrl || key.meta) {
-			return;
-		}
+	const shareToClipboard = useCallback(() => {
+		void (async () => {
+			const card = formatStatsShareCard(stats);
+			const copied = await copyTextToClipboard(card);
+			setStatus(
+				copied
+					? 'Share card copied to clipboard'
+					: 'Clipboard unavailable — press E to export to a file',
+			);
+		})();
+	}, [stats]);
 
-		const lower = input.toLowerCase();
-		if (lower === 's') {
-			void (async () => {
-				const card = formatStatsShareCard(stats);
-				const copied = await copyTextToClipboard(card);
-				setStatus(
-					copied
-						? 'Share card copied to clipboard'
-						: 'Clipboard unavailable — press E to export to a file',
-				);
-			})();
-			return;
-		}
+	const exportToFile = useCallback(() => {
+		void (async () => {
+			const card = formatStatsShareCard(stats);
+			const filePath = await writeStatsShareFile(card);
+			setStatus(`Exported share card to ${filePath}`);
+		})();
+	}, [stats]);
 
-		if (lower === 'e') {
-			void (async () => {
-				const card = formatStatsShareCard(stats);
-				const filePath = await writeStatsShareFile(card);
-				setStatus(`Exported share card to ${filePath}`);
-			})();
-		}
-	});
+	useKeyBinding(['s'], shareToClipboard);
+	useKeyBinding(['e'], exportToFile);
 
 	return (
 		<Box flexDirection="column" padding={1} gap={1}>

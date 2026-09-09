@@ -1,9 +1,11 @@
 // Trending tracks view — shows YouTube trending music
-import {Box, Text, useInput} from 'ink';
-import {useState, useEffect} from 'react';
+import {Box, Text} from 'ink';
+import {useState, useEffect, useCallback} from 'react';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
@@ -39,21 +41,27 @@ export default function TrendingLayout() {
 		};
 	}, []);
 
-	useInput((input, key) => {
-		if (key.escape) {
-			dispatch({category: 'GO_BACK'});
-			return;
-		}
+	const navigateUp = useCallback(() => {
+		setSelectedIndex(i => Math.max(0, i - 1));
+	}, []);
 
-		if (key.upArrow || input === 'k') {
-			setSelectedIndex(i => Math.max(0, i - 1));
-		} else if (key.downArrow || input === 'j') {
-			setSelectedIndex(i => Math.min(tracks.length - 1, i + 1));
-		} else if (key.return) {
-			const track = tracks[selectedIndex];
-			if (track) play(track);
-		}
-	});
+	const navigateDown = useCallback(() => {
+		setSelectedIndex(i => Math.min(tracks.length - 1, i + 1));
+	}, [tracks.length]);
+
+	const playSelected = useCallback(() => {
+		const track = tracks[selectedIndex];
+		if (track) play(track);
+	}, [tracks, selectedIndex, play]);
+
+	const goBack = useCallback(() => {
+		dispatch({category: 'GO_BACK'});
+	}, [dispatch]);
+
+	useKeyBinding(resolveKeybinding('UP'), navigateUp);
+	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
+	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
+	useKeyBinding(resolveKeybinding('BACK'), goBack);
 
 	return (
 		<Box flexDirection="column" padding={1}>

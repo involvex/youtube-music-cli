@@ -5,7 +5,8 @@ import React from 'react';
 import {SEARCH_TYPE} from '../../utils/constants.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
-import {Box, Text, useInput} from 'ink';
+import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {Box, Text} from 'ink';
 import TextInput from 'ink-text-input';
 import {getConfigService} from '../../services/config/config.service.ts';
 
@@ -48,35 +49,13 @@ function SearchBar({onInput, isActive = true}: Props) {
 		[dispatch, onInput, isActive, config],
 	);
 
-	// Handle clearing search
-	const clearSearch = useCallback(() => {
-		if (isActive) {
-			setInput('');
-			onInput('');
-		}
-	}, [isActive, onInput]);
+	// Handle Tab to cycle search type via the central registry. This needs
+	// bypassBlock so it works while the text input is focused (blocked).
+	useKeyBinding(['tab'], cycleType, {bypassBlock: true});
 
-	// Handle Tab to cycle search type via direct useInput to avoid
-	// registry/keyboard-blocker interaction issues (GitHub #43)
-	useInput(
-		(_input, key) => {
-			if (key.tab && isActive) {
-				cycleType();
-			}
-		},
-		{isActive},
-	);
-
-	// Handle Escape to clear search via direct useInput
-	useInput(
-		(_input, key) => {
-			if (key.escape && isActive) {
-				clearSearch();
-			}
-		},
-		{isActive},
-	);
-
+	// Note: Escape is intentionally NOT handled here. While typing, Escape
+	// leaves the search view via SearchLayout's BACK handler (bypass), so Esc
+	// reliably means "back" instead of sometimes clearing, sometimes leaving.
 	useKeyboardBlocker(isActive);
 
 	return (
