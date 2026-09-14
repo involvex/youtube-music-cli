@@ -86,7 +86,7 @@
 		"node-notifier": "^10.0.1",
 		"node-youtube-music": "^0.10.3",
 		"play-sound": "^1.1.6",
-		"react": "19.2.8",
+		"react": "19.3.0",
 		"ws": "^8.21.3",
 		"yaml": "^2.9.1",
 		"youtubei.js": "^18.0.0"
@@ -125,7 +125,7 @@
 	"sponsors": "https://github.com/sponsors/involvex",
 	"overrides": {
 		"minimatch": "^10.2.1",
-		"react": "19.2.8",
+		"react": "19.3.0",
 		"react-dom": "19.2.8"
 	},
 	"trustedDependencies": [
