@@ -174,7 +174,7 @@ export default function PlaylistList() {
 	useKeyBinding(resolveKeybinding('CREATE_MIX'), startPlaylistRadio);
 	useKeyBinding(resolveKeybinding('CREATE_PLAYLIST'), handleCreate);
 	useKeyBinding(resolveKeybinding('DELETE_PLAYLIST'), handleDelete);
-	useKeyBinding(resolveKeybinding('BACK'), handleBack);
+	useKeyBinding(resolveKeybinding('BACK'), handleBack, {bypassBlock: true});
 	useKeyBinding(resolveKeybinding('DOWNLOAD'), () => {
 		void handleDownload();
 	});

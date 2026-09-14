@@ -1,9 +1,12 @@
 // Lyrics view layout - displays synced or plain lyrics with karaoke-style
 // word-level highlighting and a smooth color gradient sweep.
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useCallback} from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
+import {useNavigation} from '../../hooks/useNavigation.ts';
+import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {
 	getLyricsService,
 	type LyricLine,
@@ -25,7 +28,16 @@ const RESERVED_ROWS = 14;
 export default function LyricsLayout() {
 	const {theme} = useTheme();
 	const {state} = usePlayer();
+	const {dispatch} = useNavigation();
 	const {rows} = useTerminalSize();
+
+	// The footer promises "l or Esc to go back" — previously neither was
+	// bound, so both appeared dead.
+	const goBack = useCallback(() => {
+		dispatch({category: 'GO_BACK'});
+	}, [dispatch]);
+	useKeyBinding(resolveKeybinding('BACK'), goBack);
+	useKeyBinding(['l'], goBack);
 	const [lyrics, setLyrics] = useState<{
 		synced: LyricLine[] | null;
 		plain: string | null;

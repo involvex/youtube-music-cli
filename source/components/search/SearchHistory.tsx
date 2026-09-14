@@ -38,6 +38,9 @@ export default function SearchHistory({onSelect}: Props) {
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), handleSelect);
+	useKeyBinding(resolveKeybinding('BACK'), () => {
+		dispatch({category: 'GO_BACK'});
+	});
 
 	return (
 		<Box flexDirection="column" gap={1}>

@@ -118,10 +118,15 @@ export default function PlayerControls() {
 	useKeyBinding(resolveKeybinding('PLAY_PAUSE'), handlePlayPause);
 	useKeyBinding(resolveKeybinding('NEXT'), next);
 	useKeyBinding(resolveKeybinding('PREVIOUS'), previous);
-	useKeyBinding(['up'], volumeUp);
-	useKeyBinding(['down'], volumeDown);
-	useKeyBinding(['left'], previous);
-	useKeyBinding(['right'], next);
+	// Arrow keys adjust volume / skip tracks ONLY in the player view. This
+	// component is also mounted in list views (Favorites, Radio, Live) where
+	// Up/Down must navigate the list — previously both handlers raced and one
+	// of the two controls silently stopped working.
+	const playerView = navState.currentView === VIEW.PLAYER;
+	useKeyBinding(playerView ? ['up'] : [], volumeUp);
+	useKeyBinding(playerView ? ['down'] : [], volumeDown);
+	useKeyBinding(playerView ? ['left'] : [], previous);
+	useKeyBinding(playerView ? ['right'] : [], next);
 	useKeyBinding(resolveKeybinding('SPEED_UP'), speedUp);
 	useKeyBinding(resolveKeybinding('SPEED_DOWN'), speedDown);
 	useKeyBinding(resolveKeybinding('SHUFFLE'), toggleShuffle);

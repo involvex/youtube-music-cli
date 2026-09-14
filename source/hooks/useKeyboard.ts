@@ -11,8 +11,34 @@ type RegistryEntry = {
 	bypassBlock?: boolean;
 };
 
+// Minimal shape of Ink's key object needed for matching. Kept structural so
+// the matcher can be unit-tested without Ink.
+export type KeyInfo = {
+	ctrl?: boolean;
+	meta?: boolean;
+	shift?: boolean;
+	upArrow?: boolean;
+	downArrow?: boolean;
+	leftArrow?: boolean;
+	rightArrow?: boolean;
+	return?: boolean;
+	escape?: boolean;
+	backspace?: boolean;
+	delete?: boolean;
+	tab?: boolean;
+	pageUp?: boolean;
+	pageDown?: boolean;
+	home?: boolean;
+	end?: boolean;
+};
+
 // Global registry for key handlers
 const registry: Set<RegistryEntry> = new Set();
+
+/** Test-only: clear the global registry between tests. */
+export function resetKeyboardRegistryForTests(): void {
+	registry.clear();
+}
 
 // Callback to navigate to home (registered by MainLayout)
 let goHomeCallback: (() => void) | null = null;
@@ -34,10 +60,140 @@ export function setCurrentViewForCtrlC(view: string): void {
 	currentView = view;
 }
 
+/** True when the keypress represents Escape, including a raw ESC byte that
+ * some macOS terminals deliver without Ink setting key.escape. */
+export function isEscapeKey(input: string, key: KeyInfo): boolean {
+	return Boolean(key.escape) || input === '\x1b';
+}
+
+/**
+ * Match a single keybinding string (e.g. 'escape', 'ctrl+a', 'shift+right',
+ * '+', 'M') against an Ink keypress.
+ *
+ * Case convention: a single UPPERCASE letter binding (e.g. 'M') requires
+ * Shift (it matches Shift+m / 'M'); a lowercase letter binding explicitly
+ * does NOT match when Shift is held, so 'm' and 'M' are distinct bindings.
+ */
+export function matchKeyBinding(
+	binding: string,
+	input: string,
+	key: KeyInfo,
+): boolean {
+	const lowerBinding = binding.toLowerCase();
+
+	// A. Special keys (highest precedence). Skip Enter/Return when Ctrl is
+	// held so Ctrl+M (ASCII CR) can bind separately.
+	if (lowerBinding === 'escape' && isEscapeKey(input, key)) return true;
+	if (
+		(lowerBinding === 'return' || lowerBinding === 'enter') &&
+		key.return &&
+		!key.ctrl
+	)
+		return true;
+	if (lowerBinding === 'tab' && key.tab) return true;
+	if (lowerBinding === 'backspace' && (key.backspace || key.delete))
+		return true;
+	if (lowerBinding === 'delete' && (key.delete || key.backspace)) return true;
+	if (lowerBinding === 'up' && key.upArrow) return true;
+	if (lowerBinding === 'down' && key.downArrow) return true;
+	if (lowerBinding === 'left' && key.leftArrow) return true;
+	if (lowerBinding === 'right' && key.rightArrow) return true;
+	if (lowerBinding === 'pageup' && key.pageUp) return true;
+	if (lowerBinding === 'pagedown' && key.pageDown) return true;
+	if (lowerBinding === 'home' && key.home) return true;
+	if (lowerBinding === 'end' && key.end) return true;
+
+	// B. Combination and character keys
+	const parts = lowerBinding.split('+');
+	const hasCtrl = parts.includes('ctrl');
+	const hasMeta = parts.includes('meta') || parts.includes('alt');
+	const hasShift = parts.includes('shift');
+
+	// Robust main key detection (handles '+' correctly)
+	let mainKey = '';
+	if (lowerBinding === '+') {
+		mainKey = '+';
+	} else if (lowerBinding.endsWith('++')) {
+		mainKey = '+';
+	} else if (lowerBinding.endsWith('+') && parts.length > 1) {
+		mainKey = '+';
+	} else {
+		mainKey = parts[parts.length - 1]!;
+	}
+
+	if (hasCtrl && !key.ctrl) return false;
+	if (hasMeta && !key.meta) return false;
+
+	const isLetter = /^[a-z]$/.test(mainKey);
+	// A single uppercase letter binding (e.g. 'M') implies Shift.
+	const bindingImpliesShift =
+		binding.length === 1 &&
+		mainKey !== binding &&
+		binding === binding.toUpperCase() &&
+		isLetter;
+
+	if (hasShift || bindingImpliesShift) {
+		const shiftActive =
+			key.shift || (input.length === 1 && input !== input.toLowerCase());
+		if (!shiftActive) return false;
+	} else if (
+		isLetter &&
+		(key.shift || (input.length === 1 && input !== input.toLowerCase()))
+	) {
+		// Block 'p' if user typed 'P' (lowercase binding, Shift held)
+		return false;
+	}
+
+	// Arrow keys, optionally with modifiers (e.g. shift+right for seek)
+	if (mainKey === 'up' && key.upArrow) return true;
+	if (mainKey === 'down' && key.downArrow) return true;
+	if (mainKey === 'left' && key.leftArrow) return true;
+	if (mainKey === 'right' && key.rightArrow) return true;
+
+	// Ctrl+letter control codes (SOH–SUB)
+	if (hasCtrl && isLetter && input.length === 1) {
+		const charCode = input.charCodeAt(0);
+		if (charCode >= 1 && charCode <= 26) {
+			const derived = String.fromCharCode(charCode + 64);
+			if (derived.toLowerCase() === mainKey) return true;
+		}
+	}
+
+	// Ctrl+symbol (e.g. ctrl+,) when terminal reports key.ctrl
+	if (
+		hasCtrl &&
+		key.ctrl &&
+		input.length === 1 &&
+		input.toLowerCase() === mainKey
+	) {
+		return true;
+	}
+
+	// Symbol/char match
+	const inputLower = input.toLowerCase();
+	const isSymbolMatch =
+		(mainKey === '=' && input === '=') ||
+		(mainKey === '+' && input === '+') ||
+		(mainKey === '+' && key.shift && input === '=') ||
+		(mainKey === '-' && input === '-') ||
+		(mainKey === ']' && input === ']') ||
+		(mainKey === '[' && input === '[');
+
+	if (isSymbolMatch || (inputLower === mainKey && !key.ctrl && !key.meta)) {
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Hook to bind keyboard shortcuts.
  * This uses a centralized manager to avoid multiple useInput calls and memory leaks.
  * Uses a ref-based approach to always call the latest handler without stale closures.
+ *
+ * Dispatch is LIFO: the most recently registered handler for a key wins, so a
+ * focused child view overrides global bindings, and the global fallback in
+ * MainLayout only fires when nothing more specific handled the key.
  */
 export function useKeyBinding(
 	keys: readonly string[],
@@ -47,18 +203,28 @@ export function useKeyBinding(
 	const handlerRef = useRef(handler);
 	handlerRef.current = handler;
 
+	const bypassBlock = options?.bypassBlock ?? false;
+	// Serialize for the effect deps: inline arrays (e.g. ['M']) get a new
+	// identity every render, but equal content must not churn the registry.
+	const keysFingerprint = JSON.stringify([...keys]);
+
 	useEffect(() => {
+		// An empty key list disables the binding without occupying a slot.
+		if (keys.length === 0) {
+			return;
+		}
+
 		const entry: RegistryEntry = {
 			keys,
 			handler: () => handlerRef.current(),
-			bypassBlock: options?.bypassBlock,
+			bypassBlock,
 		};
 
 		// Log registration of volume down key for debugging
 		if (keys.includes('-') || keys.some(k => k.includes('-'))) {
 			logger.debug('KeyboardManager', 'Registered keybinding for "-"', {
 				keys,
-				bypassBlock: options?.bypassBlock,
+				bypassBlock,
 				stack: new Error().stack,
 			});
 		}
@@ -73,7 +239,15 @@ export function useKeyBinding(
 				});
 			}
 		};
-	}, [keys, options?.bypassBlock]); // keys and bypassBlock are deps; handlerRef is a stable ref
+		// keys is intentionally represented by keysFingerprint above: inline
+		// arrays get a new identity every render, but equal content must not
+		// churn the registry.
+	}, [keysFingerprint, bypassBlock]);
+}
+
+/** Snapshot of the registry in dispatch (LIFO) order. */
+function dispatchOrder(): RegistryEntry[] {
+	return [...registry].reverse();
 }
 
 /**
@@ -101,7 +275,7 @@ export function KeyboardManager() {
 			key.leftArrow ||
 			key.rightArrow ||
 			key.return ||
-			key.escape ||
+			isEscapeKey(input, key) ||
 			key.backspace ||
 			key.delete ||
 			key.tab ||
@@ -137,100 +311,41 @@ export function KeyboardManager() {
 				process.exit(0);
 			}
 
-			for (const entry of registry) {
-				if (entry.bypassBlock) {
-					for (const binding of entry.keys) {
-						const lowerBinding = binding.toLowerCase();
+			// Escape always bypasses the block so users can leave/close text
+			// inputs with the same key everywhere (macOS reliability: this
+			// covers both key.escape and a raw ESC byte).
+			const pressedEscape = isEscapeKey(input, key);
 
-						// Check for ESC key (most common bypass case)
-						if (lowerBinding === 'escape' && key.escape) {
-							entry.handler();
-							return;
-						}
+			for (const entry of dispatchOrder()) {
+				// Non-bypass entries stay silent while blocked, except for
+				// Escape which is always allowed through.
+				if (!entry.bypassBlock && !pressedEscape) {
+					continue;
+				}
 
-						// Handle other bypass keys
-						const isMatch =
-							((lowerBinding === 'return' || lowerBinding === 'enter') &&
-								key.return) ||
-							(lowerBinding === 'backspace' && key.backspace) ||
-							(lowerBinding === 'tab' && key.tab) ||
-							(lowerBinding === 'up' && key.upArrow) ||
-							(lowerBinding === 'down' && key.downArrow) ||
-							(lowerBinding === 'left' && key.leftArrow) ||
-							(lowerBinding === 'right' && key.rightArrow) ||
-							(lowerBinding === 'pageup' && key.pageUp) ||
-							(lowerBinding === 'pagedown' && key.pageDown) ||
-							(() => {
-								const parts = lowerBinding.split('+');
-								const hasCtrl = parts.includes('ctrl');
-								const hasMeta = parts.includes('meta') || parts.includes('alt');
-								const hasShift = parts.includes('shift');
-
-								// Robust main key detection (handles '+' correctly)
-								let mainKey = '';
-								if (lowerBinding === '+') {
-									mainKey = '+';
-								} else if (lowerBinding.endsWith('++')) {
-									mainKey = '+';
-								} else if (lowerBinding.endsWith('+') && parts.length > 1) {
-									mainKey = '+';
-								} else {
-									mainKey = parts[parts.length - 1]!;
-								}
-
-								if (hasCtrl && !key.ctrl) return false;
-								if (hasMeta && !key.meta) return false;
-								if (hasShift && !key.shift) return false;
-
-								// Check arrow keys
-								if (mainKey === 'up' && key.upArrow) return true;
-								if (mainKey === 'down' && key.downArrow) return true;
-								if (mainKey === 'left' && key.leftArrow) return true;
-								if (mainKey === 'right' && key.rightArrow) return true;
-
-								// Handle '=' and '+'
-								if (mainKey === '=' && input === '=') return true;
-								if (mainKey === '+' && input === '+') return true;
-								if (mainKey === '+' && key.shift && input === '=') return true;
-
-								// Ctrl+letter control codes (SOH–SUB)
-								if (hasCtrl && /^[a-z]$/.test(mainKey) && input.length === 1) {
-									const charCode = input.charCodeAt(0);
-									if (charCode >= 1 && charCode <= 26) {
-										const derived = String.fromCharCode(charCode + 64);
-										if (derived.toLowerCase() === mainKey) return true;
-									}
-								}
-
-								// Ctrl+symbol (e.g. ctrl+,) when terminal reports key.ctrl
-								if (
-									hasCtrl &&
-									key.ctrl &&
-									input.length === 1 &&
-									input.toLowerCase() === mainKey
-								) {
-									return true;
-								}
-
-								return (
-									input.toLowerCase() === mainKey && !key.ctrl && !key.meta
-								);
-							})();
-
-						if (isMatch) {
-							logger.debug(
-								'KeyboardManager',
-								'Bypass block: handler triggered',
-								{
-									binding,
-									input,
-									key: {ctrl: key.ctrl, shift: key.shift, meta: key.meta},
-								},
-							);
-							entry.handler();
-							return;
-						}
+				for (const binding of entry.keys) {
+					if (!matchKeyBinding(binding, input, key)) {
+						continue;
 					}
+
+					// A non-bypass entry only fires while blocked when the
+					// pressed key itself is Escape; other matches on that
+					// entry must wait until the input is no longer focused.
+					if (
+						!entry.bypassBlock &&
+						binding.toLowerCase() !== 'escape' &&
+						pressedEscape
+					) {
+						continue;
+					}
+
+					logger.debug('KeyboardManager', 'Bypass block: handler triggered', {
+						binding,
+						input,
+						key: {ctrl: key.ctrl, shift: key.shift, meta: key.meta},
+					});
+					entry.handler();
+					return;
 				}
 			}
 			return;
@@ -253,127 +368,33 @@ export function KeyboardManager() {
 			});
 		}
 
-		// Dispatch to registered handlers
-		for (const entry of registry) {
+		// Dispatch to registered handlers (LIFO: focused view wins)
+		for (const entry of dispatchOrder()) {
 			const {keys, handler} = entry;
 
 			for (const binding of keys) {
-				const lowerBinding = binding.toLowerCase();
-
-				// A. Match Special Keys (Highest precedence)
-				// Skip Enter/Return when Ctrl is held so Ctrl+M (ASCII CR) can bind separately.
-				const isSpecialMatch =
-					(lowerBinding === 'up' && key.upArrow) ||
-					(lowerBinding === 'down' && key.downArrow) ||
-					(lowerBinding === 'left' && key.leftArrow) ||
-					(lowerBinding === 'right' && key.rightArrow) ||
-					(lowerBinding === 'escape' && key.escape) ||
-					(lowerBinding === 'return' && key.return && !key.ctrl) ||
-					(lowerBinding === 'enter' && key.return && !key.ctrl) ||
-					(lowerBinding === 'tab' && key.tab) ||
-					(lowerBinding === 'backspace' && key.backspace) ||
-					(lowerBinding === 'pageup' && key.pageUp) ||
-					(lowerBinding === 'pagedown' && key.pageDown);
-
-				if (isSpecialMatch) {
-					handler();
-					return; // STOP: prevent double-dispatch
-				}
-
-				// B. Match Combination and Character keys
-				const parts = lowerBinding.split('+');
-				const hasCtrl = parts.includes('ctrl');
-				const hasMeta = parts.includes('meta') || parts.includes('alt');
-				const hasShift = parts.includes('shift');
-
-				// Robust main key detection (handles '+')
-				let mainKey = '';
-				if (lowerBinding === '+') {
-					mainKey = '+';
-				} else if (lowerBinding.endsWith('++')) {
-					mainKey = '+';
-				} else if (lowerBinding.endsWith('+') && parts.length > 1) {
-					mainKey = '+';
-				} else {
-					mainKey = parts[parts.length - 1]!;
-				}
-
-				// Check modifiers
-				if (hasCtrl && !key.ctrl) continue;
-				if (hasMeta && !key.meta) continue;
-
-				// Shift handling: block lowercase letter bindings when shift is active,
-				// but allow symbol keys like '+' or '=' to work regardless.
-				const isLetter = /^[a-z]$/.test(mainKey);
-				if (hasShift) {
-					const uppercaseMatch =
-						input.length === 1 &&
-						input === input.toUpperCase() &&
-						input.toLowerCase() === mainKey;
-					if (!key.shift && !uppercaseMatch) continue;
-				} else if (
-					isLetter &&
-					(key.shift || (input.length === 1 && input !== input.toLowerCase()))
-				) {
-					// Block 'p' if user typed 'P'
+				if (!matchKeyBinding(binding, input, key)) {
 					continue;
 				}
 
-				// Handle Ctrl+letter (control characters)
-				if (hasCtrl && isLetter && input.length === 1) {
-					const charCode = input.charCodeAt(0);
-					// Control codes for A-Z are 1-26 (SOH to Z)
-					if (charCode >= 1 && charCode <= 26) {
-						const derived = String.fromCharCode(charCode + 64); // 'A'-'Z'
-						if (derived.toLowerCase() === mainKey) {
-							handler();
-							return;
-						}
-					}
+				// Enhanced logging for volume keys
+				const mainKey =
+					binding.toLowerCase() === '+'
+						? '+'
+						: binding.toLowerCase().split('+').pop();
+				if (mainKey === '-' || mainKey === '+' || mainKey === '=') {
+					logger.debug('KeyboardManager', 'Volume key handler triggered', {
+						binding,
+						mainKey,
+						input,
+						keyShifts: {ctrl: key.ctrl, meta: key.meta, shift: key.shift},
+						stack: new Error().stack,
+						registrySize: registry.size,
+					});
 				}
 
-				// Ctrl+non-letter (e.g. ctrl+,) when terminal reports modifiers + symbol
-				if (
-					hasCtrl &&
-					!isLetter &&
-					key.ctrl &&
-					input.length === 1 &&
-					input.toLowerCase() === mainKey
-				) {
-					handler();
-					return;
-				}
-
-				// Check for symbol/char match
-				const inputLower = input.toLowerCase();
-				const isSymbolMatch =
-					(mainKey === '=' && input === '=') ||
-					(mainKey === '+' && input === '+') ||
-					(mainKey === '+' && key.shift && input === '=') ||
-					(mainKey === '-' && input === '-') ||
-					(mainKey === ']' && input === ']') ||
-					(mainKey === '[' && input === '[');
-
-				if (
-					isSymbolMatch ||
-					(inputLower === mainKey && !key.ctrl && !key.meta)
-				) {
-					// Enhanced logging for volume keys
-					if (mainKey === '-' || mainKey === '+' || mainKey === '=') {
-						logger.debug('KeyboardManager', 'Volume key handler triggered', {
-							binding,
-							mainKey,
-							input,
-							keyShifts: {ctrl: key.ctrl, meta: key.meta, shift: key.shift},
-							isSymbolMatch,
-							stack: new Error().stack,
-							registrySize: registry.size,
-						});
-					}
-
-					handler();
-					return; // STOP: prevent double-dispatch
-				}
+				handler();
+				return; // STOP: prevent double-dispatch
 			}
 		}
 	});
