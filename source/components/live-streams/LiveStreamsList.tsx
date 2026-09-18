@@ -5,7 +5,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
-import {KEYBINDINGS} from '../../utils/constants.ts';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {truncate} from '../../utils/format.ts';
 import {
 	getLiveStreams,
@@ -40,10 +40,10 @@ export default function LiveStreamsList() {
 		dispatch({category: 'GO_BACK'});
 	}, [dispatch]);
 
-	useKeyBinding(KEYBINDINGS.UP, navigateUp);
-	useKeyBinding(KEYBINDINGS.DOWN, navigateDown);
-	useKeyBinding(KEYBINDINGS.SELECT, playSelected);
-	useKeyBinding(KEYBINDINGS.BACK, goBack);
+	useKeyBinding(resolveKeybinding('UP'), navigateUp);
+	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
+	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
+	useKeyBinding(resolveKeybinding('BACK'), goBack);
 
 	const maxVisible = Math.max(5, termRows - 14);
 	const start = Math.max(

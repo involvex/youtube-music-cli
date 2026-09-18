@@ -6,6 +6,7 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {VIEW} from '../../utils/constants.ts';
 import {useSleepTimer} from '../../hooks/useSleepTimer.ts';
@@ -407,6 +408,32 @@ export default function Settings() {
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), handleSelect);
+
+	// Block global shortcuts while editing a text field so typing doesn't
+	// trigger app actions (e.g. 'q' leaving settings mid-typing). The BACK
+	// handler below uses bypassBlock: Escape first cancels the edit, then
+	// leaves the view on the next press.
+	const isEditingText =
+		isEditingApiKey ||
+		isEditingDownloadDirectory ||
+		isEditingBaseUrl ||
+		isEditingCookiesFile;
+	useKeyboardBlocker(isEditingText);
+
+	useKeyBinding(
+		resolveKeybinding('BACK'),
+		() => {
+			if (isEditingText) {
+				setIsEditingApiKey(false);
+				setIsEditingDownloadDirectory(false);
+				setIsEditingBaseUrl(false);
+				setIsEditingCookiesFile(false);
+				return;
+			}
+			dispatch({category: 'GO_BACK'});
+		},
+		{bypassBlock: true},
+	);
 
 	const sleepTimerLabel =
 		isActive && remainingSeconds !== null

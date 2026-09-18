@@ -11,6 +11,7 @@ import type {
 import {useTheme} from '../../hooks/useTheme.ts';
 import SearchBar from '../search/SearchBar.tsx';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {VIEW} from '../../utils/constants.ts';
 import {Box, Text} from 'ink';
@@ -51,6 +52,10 @@ function SearchLayout() {
 	const lastAutoSearchedQueryRef = useRef<string | null>(null);
 	const [editingFilter, setEditingFilter] = useState<FilterField | null>(null);
 	const [filterDraft, setFilterDraft] = useState('');
+
+	// Block global shortcuts while editing a filter value so typing doesn't
+	// trigger app actions. Escape still works via the bypass BACK handler.
+	useKeyboardBlocker(editingFilter !== null);
 
 	const describeFilterValue = (value?: string) =>
 		value?.trim() ? value.trim() : 'Any';
@@ -204,7 +209,9 @@ function SearchLayout() {
 		});
 	}, [navState.searchQuery, navState.hasSearched, performSearch]);
 
-	// Handle going back
+	// Handle going back (staged): cancel filter edit first, then return from
+	// results to typing, then leave the search view. Registered with
+	// bypassBlock so Escape works while the search/filter inputs are focused.
 	const goBack = useCallback(() => {
 		if (editingFilter) {
 			setEditingFilter(null);
@@ -219,13 +226,7 @@ function SearchLayout() {
 		}
 	}, [editingFilter, isTyping, dispatch]);
 
-	// Handle escape in search - go to home
-	const goToHome = useCallback(() => {
-		dispatch({category: 'NAVIGATE', view: VIEW.HOME});
-	}, [dispatch]);
-
-	useKeyBinding(resolveKeybinding('BACK'), goBack);
-	useKeyBinding(['escape'], goToHome, {bypassBlock: true});
+	useKeyBinding(resolveKeybinding('BACK'), goBack, {bypassBlock: true});
 
 	const handleMixCreated = useCallback((message: string) => {
 		setActionMessage(message);
@@ -377,7 +378,7 @@ function SearchLayout() {
 			)}
 			<Text color={theme.colors.dim}>
 				{isTyping
-					? 'Type to search, Enter to start, Esc to clear'
+					? 'Type to search, Enter to start, Esc back'
 					: `Arrows navigate, Enter play, W queue, Y play next, M mix, Shift+D download, ]/[ results (${navState.searchLimit}), H history, Esc type`}
 			</Text>
 		</Box>

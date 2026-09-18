@@ -5,6 +5,7 @@ import TextInput from 'ink-text-input';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlugins} from '../../stores/plugins.store.tsx';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 
 interface PluginInstallDialogProps {
@@ -51,7 +52,11 @@ export default function PluginInstallDialog({
 		}
 	}, [installing, onClose]);
 
-	useKeyBinding(resolveKeybinding('BACK'), handleClose);
+	// The URL input is focused: block global shortcuts while typing so the
+	// plugin name/URL can't trigger app actions. Escape still cancels via
+	// the bypass BACK handler.
+	useKeyboardBlocker(true);
+	useKeyBinding(resolveKeybinding('BACK'), handleClose, {bypassBlock: true});
 
 	return (
 		<Box flexDirection="column" gap={1}>

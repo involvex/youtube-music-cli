@@ -3,6 +3,7 @@ import {useState, useCallback} from 'react';
 import {Box, Text} from 'ink';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {usePlugins} from '../../stores/plugins.store.tsx';
+import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import PluginsList from '../plugins/PluginsList.tsx';
@@ -12,6 +13,7 @@ type ViewMode = 'list' | 'install' | 'details';
 
 export default function PluginsLayout() {
 	const {theme} = useTheme();
+	const {dispatch: navDispatch} = useNavigation();
 	const {
 		state,
 		dispatch,
@@ -84,6 +86,15 @@ export default function PluginsLayout() {
 	useKeyBinding(['r'], removePlugin);
 	useKeyBinding(['u'], handleUpdate);
 	useKeyBinding(['i'], openInstall);
+	// Advertised in the footer as Esc=Back. The install dialog (when open)
+	// registers its own BACK handler later, so LIFO dispatch lets it win.
+	useKeyBinding(resolveKeybinding('BACK'), () => {
+		if (viewMode === 'list') {
+			navDispatch({category: 'GO_BACK'});
+		} else {
+			closeInstall();
+		}
+	});
 
 	// Show install dialog
 	if (viewMode === 'install') {
