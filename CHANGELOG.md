@@ -1,3 +1,23 @@
+# [0.3.0](https://github.com/involvex/youtube-music-cli/compare/v0.2.3...v0.3.0) (2026-10-04)
+
+### Bug Fixes
+
+- make Escape/back navigation and keyboard controls reliable ([5207822](https://github.com/involvex/youtube-music-cli/commit/52078226033fbcfc7b489f208f36695b7d5b9bc6))
+- **security:** resolve CodeQL alerts for missing workflow permissions and identity replacement ([459e983](https://github.com/involvex/youtube-music-cli/commit/459e983b4b9a00971c18d8c6ac4c4b108605c110)), closes [#10](https://github.com/involvex/youtube-music-cli/issues/10) [#11](https://github.com/involvex/youtube-music-cli/issues/11) [#12](https://github.com/involvex/youtube-music-cli/issues/12) [#9](https://github.com/involvex/youtube-music-cli/issues/9)
+- treat raw ESC byte as cancel in keybinding capture mode ([5da1810](https://github.com/involvex/youtube-music-cli/commit/5da1810f4277beaa045059c3bbd7bd9b6e71a828))
+
+### Features
+
+- add offline mode with network status indicator and periodic health checks ([38e57c4](https://github.com/involvex/youtube-music-cli/commit/38e57c4efab48e6de2aaa380efb9e2647e25a070))
+- add showNetworkStatus setting for toggling network status indicators ([57d1648](https://github.com/involvex/youtube-music-cli/commit/57d16486fb468b0ae8a03cfd8f47a4c1d0732a9e))
+- extend network status indicators to all layouts with notifications ([dedf4d4](https://github.com/involvex/youtube-music-cli/commit/dedf4d4df32b53557ccc6ad7741df28b0635cc24))
+- gate network status indicators behind showNetworkStatus ([26cae78](https://github.com/involvex/youtube-music-cli/commit/26cae784b28cdd5a14935ba937578e5bae620a50))
+
+### Performance Improvements
+
+- karaoke timing optimization, cache O(1) eviction, and React 19.3.0 alignment ([4b468c7](https://github.com/involvex/youtube-music-cli/commit/4b468c727e86331a29ec3834763b8427f867926a))
+- LRU cache O(1) eviction + SearchResults item memoization ([9eb0306](https://github.com/involvex/youtube-music-cli/commit/9eb0306a545ee92e33f42bb857774ab0e6d2aacc)), closes [hi#impact](https://github.com/hi/issues/impact)
+
 ## [0.2.3](https://github.com/involvex/youtube-music-cli/compare/v0.2.2...v0.2.3) (2026-09-14)
 
 ### Bug Fixes
