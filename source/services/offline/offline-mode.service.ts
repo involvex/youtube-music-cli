@@ -4,6 +4,7 @@ import {
 	loadDownloadsIndex,
 	type DownloadsIndex,
 } from '../../utils/local-track.ts';
+import {getNotificationService} from '../notification/notification.service.ts';
 
 // Configurable network check interval (default: 30 seconds for periodic checks)
 export const NETWORK_CHECK_INTERVAL = 30_000;
@@ -31,6 +32,7 @@ let offlineState: OfflineState = {
 let offlineListeners: ((state: OfflineState) => void)[] = [];
 let networkCheckInterval: NodeJS.Timeout | null = null;
 let isPeriodicChecksRunning = false;
+let networkStatusChangeListeners: ((isOffline: boolean) => void)[] = [];
 
 /**
  * Check if network is available by attempting a simple fetch
@@ -92,8 +94,60 @@ export function getLocalTracks(): OfflineTrack[] {
  * Set the offline state and notify listeners
  */
 export function setOfflineState(state: Partial<OfflineState>): void {
+	const prevOffline = offlineState.isOffline;
 	offlineState = {...offlineState, ...state};
+
+	// Notify offline state listeners
 	notifyListeners();
+
+	// Notify network status change listeners if the status changed
+	if (state.isOffline !== undefined && state.isOffline !== prevOffline) {
+		notifyNetworkStatusChange(state.isOffline);
+	}
+}
+
+/**
+ * Subscribe to network status changes
+ * @returns unsubscribe function
+ */
+export function subscribeToNetworkStatus(
+	fn: (isOffline: boolean) => void,
+): () => void {
+	networkStatusChangeListeners.push(fn);
+
+	return () => {
+		networkStatusChangeListeners = networkStatusChangeListeners.filter(
+			listener => listener !== fn,
+		);
+	};
+}
+
+/**
+ * Notify all network status change listeners
+ */
+function notifyNetworkStatusChange(isOffline: boolean): void {
+	// Log the status change
+	logger.info(
+		'OfflineMode',
+		`Network status changed - ${isOffline ? 'Offline' : 'Online'}`,
+	);
+
+	// Send desktop notification
+	const notificationService = getNotificationService();
+	if (isOffline) {
+		void notificationService.notify('Network Status', '📡 You are now offline');
+	} else {
+		void notificationService.notify('Network Status', '⚠️ Back online');
+	}
+
+	// Notify subscription listeners
+	for (const listener of networkStatusChangeListeners) {
+		try {
+			listener(isOffline);
+		} catch {
+			// Ignore listener errors
+		}
+	}
 }
 
 /**
@@ -230,6 +284,7 @@ export function resetOfflineStateForTests(): void {
 		lastNetworkCheck: 0,
 	};
 	offlineListeners = [];
+	networkStatusChangeListeners = [];
 	isPeriodicChecksRunning = false;
 
 	if (networkCheckInterval) {

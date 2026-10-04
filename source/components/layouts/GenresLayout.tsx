@@ -6,6 +6,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import type {Genre, Release} from '../../types/youtube-music.types.ts';
 
 interface GenreSection {
@@ -154,8 +155,8 @@ export default function GenresLayout() {
 			<Box marginBottom={1}>
 				<Text color={theme.colors.primary} bold>
 					{viewMode === 'genres'
-						? '🎭 Moods & Genres'
-						: `🎭 ${activeGenreTitle} Playlists`}
+						? `🎭 Moods & Genres ${getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}`
+						: `🎭 ${activeGenreTitle} Playlists ${getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}`}
 				</Text>
 			</Box>
 

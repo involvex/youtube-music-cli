@@ -7,6 +7,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
 export default function TrendingLayout() {
@@ -67,7 +68,8 @@ export default function TrendingLayout() {
 		<Box flexDirection="column" padding={1}>
 			<Box marginBottom={1}>
 				<Text color={theme.colors.primary} bold>
-					🔥 Trending Music
+					🔥 Trending Music{' '}
+					{getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}
 				</Text>
 			</Box>
 

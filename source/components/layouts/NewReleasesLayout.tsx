@@ -6,6 +6,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import type {Release} from '../../types/youtube-music.types.ts';
 
 interface Section {
@@ -104,7 +105,8 @@ export default function NewReleasesLayout() {
 		<Box flexDirection="column" padding={1}>
 			<Box marginBottom={1}>
 				<Text color={theme.colors.primary} bold>
-					🌟 New Releases
+					🌟 New Releases{' '}
+					{getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}
 				</Text>
 			</Box>
 
