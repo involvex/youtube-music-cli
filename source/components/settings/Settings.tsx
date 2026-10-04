@@ -57,6 +57,7 @@ const SETTINGS_ITEMS = [
 	'Download Folder',
 	'Download Format',
 	'Prefer Local Playback',
+	'Show Network Status',
 	'Cookies From Browser',
 	'Cookies File',
 	'Sleep Timer',
@@ -109,6 +110,9 @@ export default function Settings() {
 	);
 	const [preferLocalPlayback, setPreferLocalPlayback] = useState(
 		config.get('preferLocalPlayback') ?? true,
+	);
+	const [showNetworkStatus, setShowNetworkStatus] = useState(
+		config.get('showNetworkStatus') ?? true,
 	);
 	const [cookiesFromBrowser, setCookiesFromBrowser] = useState<
 		CookiesFromBrowser | undefined
@@ -266,6 +270,12 @@ export default function Settings() {
 		config.set('preferLocalPlayback', next);
 	};
 
+	const toggleShowNetworkStatus = () => {
+		const next = !showNetworkStatus;
+		setShowNetworkStatus(next);
+		config.set('showNetworkStatus', next);
+	};
+
 	const cycleCookiesFromBrowser = () => {
 		const next = nextCookiesFromBrowser(cookiesFromBrowser);
 		setCookiesFromBrowser(next);
@@ -385,22 +395,24 @@ export default function Settings() {
 		} else if (selectedIndex === 19) {
 			togglePreferLocalPlayback();
 		} else if (selectedIndex === 20) {
-			cycleCookiesFromBrowser();
+			toggleShowNetworkStatus();
 		} else if (selectedIndex === 21) {
-			setIsEditingCookiesFile(true);
+			cycleCookiesFromBrowser();
 		} else if (selectedIndex === 22) {
-			cycleSleepTimer();
+			setIsEditingCookiesFile(true);
 		} else if (selectedIndex === 23) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
+			cycleSleepTimer();
 		} else if (selectedIndex === 24) {
-			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
+			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
 		} else if (selectedIndex === 25) {
-			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
+			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
 		} else if (selectedIndex === 26) {
-			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
+			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
 		} else if (selectedIndex === 27) {
-			cycleCacheTtl();
+			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		} else if (selectedIndex === 28) {
+			cycleCacheTtl();
+		} else if (selectedIndex === 29) {
 			cycleCacheEntries();
 		}
 	};
@@ -828,7 +840,7 @@ export default function Settings() {
 				</Text>
 			</Box>
 
-			{/* Cookies From Browser */}
+			{/* Show Network Status */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -839,6 +851,21 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 20}
 				>
+					Show Network Status: {showNetworkStatus ? 'ON' : 'OFF'}
+				</Text>
+			</Box>
+
+			{/* Cookies From Browser */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 21 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 21 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 21}
+				>
 					Cookies From Browser:{' '}
 					{formatCookiesFromBrowserLabel(cookiesFromBrowser)}
 				</Text>
@@ -846,7 +873,7 @@ export default function Settings() {
 
 			{/* Cookies File */}
 			<Box paddingX={1}>
-				{isEditingCookiesFile && selectedIndex === 21 ? (
+				{isEditingCookiesFile && selectedIndex === 22 ? (
 					<TextInput
 						value={cookiesFile}
 						onChange={setCookiesFile}
@@ -862,12 +889,12 @@ export default function Settings() {
 				) : (
 					<Text
 						backgroundColor={
-							selectedIndex === 21 ? theme.colors.primary : undefined
+							selectedIndex === 22 ? theme.colors.primary : undefined
 						}
 						color={
-							selectedIndex === 21 ? theme.colors.background : theme.colors.text
+							selectedIndex === 22 ? theme.colors.background : theme.colors.text
 						}
-						bold={selectedIndex === 21}
+						bold={selectedIndex === 22}
 					>
 						Cookies File: {cookiesFile.trim() || '(not set)'}
 					</Text>
@@ -878,37 +905,22 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 22 ? theme.colors.primary : undefined
+						selectedIndex === 23 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 22
+						selectedIndex === 23
 							? theme.colors.background
 							: isActive
 								? theme.colors.accent
 								: theme.colors.text
 					}
-					bold={selectedIndex === 22}
+					bold={selectedIndex === 23}
 				>
 					{sleepTimerLabel}
 				</Text>
 			</Box>
 
 			{/* Import Playlists */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 23 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 23 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 23}
-				>
-					Import Playlists →
-				</Text>
-			</Box>
-
-			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -919,6 +931,21 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 24}
 				>
+					Import Playlists →
+				</Text>
+			</Box>
+
+			{/* Export Playlists */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 25 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 25 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 25}
+				>
 					Export Playlists →
 				</Text>
 			</Box>
@@ -927,7 +954,22 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 25 ? theme.colors.primary : undefined
+						selectedIndex === 26 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 26 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 26}
+				>
+					Custom Keybindings →
+				</Text>
+			</Box>
+
+			{/* Manage Plugins */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 27 ? theme.colors.primary : undefined
 					}
 					color={
 						selectedIndex === 25 ? theme.colors.background : theme.colors.text
@@ -942,12 +984,12 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 26 ? theme.colors.primary : undefined
+						selectedIndex === 27 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 26 ? theme.colors.background : theme.colors.text
+						selectedIndex === 27 ? theme.colors.background : theme.colors.text
 					}
-					bold={selectedIndex === 26}
+					bold={selectedIndex === 27}
 				>
 					Manage Plugins →
 				</Text>
@@ -957,7 +999,7 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 27 ? theme.colors.primary : undefined
+						selectedIndex === 28 ? theme.colors.primary : undefined
 					}
 					color={
 						selectedIndex === 27 ? theme.colors.background : theme.colors.text
@@ -972,12 +1014,12 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 28 ? theme.colors.primary : undefined
+						selectedIndex === 29 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 28 ? theme.colors.background : theme.colors.text
+						selectedIndex === 29 ? theme.colors.background : theme.colors.text
 					}
-					bold={selectedIndex === 28}
+					bold={selectedIndex === 29}
 				>
 					Cache Max Entries: {cacheMaxEntries}
 				</Text>

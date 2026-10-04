@@ -67,6 +67,8 @@ export interface Config {
 	downloadFormat?: DownloadFormat;
 	/** Prefer on-disk downloads over YouTube when a local file exists (default true). */
 	preferLocalPlayback?: boolean;
+	/** Show network status indicator in UI (default true). */
+	showNetworkStatus?: boolean;
 	subtitlesEnabled?: boolean;
 	webServer?: WebServerConfig;
 	backgroundPlayback?: {

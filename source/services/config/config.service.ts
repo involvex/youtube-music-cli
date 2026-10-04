@@ -63,6 +63,7 @@ class ConfigService {
 			downloadDirectory: path.join(CONFIG_DIR, 'downloads'),
 			downloadFormat: 'mp3',
 			preferLocalPlayback: true,
+			showNetworkStatus: true,
 			subtitlesEnabled: false,
 			webServer: {
 				enabled: false,
