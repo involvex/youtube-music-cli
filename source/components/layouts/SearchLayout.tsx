@@ -19,6 +19,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {ICONS} from '../../utils/icons.ts';
 import TextInput from 'ink-text-input';
 import {applySearchFilters} from '../../utils/search-filters.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 
 type FilterField = 'artist' | 'album' | 'year';
 
@@ -309,7 +310,9 @@ function SearchLayout() {
 			)}
 
 			<Text color={theme.colors.dim}>
-				Limit: {navState.searchLimit} (Use ] / [ to adjust)
+				Limit: {navState.searchLimit} (
+				{getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}) (Use ] / [
+				to adjust)
 			</Text>
 
 			<SearchBar

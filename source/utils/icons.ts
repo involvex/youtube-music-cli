@@ -32,4 +32,7 @@ export const ICONS = {
 
 	// Autoplay / radio
 	AUTOPLAY: '∞', // U+221E
+
+	// Offline / downloads
+	FILE_DOWNLOAD: '📁', // File icon for downloads/offline
 } as const;

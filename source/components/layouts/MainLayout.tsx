@@ -44,6 +44,7 @@ import {getPlayerService} from '../../services/player/player.service.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTerminalTitle} from '../../hooks/useTerminalTitle.ts';
+import OfflineLayout from './OfflineLayout.tsx';
 
 function MainLayout() {
 	const {theme} = useTheme();
@@ -152,6 +153,10 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.MOOD_RADIO});
 	}, [dispatch]);
 
+	const goToOffline = useCallback(() => {
+		dispatch({category: 'NAVIGATE', view: VIEW.OFFLINE});
+	}, [dispatch]);
+
 	const handleDetach = useCallback(() => {
 		// Detach mode: Exit CLI while keeping music playing
 		const player = getPlayerService();
@@ -236,6 +241,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('RADIO_STREAMS'), goToRadioStreams);
 	useKeyBinding(resolveKeybinding('LIVE_STREAMS'), goToLiveStreams);
 	useKeyBinding(resolveKeybinding('MOOD_RADIO'), goToMoodRadio);
+	useKeyBinding(resolveKeybinding('OFFLINE_QUEUE'), goToOffline);
 	useKeyBinding(resolveKeybinding('DETACH'), handleDetach);
 	useKeyBinding(resolveKeybinding('RESUME_BACKGROUND'), handleResumeBackground);
 
@@ -349,6 +355,9 @@ function MainLayout() {
 
 			case 'login':
 				return <LoginView key="login" />;
+
+			case 'offline':
+				return <OfflineLayout key="offline" />;
 
 			default:
 				return <PlayerLayout key="player-default" />;

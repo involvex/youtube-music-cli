@@ -14,6 +14,7 @@ import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {type Track} from '../../types/youtube-music.types.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 
 export default function HomeLayout() {
 	const {theme} = useTheme();
@@ -22,6 +23,7 @@ export default function HomeLayout() {
 	const {favorites, toggleFavorite} = useFavorites();
 	const {state: playerState, play} = usePlayer();
 	const {columns} = useTerminalSize();
+	const offlineState = getOfflineState();
 
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -151,7 +153,7 @@ export default function HomeLayout() {
 
 	return (
 		<Box flexDirection="column" paddingX={1} paddingY={0}>
-			{/* Header */}
+			{/* Header with Network Status */}
 			<Box
 				borderStyle="double"
 				borderColor={theme.colors.primary}
@@ -159,7 +161,8 @@ export default function HomeLayout() {
 				justifyContent="center"
 			>
 				<Text bold color={theme.colors.primary}>
-					🎵 {ICONS.PLAY} youtube-music-cli {ICONS.PLAY} 🎵
+					🎵 {ICONS.PLAY} youtube-music-cli {ICONS.PLAY} 🎵{' '}
+					{offlineState.isOffline ? '📡 Offline' : '⚠️ Online'}
 				</Text>
 			</Box>
 

@@ -9,13 +9,21 @@ import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {truncate} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
+import {getDownloadService} from '../../services/download/download.service.ts';
 
 export default function FavoritesList() {
 	const {theme} = useTheme();
 	const {dispatch} = useNavigation();
 	const {favorites, removeFavorite} = useFavorites();
-	const {play, dispatch: playerDispatch, addToQueue, playNext} = usePlayer();
+	const {
+		play,
+		dispatch: playerDispatch,
+		addToQueue,
+		playNext,
+		state: playerState,
+	} = usePlayer();
 	const {columns, rows} = useTerminalSize();
+	const downloadService = getDownloadService();
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	// Navigation
@@ -58,6 +66,36 @@ export default function FavoritesList() {
 		playerDispatch({category: 'PLAY', track: shuffled[0]!});
 	}, [favorites, playerDispatch]);
 
+	const handleDownloadAll = useCallback(async () => {
+		if (favorites.length === 0) return;
+
+		try {
+			const config = downloadService.getConfig();
+			if (!config.enabled || !config.directory) {
+				return;
+			}
+			await downloadService.downloadTracks(favorites);
+		} catch {
+			// Silently fail - download will be shown in logs or errors
+		}
+	}, [favorites, downloadService]);
+
+	const handleDownload = useCallback(async () => {
+		if (favorites.length === 0) return;
+		const track = favorites[selectedIndex];
+		if (!track) return;
+
+		try {
+			const config = downloadService.getConfig();
+			if (!config.enabled || !config.directory) {
+				return;
+			}
+			await downloadService.downloadTracks([track]);
+		} catch {
+			// Silently fail - download will be shown in logs or errors
+		}
+	}, [favorites, selectedIndex, downloadService]);
+
 	const handleRemove = useCallback(() => {
 		const track = favorites[selectedIndex];
 		if (track) {
@@ -84,6 +122,8 @@ export default function FavoritesList() {
 	// Let's add specific shortcuts for playing all/shuffle
 	useKeyBinding(['p'], playAll);
 	useKeyBinding(['s'], shufflePlayAll);
+	useKeyBinding(resolveKeybinding('DOWNLOAD'), handleDownload);
+	useKeyBinding(['shift+d'], handleDownloadAll); // Download all favorites
 
 	if (favorites.length === 0) {
 		return (
@@ -121,14 +161,16 @@ export default function FavoritesList() {
 				</Text>
 				<Text color={theme.colors.dim}> • </Text>
 				<Text color={theme.colors.dim}>
-					[Enter] Play • [W] Queue · [Y] Next · [p] Play All • [s] Shuffle •
-					[f/Del] Remove
+					{' '}
+					[Enter] Play • [W] Queue · [Y] Next · [p] Play All · [s] Shuffle · [D]
+					Download · [f/Del] Remove
 				</Text>
 			</Box>
 
 			{visibleItems.map((track, idx) => {
 				const realIndex = startIdx + idx;
 				const isSelected = realIndex === selectedIndex;
+				const isCurrent = playerState.currentTrack?.videoId === track.videoId;
 				const artists = track.artists?.map(a => a.name).join(', ') || 'Unknown';
 
 				return (
@@ -138,10 +180,15 @@ export default function FavoritesList() {
 						</Text>
 						<Text
 							color={isSelected ? theme.colors.primary : theme.colors.text}
-							bold={isSelected}
+							bold={isSelected || isCurrent}
 						>
 							{truncate(track.title, Math.floor(columns * 0.4))}
 						</Text>
+						{isCurrent && playerState.mediaSource === 'local' && (
+							<Text color={theme.colors.primary} bold>
+								{' • LOCAL'}
+							</Text>
+						)}
 						<Text color={theme.colors.dim}>
 							{' '}
 							• {truncate(artists, Math.floor(columns * 0.3))}

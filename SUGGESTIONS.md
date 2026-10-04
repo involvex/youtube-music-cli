@@ -24,7 +24,7 @@ This document tracks potential features, enhancements, and improvements for yout
 - Planned **Multiple Audio Backends** - Support VLC and ffplay as alternatives to mpv
 - Planned **Configurable Audio Output Device** - Select audio output device (useful for DACs, multi-monitor setups)
 - Partial **Track Seek Bar** - Display-only progress bar in TUI; interactive seek in web companion
-- Partial **Offline Mode** - Downloads + preferLocalPlayback + local index + resolveTrackPlayUrl(); no true offline queue UI
+- **Implemented Offline Mode** - Full offline mode with network status indicator (⚠️ Online/📡 Offline in header), Shift+O offline queue UI, local track detection, offline queue management, periodic network health checks (30s), seamless fallback to local files when network is unavailable, and download shortcuts (D/Shift+D in Favorites, Search, Playlists)
 - Planned **YouTube Video Support** - Play regular YouTube videos (not just music content)
 - Suggested **Smart Shuffle** - Similarity-aware shuffle that groups related songs instead of pure random
 - Planned **Resume Playback Position** - Remember per-track playback position so long tracks resume where you left off

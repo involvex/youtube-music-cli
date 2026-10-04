@@ -11,19 +11,20 @@ Complete reference of all keyboard shortcuts in youtube-music-cli.
 
 These work from any screen.
 
-| Key       | Action               |
-| --------- | -------------------- |
-| `?`       | Show help screen     |
-| `/`       | Open search          |
-| `p`       | Open plugins manager |
-| `Shift+F` | Open favorites view  |
-| `g`       | Show suggestions     |
-| `,`       | Open settings        |
-| `q`       | Quit application     |
-| `Esc`     | Go back / Close menu |
-| `Shift+I` | Open Radio Streams   |
-| `Shift+V` | Open Live Streams    |
-| `l`       | Open lyrics view     |
+| Key       | Action                 |
+| --------- | ---------------------- |
+| `?`       | Show help screen       |
+| `/`       | Open search            |
+| `p`       | Open plugins manager   |
+| `Shift+F` | Open favorites view    |
+| `g`       | Show suggestions       |
+| `,`       | Open settings          |
+| `q`       | Quit application       |
+| `Esc`     | Go back / Close menu   |
+| `Shift+I` | Open Radio Streams     |
+| `Shift+V` | Open Live Streams      |
+| `l`       | Open lyrics view       |
+| `Ctrl+R`  | Refresh network status |
 
 ## Playback Controls
 

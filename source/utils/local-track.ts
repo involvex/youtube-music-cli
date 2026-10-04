@@ -167,6 +167,43 @@ export function upsertDownloadsIndexEntry(
 	saveDownloadsIndex(index, indexPath);
 }
 
+/**
+ * Check if a track is immediately playable offline (exists locally and no network required).
+ * Returns true if the track has a local file available.
+ */
+export function isTrackPlayableOffline(
+	track: Track,
+	options: {
+		preferLocal?: boolean;
+		downloadDirectory?: string;
+		downloadFormat?: DownloadFormat;
+		indexPath?: string;
+	} = {},
+): boolean {
+	const preferLocal = options.preferLocal ?? true;
+	if (!preferLocal) {
+		return false;
+	}
+
+	const localPath = resolveLocalTrackPath(track, options);
+	return localPath !== null;
+}
+
+/**
+ * Check if all tracks in a list are playable offline.
+ */
+export function areTracksPlayableOffline(
+	tracks: Track[],
+	options: {
+		preferLocal?: boolean;
+		downloadDirectory?: string;
+		downloadFormat?: DownloadFormat;
+		indexPath?: string;
+	} = {},
+): boolean {
+	return tracks.every(track => isTrackPlayableOffline(track, options));
+}
+
 export function resolveTrackPlayUrl(
 	track: Track,
 	options: {
@@ -187,4 +224,22 @@ export function resolveTrackPlayUrl(
 		url: `https://www.youtube.com/watch?v=${track.videoId}`,
 		source: 'youtube',
 	};
+}
+
+/**
+ * Reset the downloads index for testing purposes.
+ * This is only meant for unit tests.
+ */
+export function resetDownloadsIndexForTests(): void {
+	try {
+		const indexPath = DOWNLOADS_INDEX_FILE;
+		const index: DownloadsIndex = {schemaVersion: 1, tracks: {}};
+		const dir = path.dirname(indexPath);
+		if (!existsSync(dir)) {
+			mkdirSync(dir, {recursive: true});
+		}
+		writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf8');
+	} catch {
+		// Ignore errors in test environment
+	}
 }

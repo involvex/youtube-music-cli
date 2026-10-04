@@ -7,6 +7,7 @@ import {formatTime} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {getSleepTimerService} from '../../services/sleep-timer/sleep-timer.service.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
+import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import {useState, useEffect} from 'react';
 import {ICONS} from '../../utils/icons.ts';
 
@@ -145,6 +146,9 @@ export default function NowPlaying() {
 				<Text color={theme.colors.text}>{formatTime(progress)}</Text>
 				<Text color={theme.colors.dim}> / {formatTime(duration)} </Text>
 				<Text color={theme.colors.dim}>[{percentage}%]</Text>
+				{getOfflineState().isOffline && (
+					<Text color={theme.colors.accent}> 📡 Offline</Text>
+				)}
 				{playerState.isLoading && (
 					<Text color={theme.colors.accent}> Loading...</Text>
 				)}

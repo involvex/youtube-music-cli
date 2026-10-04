@@ -45,12 +45,13 @@ How ideas in `SUGGESTIONS.md` become concrete work, and what to pick up next.
 - Mood-Based Radio (8 presets: relaxing, energetic, focus, chill, workout, sleep, party, melancholy)
 - AI Playlist Generation (`generate_playlist` LLM tool with queue/playlist/both modes)
 - LLM tool executor refactored with `ToolExecutorContext` for real queue/playlist dispatch
+- **Offline Mode** — Full offline mode with network status indicator (⚠️ Online/📡 Offline in header), Shift+O offline queue UI, periodic network health checks (30s interval), local track detection, download shortcuts (D/Shift+D), seamless fallback to local files
 
 ## Active focus (post-0.1.0)
 
 1. **Web v1.1** — Media Session API for system media controls; mini-player route for low-footprint browser control.
 2. **Discovery** — Smart recommendations beyond YouTube's built-in related tracks; playlist radio mode.
-3. **Offline** — Prefer cached downloads when the network fails; deepen offline-only playback UX.
+3. **Downloads Enhancement** — Batch download optimization, download resumption, and improved UX.
 
 ## Toward 1.0.0
 

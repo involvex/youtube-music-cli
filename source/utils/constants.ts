@@ -75,6 +75,7 @@ export const VIEW = {
 	RADIO: 'radio',
 	LIVE_STREAMS: 'live_streams',
 	MOOD_RADIO: 'mood_radio',
+	OFFLINE: 'offline',
 } as const;
 
 // Search types
@@ -111,6 +112,8 @@ export const KEYBINDINGS = {
 	RADIO_STREAMS: ['shift+i'],
 	LIVE_STREAMS: ['shift+v'],
 	MOOD_RADIO: ['shift+t'],
+	OFFLINE_QUEUE: ['shift+o'],
+	REFRESH_NETWORK: ['ctrl+r'],
 
 	// Player
 	PLAY_PAUSE: [' '],
