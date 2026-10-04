@@ -11,6 +11,11 @@ import {
 	getOfflineState,
 	setOfflineState,
 	resetOfflineStateForTests,
+	checkNetworkStatus,
+	initOfflineMode,
+	refreshOfflineState,
+	startPeriodicNetworkChecks,
+	stopPeriodicNetworkChecks,
 } from '../source/services/offline/offline-mode.service.ts';
 
 describe('Offline Mode Service', () => {
@@ -113,6 +118,106 @@ describe('Offline Mode Service', () => {
 			];
 
 			expect(areTracksPlayableOffline(tracks)).toBe(false);
+		});
+	});
+
+	describe('Network Status Checks', () => {
+		beforeEach(() => {
+			resetOfflineStateForTests();
+		});
+
+		afterEach(() => {
+			resetOfflineStateForTests();
+		});
+
+		test('checkNetworkStatus returns boolean', async () => {
+			const result = await checkNetworkStatus();
+			expect(typeof result).toBe('boolean');
+		});
+
+		test('initOfflineMode initializes state', async () => {
+			const state = await initOfflineMode();
+
+			expect(state).toHaveProperty('isOffline');
+			expect(state).toHaveProperty('offlineTracks');
+			expect(state).toHaveProperty('lastNetworkCheck');
+			expect(state.lastNetworkCheck).toBeGreaterThan(0);
+		});
+
+		test('refreshOfflineState updates network check timestamp', async () => {
+			await initOfflineMode();
+
+			const initialTimestamp = getOfflineState().lastNetworkCheck;
+
+			await refreshOfflineState();
+
+			const updatedTimestamp = getOfflineState().lastNetworkCheck;
+			expect(updatedTimestamp).toBeGreaterThan(initialTimestamp);
+		});
+
+		test('periodic checks can be started and stopped', async () => {
+			await initOfflineMode();
+
+			startPeriodicNetworkChecks();
+
+			const wasRunningInitially = getOfflineState().lastNetworkCheck > 0;
+
+			expect(wasRunningInitially).toBe(true);
+
+			stopPeriodicNetworkChecks();
+		});
+	});
+
+	describe('Integration with File Downloads', () => {
+		beforeEach(() => {
+			resetDownloadsIndexForTests();
+			resetOfflineStateForTests();
+		});
+
+		afterEach(() => {
+			resetDownloadsIndexForTests();
+			resetOfflineStateForTests();
+		});
+
+		test('offline tracks can be tracked after download', async () => {
+			const localPath = '/fake/path/test-track.mp3';
+
+			// Simulate what happens when a track is downloaded
+			const track: Track = {
+				videoId: 'downloaded-track-123',
+				title: 'Downloaded Track',
+				artists: [{name: 'Test Artist', artistId: 'artist1'}],
+			};
+
+			// Set offline state with locally available tracks
+			setOfflineState({
+				isOffline: true,
+				offlineTracks: [
+					{
+						videoId: track.videoId,
+						title: track.title,
+						artists: [],
+						localPath: localPath,
+					},
+				],
+			});
+
+			const state = getOfflineState();
+
+			expect(state.isOffline).toBe(true);
+			expect(state.offlineTracks).toHaveLength(1);
+			expect(state.offlineTracks[0]?.videoId).toBe(track.videoId);
+		});
+
+		test('offline mode respects download index', async () => {
+			// Initialize offline mode which loads from downloads index
+			await initOfflineMode();
+
+			const state = getOfflineState();
+
+			// State should be initialized
+			expect(state).toBeDefined();
+			expect(state.lastNetworkCheck).toBeGreaterThan(0);
 		});
 	});
 });

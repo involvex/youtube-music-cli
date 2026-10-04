@@ -45,6 +45,7 @@ import {getConfigService} from '../../services/config/config.service.ts';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useTerminalTitle} from '../../hooks/useTerminalTitle.ts';
 import OfflineLayout from './OfflineLayout.tsx';
+import {refreshOfflineState} from '../../services/offline/offline-mode.service.ts';
 
 function MainLayout() {
 	const {theme} = useTheme();
@@ -157,6 +158,10 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.OFFLINE});
 	}, [dispatch]);
 
+	const handleNetworkRefresh = useCallback(async () => {
+		await refreshOfflineState();
+	}, []);
+
 	const handleDetach = useCallback(() => {
 		// Detach mode: Exit CLI while keeping music playing
 		const player = getPlayerService();
@@ -243,6 +248,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('MOOD_RADIO'), goToMoodRadio);
 	useKeyBinding(resolveKeybinding('OFFLINE_QUEUE'), goToOffline);
 	useKeyBinding(resolveKeybinding('DETACH'), handleDetach);
+	useKeyBinding(resolveKeybinding('REFRESH_NETWORK'), handleNetworkRefresh);
 	useKeyBinding(resolveKeybinding('RESUME_BACKGROUND'), handleResumeBackground);
 
 	// Register goHome callback for Ctrl+C handling in search view
