@@ -19,6 +19,7 @@ export default function NowPlaying() {
 	const sleepTimer = getSleepTimerService();
 	const config = getConfigService();
 	const subtitlesEnabled = config.get('subtitlesEnabled') ?? false;
+	const showNetworkStatus = config.get('showNetworkStatus') ?? true;
 	const [sleepRemaining, setSleepRemaining] = useState<number | null>(null);
 
 	// Poll sleep timer remaining every second
@@ -146,7 +147,7 @@ export default function NowPlaying() {
 				<Text color={theme.colors.text}>{formatTime(progress)}</Text>
 				<Text color={theme.colors.dim}> / {formatTime(duration)} </Text>
 				<Text color={theme.colors.dim}>[{percentage}%]</Text>
-				{getOfflineState().isOffline && (
+				{showNetworkStatus && getOfflineState().isOffline && (
 					<Text color={theme.colors.accent}> 📡 Offline</Text>
 				)}
 				{playerState.isLoading && (

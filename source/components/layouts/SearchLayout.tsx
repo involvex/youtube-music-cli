@@ -19,6 +19,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {ICONS} from '../../utils/icons.ts';
 import TextInput from 'ink-text-input';
 import {applySearchFilters} from '../../utils/search-filters.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 
 type FilterField = 'artist' | 'album' | 'year';
@@ -47,6 +48,7 @@ function SearchLayout() {
 		[rawResults, navState.searchFilters],
 	);
 	const [isTyping, setIsTyping] = useState(true);
+	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
 	const [isSearching, setIsSearching] = useState(false);
 	const [actionMessage, setActionMessage] = useState<string | null>(null);
 	const actionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -310,9 +312,13 @@ function SearchLayout() {
 			)}
 
 			<Text color={theme.colors.dim}>
-				Limit: {navState.searchLimit} (
-				{getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}) (Use ] / [
-				to adjust)
+				Limit: {navState.searchLimit}{' '}
+				{showNetworkStatus
+					? getOfflineState().isOffline
+						? '(📡 Offline)'
+						: '(⚠️ Online)'
+					: ''}{' '}
+				(Use ] / [ to adjust)
 			</Text>
 
 			<SearchBar

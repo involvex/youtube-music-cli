@@ -972,21 +972,6 @@ export default function Settings() {
 						selectedIndex === 27 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 25 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 25}
-				>
-					Custom Keybindings →
-				</Text>
-			</Box>
-
-			{/* Manage Plugins */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 27 ? theme.colors.primary : undefined
-					}
-					color={
 						selectedIndex === 27 ? theme.colors.background : theme.colors.text
 					}
 					bold={selectedIndex === 27}
@@ -1002,9 +987,9 @@ export default function Settings() {
 						selectedIndex === 28 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 27 ? theme.colors.background : theme.colors.text
+						selectedIndex === 28 ? theme.colors.background : theme.colors.text
 					}
-					bold={selectedIndex === 27}
+					bold={selectedIndex === 28}
 				>
 					Cache TTL: {cacheTtlMinutes}m
 				</Text>

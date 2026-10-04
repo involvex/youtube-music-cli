@@ -14,6 +14,7 @@ import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {type Track} from '../../types/youtube-music.types.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 
 export default function HomeLayout() {
@@ -24,6 +25,7 @@ export default function HomeLayout() {
 	const {state: playerState, play} = usePlayer();
 	const {columns} = useTerminalSize();
 	const offlineState = getOfflineState();
+	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
 
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -161,8 +163,12 @@ export default function HomeLayout() {
 				justifyContent="center"
 			>
 				<Text bold color={theme.colors.primary}>
-					🎵 {ICONS.PLAY} youtube-music-cli {ICONS.PLAY} 🎵{' '}
-					{offlineState.isOffline ? '📡 Offline' : '⚠️ Online'}
+					🎵 {ICONS.PLAY} youtube-music-cli {ICONS.PLAY} 🎵
+					{showNetworkStatus
+						? offlineState.isOffline
+							? ' 📡 Offline'
+							: ' ⚠️ Online'
+						: ''}
 				</Text>
 			</Box>
 

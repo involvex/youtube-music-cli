@@ -7,6 +7,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
@@ -18,6 +19,7 @@ export default function TrendingLayout() {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -68,8 +70,12 @@ export default function TrendingLayout() {
 		<Box flexDirection="column" padding={1}>
 			<Box marginBottom={1}>
 				<Text color={theme.colors.primary} bold>
-					🔥 Trending Music{' '}
-					{getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}
+					🔥 Trending Music
+					{showNetworkStatus
+						? getOfflineState().isOffline
+							? ' 📡 Offline'
+							: ' ⚠️ Online'
+						: ''}
 				</Text>
 			</Box>
 

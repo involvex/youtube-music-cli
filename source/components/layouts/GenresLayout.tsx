@@ -6,6 +6,7 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
+import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import type {Genre, Release} from '../../types/youtube-music.types.ts';
 
@@ -29,6 +30,12 @@ export default function GenresLayout() {
 	const [playlists, setPlaylists] = useState<Release[]>([]);
 	const [playlistIndex, setPlaylistIndex] = useState(0);
 	const [activeGenreTitle, setActiveGenreTitle] = useState('');
+	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
+	const networkStatusSuffix = showNetworkStatus
+		? getOfflineState().isOffline
+			? ' 📡 Offline'
+			: ' ⚠️ Online'
+		: '';
 
 	useEffect(() => {
 		let cancelled = false;
@@ -155,8 +162,8 @@ export default function GenresLayout() {
 			<Box marginBottom={1}>
 				<Text color={theme.colors.primary} bold>
 					{viewMode === 'genres'
-						? `🎭 Moods & Genres ${getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}`
-						: `🎭 ${activeGenreTitle} Playlists ${getOfflineState().isOffline ? '📡 Offline' : '⚠️ Online'}`}
+						? `🎭 Moods & Genres${networkStatusSuffix}`
+						: `🎭 ${activeGenreTitle} Playlists${networkStatusSuffix}`}
 				</Text>
 			</Box>
 
