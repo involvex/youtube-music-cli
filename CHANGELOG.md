@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/involvex/youtube-music-cli/compare/v0.3.0...v0.3.1) (2026-10-05)
+
+### Bug Fixes
+
+- **homebrew:** symlink npm CLI bins into prefix PATH ([#56](https://github.com/involvex/youtube-music-cli/issues/56)) ([c1fa0d0](https://github.com/involvex/youtube-music-cli/commit/c1fa0d0b6b807d45715827294f31aca4cf38c747)), closes [involvex/youtube-music-cli#54](https://github.com/involvex/youtube-music-cli/issues/54)
+- **keyboard:** restore h/l section nav in Genres and New Releases ([#55](https://github.com/involvex/youtube-music-cli/issues/55)) ([05f8de5](https://github.com/involvex/youtube-music-cli/commit/05f8de5b6a698269725be0f6f2d8995464aa91af)), closes [#45](https://github.com/involvex/youtube-music-cli/issues/45)
+
 # [0.3.0](https://github.com/involvex/youtube-music-cli/compare/v0.2.3...v0.3.0) (2026-10-04)
 
 ### Bug Fixes
