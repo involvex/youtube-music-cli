@@ -72,6 +72,7 @@ jobs:
 
             def install
               system "npm", "install", *std_npm_args
+              bin.install_symlink Dir[libexec/"bin/*"]
             end
 
             test do
@@ -79,6 +80,11 @@ jobs:
             end
           end
           EOF
+
+          if ! grep -Fq 'bin.install_symlink' Formula/youtube-music-cli.rb; then
+            echo "Generated formula is missing bin.install_symlink (CLI will not be on PATH)."
+            exit 1
+          fi
 
       - name: Commit and push formula update
         shell: bash

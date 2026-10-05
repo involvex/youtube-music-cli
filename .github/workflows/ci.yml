@@ -66,3 +66,12 @@ jobs:
 
       - name: Build
         run: bun run ci:build
+
+  homebrew-formula:
+    name: Homebrew formula
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify CLI bin symlinks in formula
+        run: grep -Fq 'bin.install_symlink' Formula/youtube-music-cli.rb
