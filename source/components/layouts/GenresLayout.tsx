@@ -124,16 +124,24 @@ export default function GenresLayout() {
 	}, [viewMode, dispatch]);
 
 	const inGenres = viewMode === 'genres';
-	useKeyBinding(['left'], () => {
+
+	const goToPrevSection = useCallback(() => {
 		if (!inGenres) return;
 		setSectionIndex(i => Math.max(0, i - 1));
 		setGenreIndex(0);
-	});
-	useKeyBinding(['right'], () => {
+	}, [inGenres]);
+
+	const goToNextSection = useCallback(() => {
 		if (!inGenres) return;
 		setSectionIndex(i => Math.min(sections.length - 1, i + 1));
 		setGenreIndex(0);
-	});
+	}, [inGenres, sections.length]);
+
+	useKeyBinding(['left'], goToPrevSection);
+	useKeyBinding(['right'], goToNextSection);
+	// Shadow global bindings (e.g. 'l' → Lyrics) while this view is focused.
+	useKeyBinding(['h'], goToPrevSection);
+	useKeyBinding(['l'], goToNextSection);
 	useKeyBinding(resolveKeybinding('UP'), () => {
 		if (inGenres) {
 			setGenreIndex(i => Math.max(0, i - 1));

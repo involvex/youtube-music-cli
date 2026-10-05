@@ -86,14 +86,20 @@ export default function NewReleasesLayout() {
 		dispatch({category: 'GO_BACK'});
 	}, [dispatch]);
 
-	useKeyBinding(['left'], () => {
+	const goToPrevSection = useCallback(() => {
 		setSectionIndex(i => Math.max(0, i - 1));
 		setReleaseIndex(0);
-	});
-	useKeyBinding(['right'], () => {
+	}, []);
+
+	const goToNextSection = useCallback(() => {
 		setSectionIndex(i => Math.min(sections.length - 1, i + 1));
 		setReleaseIndex(0);
-	});
+	}, [sections.length]);
+
+	useKeyBinding(['left'], goToPrevSection);
+	useKeyBinding(['right'], goToNextSection);
+	useKeyBinding(['h'], goToPrevSection);
+	useKeyBinding(['l'], goToNextSection);
 	useKeyBinding(resolveKeybinding('UP'), () => {
 		setReleaseIndex(i => Math.max(0, i - 1));
 	});
