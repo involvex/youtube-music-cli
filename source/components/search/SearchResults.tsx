@@ -90,6 +90,7 @@ const SearchResultItem = React.memo(function SearchResultItem({
 	return (
 		<Box
 			paddingX={1}
+			flexShrink={0}
 			backgroundColor={isSelected ? theme.colors.secondary : undefined}
 		>
 			<Text
@@ -485,14 +486,17 @@ function SearchResults({
 			Math.max(0, results.length - maxVisible),
 		),
 	);
-	const visibleResults = results.slice(start, start + maxVisible);
 	const maxTitleWidth = Math.max(20, Math.floor(columns * 0.35));
 
 	return (
-		<Box flexDirection="column">
-			{/* Results list */}
-			{visibleResults.map((result, offset) => {
-				const index = start + offset;
+		<Box
+			flexDirection="column"
+			height={maxVisible}
+			overflow="hidden"
+			contentOffsetY={start}
+			flexShrink={0}
+		>
+			{results.map((result, index) => {
 				const isSelected = index === selectedIndex;
 
 				return (

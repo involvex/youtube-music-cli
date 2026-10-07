@@ -75,7 +75,13 @@ export default function OfflineLayout() {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	const maxVisible = Math.max(5, Math.floor((rows - 15) / 1));
-	const visibleTracks = offlineTracks.slice(0, maxVisible);
+	const start = Math.max(
+		0,
+		Math.min(
+			selectedIndex - Math.floor(maxVisible / 2),
+			Math.max(0, offlineTracks.length - maxVisible),
+		),
+	);
 
 	const navigateUp = useCallback(() => {
 		setSelectedIndex(prev => Math.max(0, prev - 1));
@@ -144,8 +150,14 @@ export default function OfflineLayout() {
 					</Text>
 				</Box>
 			) : (
-				<Box flexDirection="column">
-					{visibleTracks.map((track, idx) => {
+				<Box
+					flexDirection="column"
+					height={maxVisible}
+					overflow="hidden"
+					contentOffsetY={start}
+					flexShrink={0}
+				>
+					{offlineTracks.map((track, idx) => {
 						const isCurrent =
 							playerState.currentTrack?.videoId === track.videoId;
 						const isSelected = idx === selectedIndex || isCurrent;
@@ -154,7 +166,7 @@ export default function OfflineLayout() {
 							track.artists?.map(a => a.name).join(', ') || 'Unknown';
 
 						return (
-							<Box key={track.videoId}>
+							<Box key={track.videoId} flexShrink={0}>
 								<Text
 									color={isSelected ? theme.colors.primary : theme.colors.dim}
 								>

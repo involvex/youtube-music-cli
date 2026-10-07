@@ -53,7 +53,6 @@ export default function LiveStreamsList() {
 			Math.max(0, streams.length - maxVisible),
 		),
 	);
-	const visible = streams.slice(start, start + maxVisible);
 	const nameWidth = Math.max(20, Math.min(48, columns - 36));
 
 	return (
@@ -68,34 +67,41 @@ export default function LiveStreamsList() {
 			{streams.length === 0 ? (
 				<Text color={theme.colors.dim}>No live streams in catalog</Text>
 			) : (
-				visible.map((entry, offset) => {
-					const index = start + offset;
-					const isSelected = index === selectedIndex;
-					const isPlaying =
-						playerState.playbackMode === 'stream' &&
-						playerState.currentStation?.id === entry.id;
-					const tags = entry.tags.join(', ');
-					const prefix = isPlaying ? '▶ ' : isSelected ? '> ' : '  ';
+				<Box
+					flexDirection="column"
+					height={maxVisible}
+					overflow="hidden"
+					contentOffsetY={start}
+					flexShrink={0}
+				>
+					{streams.map((entry, index) => {
+						const isSelected = index === selectedIndex;
+						const isPlaying =
+							playerState.playbackMode === 'stream' &&
+							playerState.currentStation?.id === entry.id;
+						const tags = entry.tags.join(', ');
+						const prefix = isPlaying ? '▶ ' : isSelected ? '> ' : '  ';
 
-					return (
-						<Box key={entry.id}>
-							<Text
-								bold={isSelected}
-								color={
-									isPlaying
-										? theme.colors.success
-										: isSelected
-											? theme.colors.primary
-											: theme.colors.text
-								}
-							>
-								{prefix}
-								{truncate(entry.name, nameWidth)}
-							</Text>
-							<Text color={theme.colors.dim}> · {tags}</Text>
-						</Box>
-					);
-				})
+						return (
+							<Box key={entry.id} flexShrink={0}>
+								<Text
+									bold={isSelected}
+									color={
+										isPlaying
+											? theme.colors.success
+											: isSelected
+												? theme.colors.primary
+												: theme.colors.text
+									}
+								>
+									{prefix}
+									{truncate(entry.name, nameWidth)}
+								</Text>
+								<Text color={theme.colors.dim}> · {tags}</Text>
+							</Box>
+						);
+					})}
+				</Box>
 			)}
 
 			<Box marginTop={1}>

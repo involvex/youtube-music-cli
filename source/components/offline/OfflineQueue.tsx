@@ -108,9 +108,13 @@ export default function OfflineQueue({isActive = true}: Props) {
 	useKeyBinding(resolveKeybinding('ADD_TO_QUEUE'), enqueueSelected);
 	useKeyBinding(resolveKeybinding('PLAY_NEXT'), playNextSelected);
 
-	const visibleTracks = offlineTracks.slice(
+	const maxVisible = Math.max(1, Math.floor((rows - 12) / 2));
+	const start = Math.max(
 		0,
-		Math.max(1, Math.floor((rows - 12) / 2)),
+		Math.min(
+			selectedIndex - Math.floor(maxVisible / 2),
+			Math.max(0, offlineTracks.length - maxVisible),
+		),
 	);
 
 	if (loading) {
@@ -144,45 +148,54 @@ export default function OfflineQueue({isActive = true}: Props) {
 					</Text>
 				</Box>
 			) : (
-				visibleTracks.map((track, idx) => {
-					const isSelected = idx === selectedIndex;
-					const isCurrent = playerState.currentTrack?.videoId === track.videoId;
-					const isLocalPlay = playerState.mediaSource === 'local';
-					const artists =
-						track.artists?.map(a => a.name).join(', ') || 'Unknown';
-					return (
-						<Box key={track.videoId}>
-							<Text
-								color={
-									isSelected || isCurrent
-										? theme.colors.primary
-										: theme.colors.dim
-								}
-							>
-								{isSelected || isCurrent ? '> ' : '  '}
-							</Text>
-							<Text
-								color={
-									isSelected || isCurrent
-										? theme.colors.primary
-										: theme.colors.text
-								}
-								bold={isSelected || isCurrent}
-							>
-								{truncate(track.title, Math.floor(columns * 0.5))}
-							</Text>
-							<Text color={theme.colors.dim}>
-								{' '}
-								· {truncate(artists, Math.floor(columns * 0.35))}
-							</Text>
-							{isCurrent && isLocalPlay && (
-								<Text color={theme.colors.primary} bold>
-									{' • LOCAL'}
+				<Box
+					flexDirection="column"
+					height={maxVisible}
+					overflow="hidden"
+					contentOffsetY={start}
+					flexShrink={0}
+				>
+					{offlineTracks.map((track, idx) => {
+						const isSelected = idx === selectedIndex;
+						const isCurrent =
+							playerState.currentTrack?.videoId === track.videoId;
+						const isLocalPlay = playerState.mediaSource === 'local';
+						const artists =
+							track.artists?.map(a => a.name).join(', ') || 'Unknown';
+						return (
+							<Box key={track.videoId} flexShrink={0}>
+								<Text
+									color={
+										isSelected || isCurrent
+											? theme.colors.primary
+											: theme.colors.dim
+									}
+								>
+									{isSelected || isCurrent ? '> ' : '  '}
 								</Text>
-							)}
-						</Box>
-					);
-				})
+								<Text
+									color={
+										isSelected || isCurrent
+											? theme.colors.primary
+											: theme.colors.text
+									}
+									bold={isSelected || isCurrent}
+								>
+									{truncate(track.title, Math.floor(columns * 0.5))}
+								</Text>
+								<Text color={theme.colors.dim}>
+									{' '}
+									· {truncate(artists, Math.floor(columns * 0.35))}
+								</Text>
+								{isCurrent && isLocalPlay && (
+									<Text color={theme.colors.primary} bold>
+										{' • LOCAL'}
+									</Text>
+								)}
+							</Box>
+						);
+					})}
+				</Box>
 			)}
 
 			<Box marginTop={1}>

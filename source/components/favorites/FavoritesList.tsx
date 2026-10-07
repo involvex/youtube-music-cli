@@ -150,8 +150,6 @@ export default function FavoritesList() {
 			favorites.length - ITEMS_PER_PAGE,
 		),
 	);
-	const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, favorites.length);
-	const visibleItems = favorites.slice(startIdx, endIdx);
 
 	return (
 		<Box flexDirection="column" padding={1}>
@@ -167,45 +165,55 @@ export default function FavoritesList() {
 				</Text>
 			</Box>
 
-			{visibleItems.map((track, idx) => {
-				const realIndex = startIdx + idx;
-				const isSelected = realIndex === selectedIndex;
-				const isCurrent = playerState.currentTrack?.videoId === track.videoId;
-				const artists = track.artists?.map(a => a.name).join(', ') || 'Unknown';
+			<Box
+				flexDirection="column"
+				height={ITEMS_PER_PAGE}
+				overflow="hidden"
+				contentOffsetY={startIdx}
+				flexShrink={0}
+			>
+				{favorites.map((track, realIndex) => {
+					const isSelected = realIndex === selectedIndex;
+					const isCurrent = playerState.currentTrack?.videoId === track.videoId;
+					const artists =
+						track.artists?.map(a => a.name).join(', ') || 'Unknown';
 
-				return (
-					<Box key={track.videoId}>
-						<Text color={isSelected ? theme.colors.primary : theme.colors.dim}>
-							{isSelected ? '> ' : '  '}
-						</Text>
-						<Text
-							color={isSelected ? theme.colors.primary : theme.colors.text}
-							bold={isSelected || isCurrent}
-						>
-							{truncate(track.title, Math.floor(columns * 0.4))}
-						</Text>
-						{isCurrent && playerState.mediaSource === 'local' && (
-							<Text color={theme.colors.primary} bold>
-								{' • LOCAL'}
+					return (
+						<Box key={track.videoId} flexShrink={0}>
+							<Text
+								color={isSelected ? theme.colors.primary : theme.colors.dim}
+							>
+								{isSelected ? '> ' : '  '}
 							</Text>
-						)}
-						<Text color={theme.colors.dim}>
-							{' '}
-							• {truncate(artists, Math.floor(columns * 0.3))}
-						</Text>
-						<Text color={theme.colors.dim}>
-							{' '}
-							(
-							{track.duration
-								? Math.floor(track.duration / 60) +
-									':' +
-									(track.duration % 60).toString().padStart(2, '0')
-								: '--:--'}
-							)
-						</Text>
-					</Box>
-				);
-			})}
+							<Text
+								color={isSelected ? theme.colors.primary : theme.colors.text}
+								bold={isSelected || isCurrent}
+							>
+								{truncate(track.title, Math.floor(columns * 0.4))}
+							</Text>
+							{isCurrent && playerState.mediaSource === 'local' && (
+								<Text color={theme.colors.primary} bold>
+									{' • LOCAL'}
+								</Text>
+							)}
+							<Text color={theme.colors.dim}>
+								{' '}
+								• {truncate(artists, Math.floor(columns * 0.3))}
+							</Text>
+							<Text color={theme.colors.dim}>
+								{' '}
+								(
+								{track.duration
+									? Math.floor(track.duration / 60) +
+										':' +
+										(track.duration % 60).toString().padStart(2, '0')
+									: '--:--'}
+								)
+							</Text>
+						</Box>
+					);
+				})}
+			</Box>
 		</Box>
 	);
 }

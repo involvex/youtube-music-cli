@@ -357,8 +357,13 @@ export default function RadioStationsList() {
 			Math.max(0, listRows.length - ITEMS_PER_PAGE),
 		),
 	);
-	const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, listRows.length);
-	const visibleItems = listRows.slice(startIdx, endIdx);
+	const rowOffset = useMemo(() => {
+		let offset = startIdx;
+		for (let i = 1; i <= startIdx; i++) {
+			if (listRows[i]?.kind === 'header') offset += 1;
+		}
+		return offset;
+	}, [listRows, startIdx]);
 
 	const currentLabel =
 		playerState.playbackMode === 'stream' && playerState.currentStation
@@ -419,49 +424,62 @@ export default function RadioStationsList() {
 				</Box>
 			) : null}
 
-			{visibleItems.map((row, idx) => {
-				const realIndex = startIdx + idx;
-				if (row.kind === 'header') {
+			<Box
+				flexDirection="column"
+				height={ITEMS_PER_PAGE}
+				overflow="hidden"
+				contentOffsetY={rowOffset}
+				flexShrink={0}
+			>
+				{listRows.map((row, realIndex) => {
+					if (row.kind === 'header') {
+						return (
+							<Box
+								key={row.id}
+								marginTop={realIndex === 0 ? 0 : 1}
+								flexShrink={0}
+							>
+								<Text color={theme.colors.accent} bold>
+									── {row.label} ──
+								</Text>
+							</Box>
+						);
+					}
+
+					const {station} = row;
+					const isSelected = realIndex === effectiveSelectedIndex;
+					const meta = [station.region, station.genre]
+						.filter(Boolean)
+						.join(' · ');
+					const favorited = isRadioFavorite(station.id);
+
 					return (
-						<Box key={row.id} marginTop={idx === 0 ? 0 : 1}>
-							<Text color={theme.colors.accent} bold>
-								── {row.label} ──
+						<Box key={row.id} flexShrink={0}>
+							<Text
+								color={isSelected ? theme.colors.primary : theme.colors.dim}
+							>
+								{isSelected ? '> ' : '  '}
 							</Text>
+							{favorited ? <Text color={theme.colors.accent}>♥ </Text> : null}
+							<Text
+								color={isSelected ? theme.colors.primary : theme.colors.text}
+								bold={isSelected}
+							>
+								{truncate(station.name, Math.floor(columns * 0.45))}
+							</Text>
+							{meta ? (
+								<Text color={theme.colors.dim}>
+									{' '}
+									• {truncate(meta, Math.floor(columns * 0.25))}
+								</Text>
+							) : null}
+							{playerState.currentStation?.id === station.id ? (
+								<Text color={theme.colors.accent}> LIVE</Text>
+							) : null}
 						</Box>
 					);
-				}
-
-				const {station} = row;
-				const isSelected = realIndex === effectiveSelectedIndex;
-				const meta = [station.region, station.genre]
-					.filter(Boolean)
-					.join(' · ');
-				const favorited = isRadioFavorite(station.id);
-
-				return (
-					<Box key={row.id}>
-						<Text color={isSelected ? theme.colors.primary : theme.colors.dim}>
-							{isSelected ? '> ' : '  '}
-						</Text>
-						{favorited ? <Text color={theme.colors.accent}>♥ </Text> : null}
-						<Text
-							color={isSelected ? theme.colors.primary : theme.colors.text}
-							bold={isSelected}
-						>
-							{truncate(station.name, Math.floor(columns * 0.45))}
-						</Text>
-						{meta ? (
-							<Text color={theme.colors.dim}>
-								{' '}
-								• {truncate(meta, Math.floor(columns * 0.25))}
-							</Text>
-						) : null}
-						{playerState.currentStation?.id === station.id ? (
-							<Text color={theme.colors.accent}> LIVE</Text>
-						) : null}
-					</Box>
-				);
-			})}
+				})}
+			</Box>
 
 			{!loading && remote.length === 0 && mode === 'browse' && !error ? (
 				<Box marginTop={1}>

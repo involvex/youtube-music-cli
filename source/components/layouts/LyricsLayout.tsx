@@ -163,20 +163,14 @@ export default function LyricsLayout() {
 		return buildKaraokeCells(precomputed, smoothProgress, resolvedColors!);
 	})();
 
-	// Calculate visible lines window sized to fit the terminal
+	// Scroll offset into the synced lines, sized to fit the terminal
 	const maxLines = Math.max(3, rows - RESERVED_ROWS);
-	const visibleLines = (() => {
-		if (!lyrics?.synced) return null;
-		const start = Math.max(
-			0,
-			Math.min(currentLineIndex - CONTEXT_LINES, lyrics.synced.length - 1),
-		);
-		const end = Math.min(lyrics.synced.length, start + maxLines);
-		return lyrics.synced.slice(start, end).map((line, i) => ({
-			line,
-			globalIndex: start + i,
-		}));
-	})();
+	const lineOffset = lyrics?.synced
+		? Math.max(
+				0,
+				Math.min(currentLineIndex - CONTEXT_LINES, lyrics.synced.length - 1),
+			)
+		: 0;
 
 	return (
 		<Box flexDirection="column">
@@ -197,36 +191,46 @@ export default function LyricsLayout() {
 			{error && !loading && <Text color={theme.colors.dim}>{error}</Text>}
 
 			{/* Synced lyrics */}
-			{!loading && visibleLines && (
-				<Box flexDirection="column" paddingX={1}>
-					{visibleLines.map(({line, globalIndex}) => {
+			{!loading && lyrics?.synced && (
+				<Box
+					flexDirection="column"
+					paddingX={1}
+					height={maxLines}
+					overflow="hidden"
+					contentOffsetY={lineOffset}
+					flexShrink={0}
+				>
+					{lyrics.synced.map((line, globalIndex) => {
 						const isCurrent = globalIndex === currentLineIndex;
 
 						if (isCurrent && karaokeCells) {
 							return (
-								<Text key={globalIndex} bold>
-									{'▶ '}
-									{karaokeCells.map((cell, i) => (
-										<Text key={i} color={cell.color}>
-											{cell.char}
-										</Text>
-									))}
-								</Text>
+								<Box key={globalIndex} flexShrink={0}>
+									<Text bold>
+										{'▶ '}
+										{karaokeCells.map((cell, i) => (
+											<Text key={i} color={cell.color}>
+												{cell.char}
+											</Text>
+										))}
+									</Text>
+								</Box>
 							);
 						}
 
 						return (
-							<Text
-								key={globalIndex}
-								color={
-									globalIndex < currentLineIndex
-										? theme.colors.dim
-										: theme.colors.text
-								}
-							>
-								{'  '}
-								{line.text || '♪'}
-							</Text>
+							<Box key={globalIndex} flexShrink={0}>
+								<Text
+									color={
+										globalIndex < currentLineIndex
+											? theme.colors.dim
+											: theme.colors.text
+									}
+								>
+									{'  '}
+									{line.text || '♪'}
+								</Text>
+							</Box>
 						);
 					})}
 				</Box>

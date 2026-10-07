@@ -87,9 +87,6 @@ export default function HistoryLayout() {
 		);
 	}, [history.length, effectiveHistoryIndex, maxVisible]);
 
-	const visibleQueue = queue.slice(queueStart, queueStart + maxVisible);
-	const visibleHistory = history.slice(historyStart, historyStart + maxVisible);
-
 	const navigateUp = useCallback(() => {
 		if (focus === 'queue') {
 			setQueueIndex(prev => Math.max(0, prev - 1));
@@ -213,30 +210,37 @@ export default function HistoryLayout() {
 				{queue.length === 0 ? (
 					<Text color={theme.colors.dim}> Queue empty — W/Y from search</Text>
 				) : (
-					visibleQueue.map((track, offset) => {
-						const index = queueStart + offset;
-						const isSelected =
-							focus === 'queue' && index === effectiveQueueIndex;
-						const isCurrent = index === queuePosition;
-						const prefix = isCurrent ? '▶' : isSelected ? '>' : ' ';
-						return (
-							<Box key={`q-${track.videoId}-${index}`}>
-								<Text
-									bold={isSelected || isCurrent}
-									color={
-										isCurrent
-											? theme.colors.success
-											: isSelected
-												? theme.colors.primary
-												: theme.colors.text
-									}
-								>
-									{prefix} {String(index + 1).padStart(2)}{' '}
-									{truncate(trackLabel(track), titleWidth)}
-								</Text>
-							</Box>
-						);
-					})
+					<Box
+						flexDirection="column"
+						height={maxVisible}
+						overflow="hidden"
+						contentOffsetY={queueStart}
+						flexShrink={0}
+					>
+						{queue.map((track, index) => {
+							const isSelected =
+								focus === 'queue' && index === effectiveQueueIndex;
+							const isCurrent = index === queuePosition;
+							const prefix = isCurrent ? '▶' : isSelected ? '>' : ' ';
+							return (
+								<Box key={`q-${track.videoId}-${index}`} flexShrink={0}>
+									<Text
+										bold={isSelected || isCurrent}
+										color={
+											isCurrent
+												? theme.colors.success
+												: isSelected
+													? theme.colors.primary
+													: theme.colors.text
+										}
+									>
+										{prefix} {String(index + 1).padStart(2)}{' '}
+										{truncate(trackLabel(track), titleWidth)}
+									</Text>
+								</Box>
+							);
+						})}
+					</Box>
 				)}
 			</Box>
 
@@ -253,28 +257,40 @@ export default function HistoryLayout() {
 				{history.length === 0 ? (
 					<Text color={theme.colors.dim}> No listening history yet.</Text>
 				) : (
-					visibleHistory.map((entry, offset) => {
-						const index = historyStart + offset;
-						const isSelected =
-							focus === 'history' && index === effectiveHistoryIndex;
-						const prefix = isSelected ? '>' : ' ';
-						return (
-							<Box key={`${entry.playedAt}-${entry.track.videoId}-${index}`}>
-								<Text
-									bold={isSelected}
-									color={isSelected ? theme.colors.primary : theme.colors.dim}
+					<Box
+						flexDirection="column"
+						height={maxVisible}
+						overflow="hidden"
+						contentOffsetY={historyStart}
+						flexShrink={0}
+					>
+						{history.map((entry, index) => {
+							const isSelected =
+								focus === 'history' && index === effectiveHistoryIndex;
+							const prefix = isSelected ? '>' : ' ';
+							return (
+								<Box
+									key={`${entry.playedAt}-${entry.track.videoId}-${index}`}
+									flexShrink={0}
 								>
-									{prefix} {formatTimestamp(entry.playedAt)}{' '}
-								</Text>
-								<Text
-									bold={isSelected}
-									color={isSelected ? theme.colors.primary : theme.colors.text}
-								>
-									{truncate(trackLabel(entry.track), titleWidth - 14)}
-								</Text>
-							</Box>
-						);
-					})
+									<Text
+										bold={isSelected}
+										color={isSelected ? theme.colors.primary : theme.colors.dim}
+									>
+										{prefix} {formatTimestamp(entry.playedAt)}{' '}
+									</Text>
+									<Text
+										bold={isSelected}
+										color={
+											isSelected ? theme.colors.primary : theme.colors.text
+										}
+									>
+										{truncate(trackLabel(entry.track), titleWidth - 14)}
+									</Text>
+								</Box>
+							);
+						})}
+					</Box>
 				)}
 			</Box>
 
