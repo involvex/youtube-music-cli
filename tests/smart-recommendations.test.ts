@@ -1,54 +1,34 @@
-import {describe, it, expect, mock} from 'bun:test';
-
-mock.module('../source/services/youtube-music/api.ts', () => ({
-	getMusicService: () => ({
-		getSuggestions: async () => [
-			{
-				videoId: 'test-video-a1',
-				title: 'Track A1',
-				artists: [{name: 'Artist A', artistId: 'artist-a'}],
-				duration: 180,
-			},
-			{
-				videoId: 'test-video-a2',
-				title: 'Track A2',
-				artists: [{name: 'Artist A', artistId: 'artist-a'}],
-				duration: 200,
-			},
-			{
-				videoId: 'test-video-a3',
-				title: 'Track A3',
-				artists: [{name: 'Artist A', artistId: 'artist-a'}],
-				duration: 210,
-			},
-			{
-				videoId: 'test-video-b1',
-				title: 'Track B1',
-				artists: [{name: 'Artist B', artistId: 'artist-b'}],
-				duration: 190,
-			},
-			{
-				videoId: 'test-video-b2',
-				title: 'Track B2',
-				artists: [{name: 'Artist B', artistId: 'artist-b'}],
-				duration: 220,
-			},
-			{
-				videoId: 'test-video-c1',
-				title: 'Track C1',
-				artists: [{name: 'Artist C', artistId: 'artist-c'}],
-				duration: 230,
-			},
-		],
-		getTrending: async () => [],
-	}),
-}));
-
+import {afterEach, describe, expect, it, mock, spyOn} from 'bun:test';
+import {getMusicService} from '../source/services/youtube-music/api.ts';
 import {getSmartRecommendations} from '../source/services/youtube-music/smart-recommendations.service.ts';
 import type {Track} from '../source/types/youtube-music.types.ts';
 
+function cannedTrack(videoId: string, title: string, artist: string): Track {
+	return {
+		videoId,
+		title,
+		artists: [{name: artist, artistId: `test-${artist}`}],
+		duration: 180,
+	};
+}
+
 describe('SmartRecommendations', () => {
+	afterEach(() => {
+		mock.restore();
+	});
+
 	it('should return recommendations with diversity capping', async () => {
+		// Stub the singleton instance (restored above): no module mocks, so
+		// nothing leaks into other test files sharing this process.
+		spyOn(getMusicService(), 'getSuggestions').mockResolvedValue([
+			cannedTrack('test-video-a1', 'Track A1', 'Artist A'),
+			cannedTrack('test-video-a2', 'Track A2', 'Artist A'),
+			cannedTrack('test-video-a3', 'Track A3', 'Artist A'),
+			cannedTrack('test-video-b1', 'Track B1', 'Artist B'),
+			cannedTrack('test-video-b2', 'Track B2', 'Artist B'),
+			cannedTrack('test-video-c1', 'Track C1', 'Artist C'),
+		]);
+
 		const seedTrack: Track = {
 			videoId: 'seed123',
 			title: 'Seed Track',
