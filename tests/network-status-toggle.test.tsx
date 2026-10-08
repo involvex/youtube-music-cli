@@ -42,9 +42,17 @@ function Providers({children}: {children: ReactNode}) {
 	);
 }
 
-function renderFrame(node: ReactNode): string {
+async function renderFrame(node: ReactNode): Promise<string> {
 	const {lastFrame, unmount} = render(<Providers>{node}</Providers>);
-	const frame = lastFrame() ?? '';
+	// Ink may commit the first frame asynchronously (especially under CI
+	// load), so wait for content instead of trusting a synchronous read.
+	// A genuinely missing badge still fails once content arrives.
+	const start = Date.now();
+	let frame = lastFrame() ?? '';
+	while (frame === '' && Date.now() - start < 2000) {
+		await new Promise(resolve => setTimeout(resolve, 10));
+		frame = lastFrame() ?? '';
+	}
 	unmount();
 	return frame;
 }
@@ -79,12 +87,12 @@ describe('showNetworkStatus toggle', () => {
 
 	test(
 		'header layouts show offline badge when enabled and offline',
-		() => {
+		async () => {
 			getConfigService().set('showNetworkStatus', true);
 			setOfflineState({isOffline: true});
 
 			for (const [name, node] of headerLayouts) {
-				expect(renderFrame(node), name).toContain(OFFLINE_BADGE);
+				expect(await renderFrame(node), name).toContain(OFFLINE_BADGE);
 			}
 		},
 		{timeout: 60_000},
@@ -92,12 +100,12 @@ describe('showNetworkStatus toggle', () => {
 
 	test(
 		'header layouts show online badge when enabled and online',
-		() => {
+		async () => {
 			getConfigService().set('showNetworkStatus', true);
 			setOfflineState({isOffline: false});
 
 			for (const [name, node] of headerLayouts) {
-				expect(renderFrame(node), name).toContain(ONLINE_BADGE);
+				expect(await renderFrame(node), name).toContain(ONLINE_BADGE);
 			}
 		},
 		{timeout: 60_000},
@@ -105,13 +113,13 @@ describe('showNetworkStatus toggle', () => {
 
 	test(
 		'header layouts hide badges when disabled, offline or online',
-		() => {
+		async () => {
 			getConfigService().set('showNetworkStatus', false);
 
 			for (const isOffline of [true, false]) {
 				setOfflineState({isOffline});
 				for (const [name, node] of headerLayouts) {
-					const frame = renderFrame(node);
+					const frame = await renderFrame(node);
 					expect(frame, `${name} offline=${isOffline}`).not.toContain(
 						OFFLINE_BADGE,
 					);
@@ -126,7 +134,7 @@ describe('showNetworkStatus toggle', () => {
 
 	test(
 		'NowPlaying renders no badge without a current track',
-		() => {
+		async () => {
 			// The offline badge lives in the time display, which only renders
 			// alongside a current track. Without one, no badge may leak
 			// regardless of the toggle or network state.
@@ -134,7 +142,7 @@ describe('showNetworkStatus toggle', () => {
 				getConfigService().set('showNetworkStatus', show);
 				for (const isOffline of [true, false]) {
 					setOfflineState({isOffline});
-					const frame = renderFrame(<NowPlaying />);
+					const frame = await renderFrame(<NowPlaying />);
 					const label = `show=${show} offline=${isOffline}`;
 					expect(frame, label).toContain('No track playing');
 					expect(frame, label).not.toContain(OFFLINE_BADGE);
