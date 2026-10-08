@@ -1,4 +1,22 @@
-import {expect, test} from 'bun:test';
+import {expect, test, mock} from 'bun:test';
+
+mock.module('youtubei.js', () => ({
+	Innertube: class {
+		static async create() {
+			return {
+				getBasicInfo: async () => ({
+					playability_status: {status: 'OK'},
+					basic_info: {
+						title: 'Never Gonna Give You Up',
+						channel: {id: 'channel1', name: 'Rick Astley'},
+						duration: 212,
+					},
+				}),
+			};
+		}
+	},
+	Log: {setLevel: () => {}, Level: {ERROR: 3}},
+}));
 
 test('getTrack accepts raw video id', async () => {
 	const {getMusicService} =
