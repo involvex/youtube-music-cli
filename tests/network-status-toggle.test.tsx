@@ -1,7 +1,9 @@
 // Network status toggle — layouts must respect the showNetworkStatus setting.
-// Full-frame render checks via ink-testing-library with network stubbed out.
+// Synchronous render-to-string checks: the badges live in static header
+// output, so asserting on a full App frame added nothing but commit-timing
+// flakiness under CI load.
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
-import {render} from 'ink-testing-library';
+import {renderToString} from 'ink';
 import type {ReactElement, ReactNode} from 'react';
 import GenresLayout from '../source/components/layouts/GenresLayout.tsx';
 import HomeLayout from '../source/components/layouts/HomeLayout.tsx';
@@ -24,8 +26,6 @@ import {PlayerProvider} from '../source/stores/player.store.tsx';
 const OFFLINE_BADGE = '📡 Offline';
 const ONLINE_BADGE = '⚠️ Online';
 
-const realFetch = globalThis.fetch;
-
 function Providers({children}: {children: ReactNode}) {
 	return (
 		<ThemeProvider>
@@ -42,35 +42,8 @@ function Providers({children}: {children: ReactNode}) {
 	);
 }
 
-async function renderFrame(node: ReactElement): Promise<string> {
-	const {lastFrame, unmount, rerender, stdout} = render(
-		<Providers>{node}</Providers>,
-	);
-	try {
-		// Ink may commit the first frame asynchronously (especially under CI
-		// load), so wait for content instead of trusting a synchronous read.
-		// A genuinely missing badge still fails once content arrives.
-		const start = Date.now();
-		let frame = lastFrame() ?? '';
-		while (frame === '' && Date.now() - start < 2000) {
-			await new Promise(resolve => setTimeout(resolve, 10));
-			frame = lastFrame() ?? '';
-		}
-		if (frame === '') {
-			// Second chance: a dropped first commit recovers on rerender.
-			rerender(node);
-			await new Promise(resolve => setTimeout(resolve, 250));
-			frame = lastFrame() ?? '';
-		}
-		if (frame === '') {
-			console.warn(
-				`renderFrame: no output committed (frames=${stdout.frames.length})`,
-			);
-		}
-		return frame;
-	} finally {
-		unmount();
-	}
+function renderFrame(node: ReactElement): string {
+	return renderToString(<Providers>{node}</Providers>);
 }
 
 // HomeLayout always contains a static '📡 Live Streams' quick-link label,
@@ -89,93 +62,66 @@ describe('showNetworkStatus toggle', () => {
 	beforeEach(() => {
 		original = getConfigService().get('showNetworkStatus');
 		resetOfflineStateForTests();
-		globalThis.fetch = (() =>
-			Promise.reject(
-				new Error('network disabled in tests'),
-			)) as unknown as typeof fetch;
 	});
 
 	afterEach(() => {
-		globalThis.fetch = realFetch;
 		getConfigService().set('showNetworkStatus', original);
 		resetOfflineStateForTests();
 	});
 
-	test(
-		'header layouts show offline badge when enabled and offline',
-		async () => {
-			getConfigService().set('showNetworkStatus', true);
-			setOfflineState({isOffline: true});
+	test('header layouts show offline badge when enabled and offline', () => {
+		getConfigService().set('showNetworkStatus', true);
+		setOfflineState({isOffline: true});
 
+		for (const [name, node] of headerLayouts) {
+			expect(renderFrame(node), name).toContain(OFFLINE_BADGE);
+		}
+	});
+
+	test('header layouts show online badge when enabled and online', () => {
+		getConfigService().set('showNetworkStatus', true);
+		setOfflineState({isOffline: false});
+
+		for (const [name, node] of headerLayouts) {
+			expect(renderFrame(node), name).toContain(ONLINE_BADGE);
+		}
+	});
+
+	test('header layouts hide badges when disabled, offline or online', () => {
+		getConfigService().set('showNetworkStatus', false);
+
+		for (const isOffline of [true, false]) {
+			setOfflineState({isOffline});
 			for (const [name, node] of headerLayouts) {
-				expect(await renderFrame(node), name).toContain(OFFLINE_BADGE);
+				const frame = renderFrame(node);
+				expect(frame, `${name} offline=${isOffline}`).not.toContain(
+					OFFLINE_BADGE,
+				);
+				expect(frame, `${name} offline=${isOffline}`).not.toContain(
+					ONLINE_BADGE,
+				);
 			}
-		},
-		{timeout: 60_000},
-	);
+		}
+	});
 
-	test(
-		'header layouts show online badge when enabled and online',
-		async () => {
-			getConfigService().set('showNetworkStatus', true);
-			setOfflineState({isOffline: false});
-
-			for (const [name, node] of headerLayouts) {
-				expect(await renderFrame(node), name).toContain(ONLINE_BADGE);
-			}
-		},
-		{timeout: 60_000},
-	);
-
-	test(
-		'header layouts hide badges when disabled, offline or online',
-		async () => {
-			getConfigService().set('showNetworkStatus', false);
-
+	test('NowPlaying renders no badge without a current track', () => {
+		// The offline badge lives in the time display, which only renders
+		// alongside a current track. Without one, no badge may leak
+		// regardless of the toggle or network state.
+		for (const show of [true, false]) {
+			getConfigService().set('showNetworkStatus', show);
 			for (const isOffline of [true, false]) {
 				setOfflineState({isOffline});
-				for (const [name, node] of headerLayouts) {
-					const frame = await renderFrame(node);
-					expect(frame, `${name} offline=${isOffline}`).not.toContain(
-						OFFLINE_BADGE,
-					);
-					expect(frame, `${name} offline=${isOffline}`).not.toContain(
-						ONLINE_BADGE,
-					);
-				}
+				const frame = renderFrame(<NowPlaying />);
+				const label = `show=${show} offline=${isOffline}`;
+				expect(frame, label).toContain('No track playing');
+				expect(frame, label).not.toContain(OFFLINE_BADGE);
+				expect(frame, label).not.toContain(ONLINE_BADGE);
 			}
-		},
-		{timeout: 60_000},
-	);
+		}
+	});
 
-	test(
-		'NowPlaying renders no badge without a current track',
-		async () => {
-			// The offline badge lives in the time display, which only renders
-			// alongside a current track. Without one, no badge may leak
-			// regardless of the toggle or network state.
-			for (const show of [true, false]) {
-				getConfigService().set('showNetworkStatus', show);
-				for (const isOffline of [true, false]) {
-					setOfflineState({isOffline});
-					const frame = await renderFrame(<NowPlaying />);
-					const label = `show=${show} offline=${isOffline}`;
-					expect(frame, label).toContain('No track playing');
-					expect(frame, label).not.toContain(OFFLINE_BADGE);
-					expect(frame, label).not.toContain(ONLINE_BADGE);
-				}
-			}
-		},
-		{timeout: 60_000},
-	);
-
-	test(
-		'showNetworkStatus defaults to true',
-		() => {
-			expect(getConfigService().getDefaultConfig().showNetworkStatus).toBe(
-				true,
-			);
-		},
-		{timeout: 60_000},
-	);
+	test('showNetworkStatus defaults to true', () => {
+		expect(getConfigService().getDefaultConfig().showNetworkStatus).toBe(true);
+	});
 });
