@@ -2,7 +2,7 @@
 // Full-frame render checks via ink-testing-library with network stubbed out.
 import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
 import {render} from 'ink-testing-library';
-import type {ReactNode} from 'react';
+import type {ReactElement, ReactNode} from 'react';
 import GenresLayout from '../source/components/layouts/GenresLayout.tsx';
 import HomeLayout from '../source/components/layouts/HomeLayout.tsx';
 import NewReleasesLayout from '../source/components/layouts/NewReleasesLayout.tsx';
@@ -42,24 +42,40 @@ function Providers({children}: {children: ReactNode}) {
 	);
 }
 
-async function renderFrame(node: ReactNode): Promise<string> {
-	const {lastFrame, unmount} = render(<Providers>{node}</Providers>);
-	// Ink may commit the first frame asynchronously (especially under CI
-	// load), so wait for content instead of trusting a synchronous read.
-	// A genuinely missing badge still fails once content arrives.
-	const start = Date.now();
-	let frame = lastFrame() ?? '';
-	while (frame === '' && Date.now() - start < 2000) {
-		await new Promise(resolve => setTimeout(resolve, 10));
-		frame = lastFrame() ?? '';
+async function renderFrame(node: ReactElement): Promise<string> {
+	const {lastFrame, unmount, rerender, stdout} = render(
+		<Providers>{node}</Providers>,
+	);
+	try {
+		// Ink may commit the first frame asynchronously (especially under CI
+		// load), so wait for content instead of trusting a synchronous read.
+		// A genuinely missing badge still fails once content arrives.
+		const start = Date.now();
+		let frame = lastFrame() ?? '';
+		while (frame === '' && Date.now() - start < 2000) {
+			await new Promise(resolve => setTimeout(resolve, 10));
+			frame = lastFrame() ?? '';
+		}
+		if (frame === '') {
+			// Second chance: a dropped first commit recovers on rerender.
+			rerender(node);
+			await new Promise(resolve => setTimeout(resolve, 250));
+			frame = lastFrame() ?? '';
+		}
+		if (frame === '') {
+			console.warn(
+				`renderFrame: no output committed (frames=${stdout.frames.length})`,
+			);
+		}
+		return frame;
+	} finally {
+		unmount();
 	}
-	unmount();
-	return frame;
 }
 
 // HomeLayout always contains a static '📡 Live Streams' quick-link label,
 // so assertions must target the full badge strings, not the bare emoji.
-const headerLayouts: Array<[string, ReactNode]> = [
+const headerLayouts: Array<[string, ReactElement]> = [
 	['TrendingLayout', <TrendingLayout key="trending" />],
 	['NewReleasesLayout', <NewReleasesLayout key="releases" />],
 	['GenresLayout', <GenresLayout key="genres" />],
