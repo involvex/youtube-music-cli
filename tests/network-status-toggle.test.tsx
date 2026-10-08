@@ -2,7 +2,7 @@
 // Synchronous render-to-string checks: the badges live in static header
 // output, so asserting on a full App frame added nothing but commit-timing
 // flakiness under CI load.
-import {afterEach, beforeEach, describe, expect, test} from 'bun:test';
+import {afterEach, beforeEach, describe, expect, mock, test} from 'bun:test';
 import {renderToString} from 'ink';
 import type {ReactElement, ReactNode} from 'react';
 import GenresLayout from '../source/components/layouts/GenresLayout.tsx';
@@ -25,6 +25,31 @@ import {PlayerProvider} from '../source/stores/player.store.tsx';
 
 const OFFLINE_BADGE = '📡 Offline';
 const ONLINE_BADGE = '⚠️ Online';
+
+// Stub the YouTube client: renderToString executes mount effects, so the
+// layouts' data fetches fire. Empty shapes parse cleanly to [] with no
+// warnings. Note Bun's mock.module registry is process-global, so this fake
+// must stay a superset of music-service.test.js's (getBasicInfo) to avoid
+// changing behavior for files running later in the same process.
+mock.module('youtubei.js', () => ({
+	Innertube: class {
+		static async create() {
+			return {
+				getBasicInfo: async () => ({
+					playability_status: {status: 'OK'},
+					basic_info: {
+						title: 'Test Track',
+						channel: {id: 'channel1', name: 'Test Artist'},
+						duration: 180,
+					},
+				}),
+				music: {getExplore: async () => ({sections: []})},
+				actions: {execute: async () => ({data: {}})},
+			};
+		}
+	},
+	Log: {setLevel: () => {}, Level: {ERROR: 3}},
+}));
 
 function Providers({children}: {children: ReactNode}) {
 	return (

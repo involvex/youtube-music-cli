@@ -12,6 +12,8 @@ mock.module('youtubei.js', () => ({
 						duration: 212,
 					},
 				}),
+				music: {getExplore: async () => ({sections: []})},
+				actions: {execute: async () => ({data: {}})},
 			};
 		}
 	},
