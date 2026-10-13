@@ -66,6 +66,8 @@ jobs:
           bun build source/cli.tsx --compile --target=bun-windows-x64 --outfile dist/youtube-music-cli-windows-x64.exe
           bun build source/cli.tsx --compile --target=bun-darwin-x64 --outfile dist/youtube-music-cli-darwin-x64
           bun build source/cli.tsx --compile --target=bun-darwin-arm64 --outfile dist/youtube-music-cli-darwin-arm64
+          # Immersive mode binary (Windows)
+          bun build source/immersive-entry.tsx --compile --target=bun-windows-x64 --outfile dist/ymc-win32.exe
           # Legacy names for older install scripts / docs
           cp dist/youtube-music-cli-windows-x64.exe dist/youtube-music-cli.exe
 
@@ -91,6 +93,7 @@ jobs:
             dist/youtube-music-cli-linux-x64
             dist/youtube-music-cli.exe
             dist/youtube-music-cli-windows-x64.exe
+            dist/ymc-win32.exe
             dist/youtube-music-cli-darwin-x64
             dist/youtube-music-cli-darwin-arm64
           body_path: latest-release.md
