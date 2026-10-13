@@ -1,5 +1,6 @@
 // LLM type definitions
-export type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'custom';
+export type LLMProvider =
+	'gemini' | 'openai' | 'kilo' | 'opencode' | 'anthropic' | 'custom';
 
 export interface LLMConfig {
 	provider?: LLMProvider;
@@ -28,6 +29,7 @@ export interface ChatContext {
 export interface ToolCall {
 	name: string;
 	args: Record<string, unknown>;
+	result?: ToolResult;
 }
 
 export interface ToolResult {

@@ -1,10 +1,16 @@
 // Settings component
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {Box, Text} from 'ink';
 import TextInput from 'ink-text-input';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
+import {getLLMService} from '../../services/llm/llm.service.ts';
+import {
+	AI_PROVIDER_PRESETS,
+	getProviderPreset,
+} from '../../services/llm/ai-providers.ts';
+import type {LLMProvider} from '../../types/llm.types.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
@@ -49,9 +55,10 @@ const SETTINGS_ITEMS = [
 	'Discord Rich Presence',
 	'LLM Enabled',
 	'LLM API Key',
+	'AI Provider',
 	'LLM Model',
+	'Refresh Models',
 	'LLM Temperature',
-	'LLM Endpoint',
 	'LLM Base URL',
 	'Downloads Enabled',
 	'Download Folder',
@@ -123,14 +130,19 @@ export default function Settings() {
 	const [isEditingCookiesFile, setIsEditingCookiesFile] = useState(false);
 	const [llmEnabled, setLLMEnabled] = useState(config.getLLMEnabled());
 	const [llmApiKey, setLLMApiKey] = useState(config.getLLMApiKey() ?? '');
-	const [llmModel, setLLMModel] = useState(
-		config.getLLMConfig()?.model ?? 'gemini-2.0-flash',
+	const [llmProvider, setLLMProvider] = useState<LLMProvider>(
+		config.getLLMConfig()?.provider ?? 'kilo',
 	);
+	const [llmModel, setLLMModel] = useState(
+		config.getLLMConfig()?.model ??
+			getProviderPreset(config.getLLMConfig()?.provider ?? 'kilo').defaultModel,
+	);
+	const [availableModels, setAvailableModels] = useState<string[]>(() =>
+		getLLMService().getCachedModels(),
+	);
+	const [modelsStatus, setModelsStatus] = useState<string | null>(null);
 	const [llmTemperature, setLLMTemperature] = useState(
 		config.getLLMConfig()?.temperature ?? 0.7,
-	);
-	const [llmEndpoint, setLLMEndpoint] = useState(
-		config.getLLMConfig()?.endpoint ?? '',
 	);
 	const [llmBaseUrl, setLLMBaseUrl] = useState(
 		config.getLLMConfig()?.baseUrl ?? '',
@@ -306,18 +318,71 @@ export default function Settings() {
 		config.setLLMEnabled(next);
 	};
 
+	const cycleLLMProvider = () => {
+		const ids = AI_PROVIDER_PRESETS.map(p => p.id);
+		const currentIndex = ids.indexOf(llmProvider);
+		const next = ids[(currentIndex + 1) % ids.length]!;
+		const preset = getProviderPreset(next);
+		setLLMProvider(next);
+		setLLMModel(preset.defaultModel);
+		setAvailableModels(getLLMService().getCachedModels());
+		setModelsStatus(null);
+		config.setLLMConfig({
+			...config.getLLMConfig(),
+			provider: next,
+			model: preset.defaultModel,
+			baseUrl: preset.baseUrl,
+			endpoint: preset.chatCompletionsUrl,
+		});
+		getLLMService().reloadConfig();
+		void refreshModels(true);
+	};
+
+	async function refreshModels(silent = false): Promise<void> {
+		if (!silent) {
+			setModelsStatus('Fetching…');
+		}
+		try {
+			const models = await getLLMService().fetchAvailableModels(true);
+			setAvailableModels(models);
+			setModelsStatus(`✓ ${models.length} models`);
+			if (!models.includes(llmModel) && models[0]) {
+				setLLMModel(models[0]);
+				config.setLLMConfig({...config.getLLMConfig(), model: models[0]});
+				getLLMService().reloadConfig();
+			}
+		} catch (error) {
+			setModelsStatus(
+				error instanceof Error ? `Failed: ${error.message}` : 'Failed',
+			);
+		}
+	}
+
+	useEffect(() => {
+		let cancelled = false;
+		void getLLMService()
+			.fetchAvailableModels(false)
+			.then(models => {
+				if (!cancelled && models.length > 0) {
+					setAvailableModels(models);
+				}
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [llmProvider]);
+
 	const cycleLLMModel = () => {
-		const models = [
-			'gemini-2.0-flash',
-			'gemini-2.0-flash-lite',
-			'gemini-1.5-flash',
-			'kilo-auto/free',
-			'kilo-auto/pro',
-		];
-		const currentIndex = models.indexOf(llmModel);
-		const nextModel = models[(currentIndex + 1) % models.length]!;
+		const list =
+			availableModels.length > 0
+				? availableModels
+				: [getProviderPreset(llmProvider).defaultModel];
+		const currentIndex = list.indexOf(llmModel);
+		const nextModel = list[(currentIndex + 1) % list.length]!;
 		setLLMModel(nextModel);
 		config.setLLMConfig({...config.getLLMConfig(), model: nextModel});
+		getLLMService().reloadConfig();
 	};
 
 	const cycleLLMTemperature = () => {
@@ -326,18 +391,7 @@ export default function Settings() {
 		const nextTemp = temps[(currentIndex + 1) % temps.length]!;
 		setLLMTemperature(nextTemp);
 		config.setLLMConfig({...config.getLLMConfig(), temperature: nextTemp});
-	};
-
-	const cycleLLMEndpoint = () => {
-		const endpoints = [
-			'',
-			'https://api.kilogateway.com/v1/chat/completions',
-			'https://api.openai.com/v1/chat/completions',
-		];
-		const currentIndex = endpoints.indexOf(llmEndpoint);
-		const nextEndpoint = endpoints[(currentIndex + 1) % endpoints.length]!;
-		setLLMEndpoint(nextEndpoint);
-		config.setLLMConfig({...config.getLLMConfig(), endpoint: nextEndpoint});
+		getLLMService().reloadConfig();
 	};
 
 	const cycleSleepTimer = () => {
@@ -379,40 +433,42 @@ export default function Settings() {
 		} else if (selectedIndex === 11) {
 			setIsEditingApiKey(true);
 		} else if (selectedIndex === 12) {
-			cycleLLMModel();
+			cycleLLMProvider();
 		} else if (selectedIndex === 13) {
-			cycleLLMTemperature();
+			cycleLLMModel();
 		} else if (selectedIndex === 14) {
-			cycleLLMEndpoint();
+			void refreshModels();
 		} else if (selectedIndex === 15) {
-			setIsEditingBaseUrl(true);
+			cycleLLMTemperature();
 		} else if (selectedIndex === 16) {
-			toggleDownloadsEnabled();
+			setIsEditingBaseUrl(true);
 		} else if (selectedIndex === 17) {
-			setIsEditingDownloadDirectory(true);
+			toggleDownloadsEnabled();
 		} else if (selectedIndex === 18) {
-			cycleDownloadFormat();
+			setIsEditingDownloadDirectory(true);
 		} else if (selectedIndex === 19) {
-			togglePreferLocalPlayback();
+			cycleDownloadFormat();
 		} else if (selectedIndex === 20) {
-			toggleShowNetworkStatus();
+			togglePreferLocalPlayback();
 		} else if (selectedIndex === 21) {
-			cycleCookiesFromBrowser();
+			toggleShowNetworkStatus();
 		} else if (selectedIndex === 22) {
-			setIsEditingCookiesFile(true);
+			cycleCookiesFromBrowser();
 		} else if (selectedIndex === 23) {
-			cycleSleepTimer();
+			setIsEditingCookiesFile(true);
 		} else if (selectedIndex === 24) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
+			cycleSleepTimer();
 		} else if (selectedIndex === 25) {
-			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
+			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
 		} else if (selectedIndex === 26) {
-			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
+			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
 		} else if (selectedIndex === 27) {
-			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
+			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
 		} else if (selectedIndex === 28) {
-			cycleCacheTtl();
+			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		} else if (selectedIndex === 29) {
+			cycleCacheTtl();
+		} else if (selectedIndex === 30) {
 			cycleCacheEntries();
 		}
 	};
@@ -641,9 +697,11 @@ export default function Settings() {
 							const trimmed = value.trim();
 							setLLMApiKey(trimmed);
 							config.setLLMApiKey(trimmed);
+							getLLMService().reloadConfig();
 							setIsEditingApiKey(false);
+							void refreshModels();
 						}}
-						placeholder="Enter your Gemini API key"
+						placeholder={`Enter your ${getProviderPreset(llmProvider).label} API key`}
 						focus
 					/>
 				) : (
@@ -664,7 +722,7 @@ export default function Settings() {
 				)}
 			</Box>
 
-			{/* LLM Model */}
+			{/* AI Provider */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -675,11 +733,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 12}
 				>
-					Model: {llmModel}
+					AI Provider: {getProviderPreset(llmProvider).label}
 				</Text>
 			</Box>
 
-			{/* LLM Temperature */}
+			{/* LLM Model */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -690,11 +748,12 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 13}
 				>
-					Temperature: {llmTemperature.toFixed(1)}
+					Model: {llmModel}
+					{modelsStatus ? ` (${modelsStatus})` : ''}
 				</Text>
 			</Box>
 
-			{/* LLM Endpoint */}
+			{/* Refresh Models */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -705,16 +764,28 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 14}
 				>
-					Endpoint:{' '}
-					{llmEndpoint
-						? llmEndpoint.replace('https://', '').substring(0, 30)
-						: 'Default (Gemini)'}
+					Refresh Models ↻
+				</Text>
+			</Box>
+
+			{/* LLM Temperature */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 15 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 15 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 15}
+				>
+					Temperature: {llmTemperature.toFixed(1)}
 				</Text>
 			</Box>
 
 			{/* LLM Base URL */}
 			<Box paddingX={1}>
-				{isEditingBaseUrl && selectedIndex === 15 ? (
+				{isEditingBaseUrl && selectedIndex === 16 ? (
 					<TextInput
 						value={llmBaseUrl}
 						onChange={setLLMBaseUrl}
@@ -722,25 +793,26 @@ export default function Settings() {
 							const trimmed = value.trim();
 							setLLMBaseUrl(trimmed);
 							config.setLLMConfig({...config.getLLMConfig(), baseUrl: trimmed});
+							getLLMService().reloadConfig();
 							setIsEditingBaseUrl(false);
 						}}
-						placeholder="Enter base URL (e.g., https://api.kilogateway.com/v1)"
+						placeholder={`Base URL (default ${getProviderPreset(llmProvider).baseUrl})`}
 						focus
 					/>
 				) : (
 					<Text
 						backgroundColor={
-							selectedIndex === 15 ? theme.colors.primary : undefined
+							selectedIndex === 16 ? theme.colors.primary : undefined
 						}
 						color={
-							selectedIndex === 15 ? theme.colors.background : theme.colors.text
+							selectedIndex === 16 ? theme.colors.background : theme.colors.text
 						}
-						bold={selectedIndex === 15}
+						bold={selectedIndex === 16}
 					>
 						Base URL:{' '}
 						{llmBaseUrl
 							? llmBaseUrl.replace('https://', '').substring(0, 30)
-							: '(not set)'}
+							: `Default (${getProviderPreset(llmProvider).baseUrl.replace('https://', '')})`}
 					</Text>
 				)}
 			</Box>
@@ -749,12 +821,12 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 16 ? theme.colors.primary : undefined
+						selectedIndex === 17 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 16 ? theme.colors.background : theme.colors.text
+						selectedIndex === 17 ? theme.colors.background : theme.colors.text
 					}
-					bold={selectedIndex === 16}
+					bold={selectedIndex === 17}
 				>
 					Download Feature: {downloadsEnabled ? 'ON' : 'OFF'}
 				</Text>
@@ -762,7 +834,7 @@ export default function Settings() {
 
 			{/* Download Folder */}
 			<Box paddingX={1}>
-				{isEditingDownloadDirectory && selectedIndex === 17 ? (
+				{isEditingDownloadDirectory && selectedIndex === 18 ? (
 					<TextInput
 						value={downloadDirectory}
 						onChange={setDownloadDirectory}
@@ -793,12 +865,12 @@ export default function Settings() {
 				) : (
 					<Text
 						backgroundColor={
-							selectedIndex === 17 ? theme.colors.primary : undefined
+							selectedIndex === 18 ? theme.colors.primary : undefined
 						}
 						color={
-							selectedIndex === 17 ? theme.colors.background : theme.colors.text
+							selectedIndex === 18 ? theme.colors.background : theme.colors.text
 						}
-						bold={selectedIndex === 17}
+						bold={selectedIndex === 18}
 					>
 						Download Folder: {downloadDirectory}
 					</Text>
@@ -814,21 +886,6 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 18 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 18 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 18}
-				>
-					Download Format: {downloadFormat.toUpperCase()}
-				</Text>
-			</Box>
-
-			{/* Prefer Local Playback */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
 						selectedIndex === 19 ? theme.colors.primary : undefined
 					}
 					color={
@@ -836,11 +893,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 19}
 				>
-					Prefer Local Playback: {preferLocalPlayback ? 'ON' : 'OFF'}
+					Download Format: {downloadFormat.toUpperCase()}
 				</Text>
 			</Box>
 
-			{/* Show Network Status */}
+			{/* Prefer Local Playback */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -851,11 +908,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 20}
 				>
-					Show Network Status: {showNetworkStatus ? 'ON' : 'OFF'}
+					Prefer Local Playback: {preferLocalPlayback ? 'ON' : 'OFF'}
 				</Text>
 			</Box>
 
-			{/* Cookies From Browser */}
+			{/* Show Network Status */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -866,6 +923,21 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 21}
 				>
+					Show Network Status: {showNetworkStatus ? 'ON' : 'OFF'}
+				</Text>
+			</Box>
+
+			{/* Cookies From Browser */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 22 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 22 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 22}
+				>
 					Cookies From Browser:{' '}
 					{formatCookiesFromBrowserLabel(cookiesFromBrowser)}
 				</Text>
@@ -873,7 +945,7 @@ export default function Settings() {
 
 			{/* Cookies File */}
 			<Box paddingX={1}>
-				{isEditingCookiesFile && selectedIndex === 22 ? (
+				{isEditingCookiesFile && selectedIndex === 23 ? (
 					<TextInput
 						value={cookiesFile}
 						onChange={setCookiesFile}
@@ -889,12 +961,12 @@ export default function Settings() {
 				) : (
 					<Text
 						backgroundColor={
-							selectedIndex === 22 ? theme.colors.primary : undefined
+							selectedIndex === 23 ? theme.colors.primary : undefined
 						}
 						color={
-							selectedIndex === 22 ? theme.colors.background : theme.colors.text
+							selectedIndex === 23 ? theme.colors.background : theme.colors.text
 						}
-						bold={selectedIndex === 22}
+						bold={selectedIndex === 23}
 					>
 						Cookies File: {cookiesFile.trim() || '(not set)'}
 					</Text>
@@ -905,37 +977,22 @@ export default function Settings() {
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
-						selectedIndex === 23 ? theme.colors.primary : undefined
+						selectedIndex === 24 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 23
+						selectedIndex === 24
 							? theme.colors.background
 							: isActive
 								? theme.colors.accent
 								: theme.colors.text
 					}
-					bold={selectedIndex === 23}
+					bold={selectedIndex === 24}
 				>
 					{sleepTimerLabel}
 				</Text>
 			</Box>
 
 			{/* Import Playlists */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 24 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 24 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 24}
-				>
-					Import Playlists →
-				</Text>
-			</Box>
-
-			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -946,11 +1003,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 25}
 				>
-					Export Playlists →
+					Import Playlists →
 				</Text>
 			</Box>
 
-			{/* Custom Keybindings */}
+			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -961,11 +1018,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 26}
 				>
-					Custom Keybindings →
+					Export Playlists →
 				</Text>
 			</Box>
 
-			{/* Manage Plugins */}
+			{/* Custom Keybindings */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -976,11 +1033,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 27}
 				>
-					Manage Plugins →
+					Custom Keybindings →
 				</Text>
 			</Box>
 
-			{/* Cache TTL */}
+			{/* Manage Plugins */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -991,11 +1048,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 28}
 				>
-					Cache TTL: {cacheTtlMinutes}m
+					Manage Plugins →
 				</Text>
 			</Box>
 
-			{/* Cache Max Entries */}
+			{/* Cache TTL */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1005,6 +1062,21 @@ export default function Settings() {
 						selectedIndex === 29 ? theme.colors.background : theme.colors.text
 					}
 					bold={selectedIndex === 29}
+				>
+					Cache TTL: {cacheTtlMinutes}m
+				</Text>
+			</Box>
+
+			{/* Cache Max Entries */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 30 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 30 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 30}
 				>
 					Cache Max Entries: {cacheMaxEntries}
 				</Text>

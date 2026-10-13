@@ -449,7 +449,8 @@ class ConfigService {
 
 	getLLMConfig():
 		| {
-				provider?: 'gemini' | 'openai' | 'anthropic' | 'custom';
+				provider?:
+					'gemini' | 'openai' | 'anthropic' | 'kilo' | 'opencode' | 'custom';
 				apiKey?: string;
 				model?: string;
 				temperature?: number;
@@ -463,7 +464,8 @@ class ConfigService {
 	}
 
 	setLLMConfig(config: {
-		provider?: 'gemini' | 'openai' | 'anthropic' | 'custom';
+		provider?:
+			'gemini' | 'openai' | 'anthropic' | 'kilo' | 'opencode' | 'custom';
 		apiKey?: string;
 		model?: string;
 		temperature?: number;

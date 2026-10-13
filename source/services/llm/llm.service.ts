@@ -1,4 +1,4 @@
-// Gemini LLM service
+// LLM service supporting both Gemini and OpenAI-compatible APIs
 import type {
 	LLMConfig,
 	ChatContext,
@@ -14,7 +14,41 @@ import {getToolDefinitions} from './tool-definitions.ts';
 import {executeTool} from './tool-executor.ts';
 import type {ToolExecutorContext} from './tool-executor.ts';
 
+import type {LLMProvider} from '../../types/llm.types.ts';
+import {
+	AI_PROVIDER_PRESETS,
+	fetchAvailableModels,
+	getAvailableModels,
+	getCachedModels,
+	getProviderPreset,
+} from './ai-providers.ts';
+
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+type Provider = LLMProvider;
+
+const OPENAI_COMPATIBLE_PROVIDERS: Provider[] = [
+	'openai',
+	'kilo',
+	'opencode',
+	'custom',
+];
+
+function normalizeBaseUrl(value: string): string {
+	return value.trim().replace(/\/+$/, '');
+}
+
+function resolveChatUrl(baseUrl: string, endpoint: string): string {
+	const trimmedEndpoint = endpoint.trim();
+	if (trimmedEndpoint) {
+		return trimmedEndpoint;
+	}
+	const base = normalizeBaseUrl(baseUrl);
+	if (/\/chat\/completions\/?$/.test(base)) {
+		return base;
+	}
+	return `${base}/chat/completions`;
+}
 
 interface GeminiContentPart {
 	text: string;
@@ -25,8 +59,30 @@ interface GeminiContent {
 	parts: GeminiContentPart[];
 }
 
+interface OpenAIMessage {
+	role: 'system' | 'user' | 'assistant' | 'tool';
+	content: string | null;
+	tool_calls?: Array<{
+		id: string;
+		type: 'function';
+		function: {name: string; arguments: string};
+	}>;
+	tool_call_id?: string;
+}
+
+interface OpenAITool {
+	type: 'function';
+	function: {
+		name: string;
+		description: string;
+		parameters: ToolDefinition['parameters'];
+	};
+}
+
 class LLMService {
 	private apiKey = '';
+
+	private provider: Provider = 'gemini';
 
 	private model = 'gemini-2.0-flash';
 
@@ -48,17 +104,45 @@ class LLMService {
 
 	private loadConfig(): void {
 		const configService = getConfigService();
-		const envKey = process.env['GEMINI_API_KEY'];
+		const presetIds = AI_PROVIDER_PRESETS.map(p => p.id);
+		const envKey =
+			process.env['GEMINI_API_KEY'] ||
+			process.env['KILO_API_KEY'] ||
+			process.env['OPENCODE_API_KEY'] ||
+			process.env['OPENAI_API_KEY'];
 		if (envKey) {
 			this.apiKey = envKey;
-			return;
 		}
 		const llmConfig = configService.get('llm');
 		if (llmConfig?.apiKey) {
 			this.apiKey = llmConfig.apiKey;
 		}
+		if (llmConfig?.provider) {
+			const provider = llmConfig.provider as Provider;
+			if (presetIds.includes(provider) || provider === 'anthropic') {
+				this.provider = provider;
+			}
+		}
+		// Infer OpenAI-compatible provider from a stored chat-completions URL
+		// when provider was never set (fixes legacy kilo configs showing undefined).
+		const storedEndpoint = llmConfig?.endpoint?.trim() ?? '';
+		if (
+			!llmConfig?.provider &&
+			/\/chat\/completions\/?$/.test(storedEndpoint)
+		) {
+			if (storedEndpoint.includes('api.kilo.ai')) {
+				this.provider = 'kilo';
+			} else if (storedEndpoint.includes('opencode.ai')) {
+				this.provider = 'opencode';
+			} else {
+				this.provider = 'openai';
+			}
+		}
+		const preset = getProviderPreset(this.provider);
 		if (llmConfig?.model) {
 			this.model = llmConfig.model;
+		} else {
+			this.model = preset.defaultModel;
 		}
 		if (llmConfig?.temperature !== undefined) {
 			this.temperature = llmConfig.temperature;
@@ -75,6 +159,7 @@ class LLMService {
 		if (llmConfig?.endpoint) {
 			this.endpoint = llmConfig.endpoint;
 		}
+		this.applyProviderDefaults();
 	}
 
 	isConfigured(): boolean {
@@ -88,6 +173,94 @@ class LLMService {
 		configService.set('llm', {...currentConfig, apiKey: key});
 	}
 
+	setProvider(provider: Provider): void {
+		this.provider = provider;
+		this.applyProviderDefaults();
+		const configService = getConfigService();
+		const currentConfig = configService.get('llm') || {};
+		const preset = getProviderPreset(provider);
+		configService.set('llm', {
+			...currentConfig,
+			provider,
+			baseUrl: this.baseUrl,
+			endpoint: this.endpoint || preset.chatCompletionsUrl,
+			model: currentConfig.model || preset.defaultModel,
+		});
+		this.loadConfig();
+	}
+
+	private isOpenAICompatible(): boolean {
+		return OPENAI_COMPATIBLE_PROVIDERS.includes(this.provider);
+	}
+
+	private applyProviderDefaults(): void {
+		const preset = getProviderPreset(this.provider);
+		if (this.isOpenAICompatible()) {
+			if (!this.baseUrl || this.baseUrl === GEMINI_API_BASE) {
+				this.baseUrl = preset.baseUrl;
+			}
+			if (!this.endpoint) {
+				this.endpoint = preset.chatCompletionsUrl;
+			}
+			if (
+				!this.model ||
+				this.model === 'gemini-2.0-flash' ||
+				this.model === 'undefined'
+			) {
+				this.model = preset.defaultModel;
+			}
+		} else if (this.provider === 'gemini') {
+			if (
+				!this.baseUrl ||
+				this.baseUrl.includes('api.kilo.ai') ||
+				this.baseUrl.includes('opencode.ai')
+			) {
+				this.baseUrl = GEMINI_API_BASE;
+			}
+			if (this.endpoint && /\/chat\/completions\/?$/.test(this.endpoint)) {
+				this.endpoint = '';
+			}
+		}
+	}
+
+	reloadConfig(): void {
+		this.loadConfig();
+	}
+
+	getProviderPresets() {
+		return AI_PROVIDER_PRESETS;
+	}
+
+	getChatCompletionsUrl(): string {
+		if (this.provider === 'gemini') {
+			return this.endpoint
+				? `${this.endpoint}?key=${this.apiKey}`
+				: `${normalizeBaseUrl(this.baseUrl)}/models/${this.model}:generateContent?key=${this.apiKey}`;
+		}
+		return resolveChatUrl(this.baseUrl, this.endpoint);
+	}
+
+	async fetchAvailableModels(forceRefresh = false): Promise<string[]> {
+		const {models} = await getAvailableModels(
+			this.provider,
+			this.apiKey,
+			undefined,
+			{forceRefresh},
+		);
+		return models;
+	}
+
+	getCachedModels(): string[] {
+		const cached = getCachedModels(this.provider);
+		return cached.length > 0
+			? cached
+			: [getProviderPreset(this.provider).defaultModel];
+	}
+
+	async refreshModels(): Promise<string[]> {
+		return fetchAvailableModels(this.provider, this.apiKey);
+	}
+
 	async chat(
 		prompt: string,
 		context: ChatContext,
@@ -98,7 +271,7 @@ class LLMService {
 			const error: LLMError = {
 				code: 'NO_API_KEY',
 				message:
-					'Gemini API key not configured. Set GEMINI_API_KEY or configure in settings.',
+					'API key not configured. Set GEMINI_API_KEY, KILO_API_KEY, OPENCODE_API_KEY, or OPENAI_API_KEY, or configure in settings.',
 			};
 			throw error;
 		}
@@ -113,27 +286,46 @@ class LLMService {
 		}
 
 		const systemPrompt = this.buildSystemPrompt(context);
-		const messages = this.buildMessages(prompt, history, systemPrompt);
 		const tools = getToolDefinitions();
 
 		try {
 			this.recordRequest();
-			const response = await this.makeRequest(messages, tools, toolContext);
+			let response: LLMResponse;
+			if (this.isOpenAICompatible()) {
+				response = await this.makeOpenAIRequest(
+					prompt,
+					history,
+					systemPrompt,
+					tools,
+					toolContext,
+				);
+			} else {
+				response = await this.makeGeminiRequest(
+					prompt,
+					history,
+					systemPrompt,
+					tools,
+					toolContext,
+				);
+			}
 			return response;
 		} catch (error) {
 			if (error instanceof Error) {
-				if (error.message.includes('API_KEY')) {
+				if (
+					error.message.includes('API_KEY') ||
+					error.message.includes('auth') ||
+					error.message.includes('401')
+				) {
 					const llmError: LLMError = {
 						code: 'INVALID_KEY',
-						message: 'Invalid API key. Please check your Gemini API key.',
+						message: 'Invalid API key. Please check your API key.',
 					};
 					throw llmError;
 				}
-				if (error.message.includes('quota')) {
+				if (error.message.includes('quota') || error.message.includes('429')) {
 					const llmError: LLMError = {
 						code: 'QUOTA_EXCEEDED',
-						message:
-							'API quota exceeded. Please check your Google AI Studio usage.',
+						message: 'API quota exceeded. Please check your usage.',
 					};
 					throw llmError;
 				}
@@ -152,10 +344,10 @@ class LLMService {
 	}
 
 	private buildSystemPrompt(context: ChatContext): string {
-		let prompt = `You are a helpful music assistant for YouTube Music CLI. 
+		let prompt = `You are a helpful music assistant for YouTube Music CLI.
 You can help users:
 - Find and play music using natural language
-- Create and manage playlists  
+- Create and manage playlists
 - Get recommendations based on current track
 - Generate playlists from mood or description
 - Answer questions about music
@@ -180,7 +372,7 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 		return prompt;
 	}
 
-	private buildMessages(
+	private buildGeminiMessages(
 		prompt: string,
 		history: ChatMessage[],
 		systemPrompt: string,
@@ -204,11 +396,48 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 		return messages;
 	}
 
-	private async makeRequest(
-		messages: GeminiContent[],
+	private buildOpenAIMessages(
+		prompt: string,
+		history: ChatMessage[],
+		systemPrompt: string,
+	): OpenAIMessage[] {
+		const messages: OpenAIMessage[] = [{role: 'system', content: systemPrompt}];
+
+		const recentHistory = history.slice(-this.maxMessagesInContext);
+		for (const msg of recentHistory) {
+			if (msg.role === 'user' || msg.role === 'assistant') {
+				messages.push({
+					role: msg.role,
+					content: msg.content,
+				});
+			}
+		}
+
+		messages.push({role: 'user', content: prompt});
+
+		return messages;
+	}
+
+	private convertToolsToOpenAI(tools: ToolDefinition[]): OpenAITool[] {
+		return tools.map(t => ({
+			type: 'function',
+			function: {
+				name: t.name,
+				description: t.description,
+				parameters: t.parameters,
+			},
+		}));
+	}
+
+	private async makeGeminiRequest(
+		prompt: string,
+		history: ChatMessage[],
+		systemPrompt: string,
 		tools: ToolDefinition[],
 		toolContext?: ToolExecutorContext,
 	): Promise<LLMResponse> {
+		const messages = this.buildGeminiMessages(prompt, history, systemPrompt);
+
 		const url = this.endpoint
 			? `${this.endpoint}?key=${this.apiKey}`
 			: `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
@@ -281,6 +510,7 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 						toolCall.args,
 						toolContext,
 					);
+					toolCall.result = result;
 					logger.debug('LLMService', `Tool ${toolCall.name} executed`, {
 						success: result.success,
 					});
@@ -288,6 +518,13 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 						text += `\n[Error: ${toolCall.name} - ${result.error}]`;
 					}
 				} catch (toolError) {
+					toolCall.result = {
+						success: false,
+						error:
+							toolError instanceof Error
+								? toolError.message
+								: String(toolError),
+					};
 					logger.error('LLMService', `Tool ${toolCall.name} failed`, {
 						error:
 							toolError instanceof Error
@@ -308,6 +545,136 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 				promptTokens: data.usageMetadata?.promptTokenCount || 0,
 				candidatesTokens: data.usageMetadata?.candidatesTokenCount || 0,
 				totalTokens: data.usageMetadata?.totalTokenCount || 0,
+			},
+		};
+	}
+
+	private async makeOpenAIRequest(
+		prompt: string,
+		history: ChatMessage[],
+		systemPrompt: string,
+		tools: ToolDefinition[],
+		toolContext?: ToolExecutorContext,
+	): Promise<LLMResponse> {
+		const messages = this.buildOpenAIMessages(prompt, history, systemPrompt);
+		const openAITools = this.convertToolsToOpenAI(tools);
+
+		const url = resolveChatUrl(this.baseUrl, this.endpoint);
+
+		const body = {
+			model: this.model,
+			messages,
+			temperature: this.temperature,
+			max_tokens: this.maxTokens,
+			tools: openAITools.length > 0 ? openAITools : undefined,
+			tool_choice: openAITools.length > 0 ? 'auto' : undefined,
+		};
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${this.apiKey}`,
+			},
+			body: JSON.stringify(body),
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`${response.status}: ${errorText}`);
+		}
+
+		const data = (await response.json()) as {
+			choices?: Array<{
+				message?: {
+					content?: string | null;
+					tool_calls?: Array<{
+						id: string;
+						type: 'function';
+						function: {name: string; arguments: string};
+					}>;
+				};
+			}>;
+			usage?: {
+				prompt_tokens?: number;
+				completion_tokens?: number;
+				total_tokens?: number;
+			};
+		};
+
+		const choice = data.choices?.[0];
+		if (!choice) {
+			throw new Error('No response from OpenAI-compatible API');
+		}
+
+		const message = choice.message;
+		let text = message?.content || '';
+		const toolCalls: ToolCall[] = [];
+
+		if (message?.tool_calls) {
+			for (const tc of message.tool_calls) {
+				if (tc.type === 'function') {
+					try {
+						const args = JSON.parse(tc.function.arguments);
+						toolCalls.push({
+							name: tc.function.name,
+							args,
+						});
+					} catch {
+						logger.error('LLMService', 'Failed to parse tool call arguments', {
+							arguments: tc.function.arguments,
+						});
+					}
+				}
+			}
+		}
+
+		if (toolCalls.length > 0) {
+			logger.debug('LLMService', 'Tool calls detected', {
+				count: toolCalls.length,
+			});
+			for (const toolCall of toolCalls) {
+				try {
+					const result = await executeTool(
+						toolCall.name,
+						toolCall.args,
+						toolContext,
+					);
+					toolCall.result = result;
+					logger.debug('LLMService', `Tool ${toolCall.name} executed`, {
+						success: result.success,
+					});
+					if (!result.success) {
+						text += `\n[Error: ${toolCall.name} - ${result.error}]`;
+					}
+				} catch (toolError) {
+					toolCall.result = {
+						success: false,
+						error:
+							toolError instanceof Error
+								? toolError.message
+								: String(toolError),
+					};
+					logger.error('LLMService', `Tool ${toolCall.name} failed`, {
+						error:
+							toolError instanceof Error
+								? toolError.message
+								: String(toolError),
+					});
+					text += `\n[Error: ${toolCall.name} - ${
+						toolError instanceof Error ? toolError.message : String(toolError)
+					}]`;
+				}
+			}
+		}
+
+		return {
+			text: text || '[No response]',
+			toolCalls,
+			usage: {
+				promptTokens: data.usage?.prompt_tokens || 0,
+				candidatesTokens: data.usage?.completion_tokens || 0,
+				totalTokens: data.usage?.total_tokens || 0,
 			},
 		};
 	}
@@ -335,9 +702,13 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 		return this.model;
 	}
 
+	getProvider(): Provider {
+		return this.provider;
+	}
+
 	getConfig(): LLMConfig {
 		return {
-			provider: 'gemini',
+			provider: this.provider,
 			apiKey: this.apiKey ? '***' + this.apiKey.slice(-4) : undefined,
 			model: this.model,
 			temperature: this.temperature,

@@ -16,6 +16,12 @@ import {
 import {ensureDownloadDirectory} from '../../utils/download-path.ts';
 import {formatTime} from '../../utils/format.ts';
 import type {SettingsRow} from '../ui/settings-overlay.ts';
+import {
+	AI_PROVIDER_PRESETS,
+	getAvailableModels,
+	getProviderPreset,
+} from '../../services/llm/ai-providers.ts';
+import type {LLMProvider} from '../../types/llm.types.ts';
 
 type ConfigService = ReturnType<typeof getConfigService>;
 
@@ -34,19 +40,27 @@ const EQUALIZER_PRESETS: EqualizerPreset[] = [
 	'bright',
 	'warm',
 ];
-const LLM_MODELS = [
-	'gemini-2.0-flash',
-	'gemini-2.0-flash-lite',
-	'gemini-1.5-flash',
-	'kilo-auto/free',
-	'kilo-auto/pro',
-];
 const LLM_TEMPERATURES = [0.3, 0.5, 0.7, 0.9, 1.1];
-const LLM_ENDPOINTS = [
-	'',
-	'https://api.kilogateway.com/v1/chat/completions',
-	'https://api.openai.com/v1/chat/completions',
-];
+
+function resolveLLMProvider(config: ConfigService): LLMProvider {
+	const stored = config.getLLMConfig()?.provider;
+	if (
+		stored === 'gemini' ||
+		stored === 'openai' ||
+		stored === 'kilo' ||
+		stored === 'opencode' ||
+		stored === 'custom'
+	) {
+		return stored;
+	}
+	const endpoint = config.getLLMConfig()?.endpoint ?? '';
+	if (/\/chat\/completions\/?$/.test(endpoint)) {
+		if (endpoint.includes('api.kilo.ai')) return 'kilo';
+		if (endpoint.includes('opencode.ai')) return 'opencode';
+		return 'openai';
+	}
+	return 'kilo';
+}
 
 export type SettingsTextField =
 	'llmApiKey' | 'llmBaseUrl' | 'downloadDirectory' | 'cookiesFile';
@@ -141,9 +155,10 @@ export function buildImmersiveSettingsRows(
 	config: ConfigService,
 ): SettingsRow[] {
 	const llmConfig = config.getLLMConfig();
-	const llmModel = llmConfig?.model ?? 'gemini-2.0-flash';
+	const llmProvider = resolveLLMProvider(config);
+	const llmModel =
+		llmConfig?.model ?? getProviderPreset(llmProvider).defaultModel;
 	const llmTemperature = llmConfig?.temperature ?? 0.7;
-	const llmEndpoint = llmConfig?.endpoint ?? '';
 	const llmBaseUrl = llmConfig?.baseUrl ?? '';
 	const crossfade = config.get('crossfadeDuration') ?? 0;
 	const volumeFade = config.get('volumeFadeDuration') ?? 0;
@@ -191,15 +206,14 @@ export function buildImmersiveSettingsRows(
 			value: formatOnOff(config.getLLMEnabled()),
 		},
 		{label: 'API Key', value: maskApiKey(config.getLLMApiKey())},
+		{label: 'AI Provider', value: getProviderPreset(llmProvider).label},
 		{label: 'Model', value: llmModel},
 		{label: 'Temperature', value: llmTemperature.toFixed(1)},
 		{
-			label: 'Endpoint',
-			value: llmEndpoint ? shortenUrl(llmEndpoint) : 'Default (Gemini)',
-		},
-		{
 			label: 'Base URL',
-			value: llmBaseUrl ? shortenUrl(llmBaseUrl) : '(not set)',
+			value: llmBaseUrl
+				? shortenUrl(llmBaseUrl)
+				: `Default (${shortenUrl(getProviderPreset(llmProvider).baseUrl)})`,
 		},
 		{
 			label: 'Download Feature',
@@ -375,31 +389,49 @@ export async function cycleImmersiveSetting(
 			return `AI Assistant: ${formatOnOff(next)}`;
 		}
 		case 12: {
-			const current = config.getLLMConfig()?.model ?? 'gemini-2.0-flash';
-			const currentIndex = LLM_MODELS.indexOf(current);
+			const ids = AI_PROVIDER_PRESETS.map(p => p.id);
+			const current = resolveLLMProvider(config);
+			const next = ids[(ids.indexOf(current) + 1) % ids.length] ?? 'kilo';
+			const preset = getProviderPreset(next);
+			config.setLLMConfig({
+				...config.getLLMConfig(),
+				provider: next,
+				model: preset.defaultModel,
+				baseUrl: preset.baseUrl,
+				endpoint: preset.chatCompletionsUrl,
+			});
+			const {models} = await getAvailableModels(
+				next,
+				config.getLLMApiKey() ?? '',
+				undefined,
+				{forceRefresh: true},
+			).catch(() => ({models: [preset.defaultModel]}));
+			if (models[0] && models.includes(models[0])) {
+				config.setLLMConfig({...config.getLLMConfig(), model: models[0]});
+			}
+			return `AI provider: ${preset.label}`;
+		}
+		case 13: {
+			const provider = resolveLLMProvider(config);
+			const preset = getProviderPreset(provider);
+			const {models} = await getAvailableModels(
+				provider,
+				config.getLLMApiKey() ?? '',
+			).catch(() => ({models: [preset.defaultModel]}));
+			const list = models.length > 0 ? models : [preset.defaultModel];
+			const current = config.getLLMConfig()?.model ?? preset.defaultModel;
 			const nextModel =
-				LLM_MODELS[(currentIndex + 1) % LLM_MODELS.length] ??
-				'gemini-2.0-flash';
+				list[(list.indexOf(current) + 1) % list.length] ?? preset.defaultModel;
 			config.setLLMConfig({...config.getLLMConfig(), model: nextModel});
 			return `Model: ${nextModel}`;
 		}
-		case 13: {
+		case 14: {
 			const current = config.getLLMConfig()?.temperature ?? 0.7;
 			const currentIndex = LLM_TEMPERATURES.indexOf(current);
 			const nextTemp =
 				LLM_TEMPERATURES[(currentIndex + 1) % LLM_TEMPERATURES.length] ?? 0.7;
 			config.setLLMConfig({...config.getLLMConfig(), temperature: nextTemp});
 			return `Temperature: ${nextTemp.toFixed(1)}`;
-		}
-		case 14: {
-			const current = config.getLLMConfig()?.endpoint ?? '';
-			const currentIndex = LLM_ENDPOINTS.indexOf(current);
-			const nextEndpoint =
-				LLM_ENDPOINTS[(currentIndex + 1) % LLM_ENDPOINTS.length] ?? '';
-			config.setLLMConfig({...config.getLLMConfig(), endpoint: nextEndpoint});
-			return nextEndpoint
-				? `Endpoint: ${shortenUrl(nextEndpoint)}`
-				: 'Endpoint: Default (Gemini)';
 		}
 		case 16: {
 			const next = !(config.get('downloadsEnabled') ?? false);
