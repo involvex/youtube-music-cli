@@ -1,3 +1,6 @@
 [submodule "plugins"]
 	path = plugins
 	url = https://github.com/involvex/youtube-music-cli-plugins
+[submodule "scoop-bucket"]
+	path = scoop-bucket
+	url = https://github.com/involvex/scoop-ymc.git
