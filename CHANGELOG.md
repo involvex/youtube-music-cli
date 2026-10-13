@@ -1,3 +1,14 @@
+## [0.3.2](https://github.com/involvex/youtube-music-cli/compare/v0.3.1...v0.3.2) (2026-10-13)
+
+### Bug Fixes
+
+- fix Scoop workflow JSON parsing and add trailing newlines ([8018802](https://github.com/involvex/youtube-music-cli/commit/8018802a9355f0917c31e05ca5b2e08a45d865d2))
+
+### Features
+
+- add Scoop manifest template and generation script ([03182f6](https://github.com/involvex/youtube-music-cli/commit/03182f6f5d444a16e16b2036c8f5d1794a686a91))
+- **ink:** upgrade to Ink 8 and adopt native scroll viewports ([0fcd1eb](https://github.com/involvex/youtube-music-cli/commit/0fcd1ebcddd262e1d5f5cdeb40d41f13c284bc3e))
+
 ## [0.3.1](https://github.com/involvex/youtube-music-cli/compare/v0.3.0...v0.3.1) (2026-10-05)
 
 ### Bug Fixes
