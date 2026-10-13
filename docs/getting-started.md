@@ -93,6 +93,15 @@ brew tap involvex/youtube-music-cli https://github.com/involvex/youtube-music-cl
 brew install youtube-music-cli
 ```
 
+### Scoop (Windows)
+
+```powershell
+scoop bucket add ymc https://github.com/involvex/scoop-ymc
+scoop install youtube-music-cli
+```
+
+This installs both `youtube-music-cli` and `ymc` commands.
+
 ### GitHub Releases
 
 ```bash
