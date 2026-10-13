@@ -1,61 +1,29 @@
-# Scoop Bucket Setup - Manual Steps
+# Scoop Bucket Setup
 
-This document describes the one-time manual setup required for the Scoop bucket publishing workflow (`.github/workflows/scoop-publish.yml`).
+This document describes the Scoop bucket setup for the `involvex/scoop-ymc` repository.
 
-## Step 3: Create the `involvex/scoop-ymc` Bucket Repository
+## Current Status ✅
 
-Create a new GitHub repository at `https://github.com/involvex/scoop-ymc` with the following structure:
+The bucket repository has been **created and initialized** at `https://github.com/involvex/scoop-ymc` and is also available as a **Git submodule** at `scoop-bucket/` in this repository.
+
+### Bucket Structure
 
 ```
 involvex/scoop-ymc/
 ├── bucket/
-│   └── youtube-music-cli.json   # Placeholder manifest (will be overwritten by workflow)
-└── README.md                    # Optional: bucket description
+│   └── youtube-music-cli.json   # Placeholder manifest (will be overwritten by workflow on release)
+└── README.md                    # Bucket description
 ```
 
-**Placeholder manifest content** (`bucket/youtube-music-cli.json`):
+### Submodule Usage
 
-```json
-{
-	"version": "0.0.0",
-	"description": "Terminal YouTube Music player",
-	"homepage": "https://github.com/involvex/youtube-music-cli",
-	"license": "MIT",
-	"architecture": {
-		"64bit": {
-			"url": [
-				"https://github.com/involvex/youtube-music-cli/releases/download/v0.0.0/youtube-music-cli-windows-x64.exe",
-				"https://github.com/involvex/youtube-music-cli/releases/download/v0.0.0/ymc-win32.exe"
-			],
-			"hash": ["placeholder", "placeholder"],
-			"bin": [
-				["youtube-music-cli-windows-x64.exe", "youtube-music-cli"],
-				["youtube-music-cli-windows-x64.exe", "ymc"],
-				["ymc-win32.exe", "ymc-win32"]
-			]
-		}
-	},
-	"checkver": {
-		"github": "https://github.com/involvex/youtube-music-cli"
-	},
-	"autoupdate": {
-		"architecture": {
-			"64bit": {
-				"url": [
-					"https://github.com/involvex/youtube-music-cli/releases/download/v{{version}}/youtube-music-cli-windows-x64.exe",
-					"https://github.com/involvex/youtube-music-cli/releases/download/v{{version}}/ymc-win32.exe"
-				]
-			}
-		}
-	}
-}
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/involvex/youtube-music-cli.git
+
+# Or initialize submodule after clone
+git submodule update --init scoop-bucket
 ```
-
-**Repository settings:**
-
-- Public repository (required for Scoop users to install from it)
-- Initialize with README (optional)
-- No license needed (bucket manifests are typically public domain)
 
 ## Step 4: Add `GH_PAT` Secret
 
@@ -74,7 +42,7 @@ The workflow uses this secret to authenticate when pushing to `involvex/scoop-ym
 
 ## How Users Install via Scoop
 
-Once the bucket repo is created and the first release publishes a manifest:
+Once the first release publishes a manifest:
 
 ```powershell
 scoop bucket add ymc https://github.com/involvex/scoop-ymc
@@ -100,8 +68,8 @@ gh workflow run scoop-publish.yml -f tag=v0.3.2
 
 | Issue                                               | Resolution                                                                                       |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `actions/checkout@v7` fails on `involvex/scoop-ymc` | Bucket repo doesn't exist - complete Step 3                                                      |
-| `git push` fails with permission denied             | `GH_PAT` secret missing or lacks `repo` scope - complete Step 4                                  |
+| `actions/checkout@v7` fails on `involvex/scoop-ymc` | Bucket repo doesn't exist - ensure it's created at https://github.com/involvex/scoop-ymc         |
+| `git push` fails with permission denied             | `GH_PAT` secret missing or lacks `repo` scope                                                    |
 | "No matching assets found"                          | Release assets don't match expected names (`youtube-music-cli-windows-x64.exe`, `ymc-win32.exe`) |
 | Hash mismatch                                       | Assets were rebuilt after release - delete and re-create release                                 |
 
@@ -113,10 +81,11 @@ gh workflow run scoop-publish.yml -f tag=v0.3.2
 | `scripts/generate-scoop-manifest.ps1`              | Manifest generation script (Task 1) |
 | `scoop/youtube-music-cli.json`                     | Manifest template (Task 1)          |
 | `involvex/scoop-ymc/bucket/youtube-music-cli.json` | Published manifest (bucket repo)    |
+| `scoop-bucket/`                                    | Git submodule mirror of bucket repo |
 
 ## Verification Checklist
 
-After setup, verify by creating a draft release:
+After adding `GH_PAT` secret, verify by creating a draft release:
 
 1. Create draft release `v0.3.2-test` with both Windows binaries attached
 2. Trigger workflow manually: `gh workflow run scoop-publish.yml -f tag=v0.3.2-test`
