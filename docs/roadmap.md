@@ -46,6 +46,9 @@ How ideas in `SUGGESTIONS.md` become concrete work, and what to pick up next.
 - AI Playlist Generation (`generate_playlist` LLM tool with queue/playlist/both modes)
 - LLM tool executor refactored with `ToolExecutorContext` for real queue/playlist dispatch
 - **Offline Mode** — Full offline mode with network status indicator (⚠️ Online/📡 Offline in header), Shift+O offline queue UI, periodic network health checks (30s interval), local track detection, download shortcuts (D/Shift+D), seamless fallback to local files
+- **Scoop Installation** — `scoop install youtube-music-cli` via `involvex/scoop-ymc` bucket
+- **Web v1.1** — Media Session API for lock-screen/media keys, mini-player route (`/mini`), WebSocket sync improvements
+- **Lyrics Integration** — Native Musixmatch richsync + LRCLIB fallback with karaoke mode
 
 ## Active focus (post-0.1.0)
 
