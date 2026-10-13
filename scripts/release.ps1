@@ -90,4 +90,6 @@ if ($isMilestone) {
 Write-Host "Pushing: git push && git push --tags"
 git push
 git push --tags
+Write-Host "Scoop bucket update triggered via release workflow."
+Write-Host "Check https://github.com/involvex/scoop-ymc for manifest update."
 Write-Host "Done. npm/GitHub publish should follow from the v* tag workflow."
