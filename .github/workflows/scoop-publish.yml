@@ -1,0 +1,132 @@
+name: Publish Scoop Bucket
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z)
+        required: true
+
+jobs:
+  update-bucket:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v7
+
+      - name: Resolve release assets
+        id: assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.event.release.tag_name || inputs.tag }}"
+          Write-Host "Resolving assets for tag: $tag"
+
+          # Get asset info for both binaries
+          $assets = gh release view $tag --json assets --jq '.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}'
+
+          if (-not $assets) {
+            Write-Error "No matching assets found for tag $tag"
+            exit 1
+          }
+
+          $assetsArray = $assets | ConvertFrom-Json
+
+          $cliAsset = $assetsArray | Where-Object { $_.name -match 'youtube-music-cli-windows-x64\.exe$' }
+          $immersiveAsset = $assetsArray | Where-Object { $_.name -match 'ymc-win32\.exe$' }
+
+          if (-not $cliAsset) {
+            Write-Error "CLI asset (youtube-music-cli-windows-x64.exe) not found in release"
+            exit 1
+          }
+          if (-not $immersiveAsset) {
+            Write-Error "Immersive asset (ymc-win32.exe) not found in release"
+            exit 1
+          }
+
+          Write-Host "CLI asset: $($cliAsset.name) -> $($cliAsset.url)"
+          Write-Host "Immersive asset: $($immersiveAsset.name) -> $($immersiveAsset.url)"
+
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "cli_url=$($cliAsset.url)" >> $env:GITHUB_OUTPUT
+          echo "immersive_url=$($immersiveAsset.url)" >> $env:GITHUB_OUTPUT
+
+      - name: Download assets and compute SHA256
+        id: hashes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $cliUrl = "${{ steps.assets.outputs.cli_url }}"
+          $immersiveUrl = "${{ steps.assets.outputs.immersive_url }}"
+
+          $tempDir = New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\scoop-assets" -Force
+
+          # Download CLI asset
+          $cliPath = Join-Path $tempDir "youtube-music-cli-windows-x64.exe"
+          Write-Host "Downloading CLI asset from $cliUrl"
+          gh release download "${{ steps.assets.outputs.tag }}" --pattern "youtube-music-cli-windows-x64.exe" --dir $tempDir --clobber
+          $cliHash = (Get-FileHash -Path $cliPath -Algorithm SHA256).Hash.ToLower()
+          Write-Host "CLI SHA256: $cliHash"
+
+          # Download immersive asset
+          $immersivePath = Join-Path $tempDir "ymc-win32.exe"
+          Write-Host "Downloading immersive asset from $immersiveUrl"
+          gh release download "${{ steps.assets.outputs.tag }}" --pattern "ymc-win32.exe" --dir $tempDir --clobber
+          $immersiveHash = (Get-FileHash -Path $immersivePath -Algorithm SHA256).Hash.ToLower()
+          Write-Host "Immersive SHA256: $immersiveHash"
+
+          echo "cli_hash=$cliHash" >> $env:GITHUB_OUTPUT
+          echo "immersive_hash=$immersiveHash" >> $env:GITHUB_OUTPUT
+
+      - name: Generate manifest
+        shell: pwsh
+        run: |
+          pwsh scripts/generate-scoop-manifest.ps1 `
+            -Tag "${{ steps.assets.outputs.tag }}" `
+            -CliAssetUrl "${{ steps.assets.outputs.cli_url }}" `
+            -CliAssetHash "${{ steps.hashes.outputs.cli_hash }}" `
+            -ImmersiveAssetUrl "${{ steps.assets.outputs.immersive_url }}" `
+            -ImmersiveAssetHash "${{ steps.hashes.outputs.immersive_hash }}" `
+            -OutputPath "scoop-manifest.json"
+          Write-Host "Generated manifest:"
+          Get-Content scoop-manifest.json
+
+      - name: Checkout or create scoop bucket repo
+        uses: actions/checkout@v7
+        with:
+          repository: involvex/scoop-ymc
+          token: ${{ secrets.GH_PAT }}
+          path: scoop-bucket
+          # If repo doesn't exist, this will fail - see manual setup steps in docs
+
+      - name: Commit and push manifest
+        shell: pwsh
+        run: |
+          cd scoop-bucket
+
+          # Ensure bucket directory exists
+          if (-not (Test-Path "bucket")) {
+            New-Item -ItemType Directory -Path "bucket" | Out-Null
+          }
+
+          Copy-Item -Path "../scoop-manifest.json" -Destination "bucket/youtube-music-cli.json" -Force
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add bucket/youtube-music-cli.json
+
+          if (-not (git diff --quiet --staged)) {
+            $tag = "${{ steps.assets.outputs.tag }}"
+            git commit -m "chore(scoop): update youtube-music-cli to $tag"
+            git push
+            Write-Host "Successfully pushed manifest for $tag"
+          } else {
+            Write-Host "No changes to manifest, skipping commit"
+          }
