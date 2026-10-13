@@ -31,6 +31,7 @@ import ExportLayout from '../export/ExportLayout.tsx';
 import NewReleasesLayout from './NewReleasesLayout.tsx';
 import GenresLayout from './GenresLayout.tsx';
 import AIChatView from '../ai/AIChatView.tsx';
+import AIPlaylistLayout from './AIPlaylistLayout.tsx';
 import StatsDashboard from '../stats/StatsDashboard.tsx';
 import RadioStreamsLayout from './RadioStreamsLayout.tsx';
 import LiveStreamsLayout from './LiveStreamsLayout.tsx';
@@ -154,6 +155,10 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.MOOD_RADIO});
 	}, [dispatch]);
 
+	const goToAIPlaylist = useCallback(() => {
+		dispatch({category: 'NAVIGATE', view: VIEW.AI_PLAYLIST});
+	}, [dispatch]);
+
 	const goToOffline = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.OFFLINE});
 	}, [dispatch]);
@@ -246,6 +251,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('RADIO_STREAMS'), goToRadioStreams);
 	useKeyBinding(resolveKeybinding('LIVE_STREAMS'), goToLiveStreams);
 	useKeyBinding(resolveKeybinding('MOOD_RADIO'), goToMoodRadio);
+	useKeyBinding(resolveKeybinding('AI_PLAYLIST'), goToAIPlaylist);
 	useKeyBinding(resolveKeybinding('OFFLINE_QUEUE'), goToOffline);
 	useKeyBinding(resolveKeybinding('DETACH'), handleDetach);
 	useKeyBinding(resolveKeybinding('REFRESH_NETWORK'), handleNetworkRefresh);
@@ -358,6 +364,9 @@ function MainLayout() {
 
 			case 'mood_radio':
 				return <MoodRadioLayout key="mood_radio" />;
+
+			case 'ai_playlist':
+				return <AIPlaylistLayout key="ai_playlist" />;
 
 			case 'login':
 				return <LoginView key="login" />;

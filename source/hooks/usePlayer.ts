@@ -80,6 +80,13 @@ export function usePlayer() {
 		[dispatch],
 	);
 
+	const setQueue = useCallback(
+		(queue: Track[]) => {
+			dispatch({category: 'SET_QUEUE', queue});
+		},
+		[dispatch],
+	);
+
 	return {
 		...playerStore,
 		state,
@@ -88,5 +95,6 @@ export function usePlayer() {
 		startRadio,
 		stopRadio,
 		playStream,
+		setQueue,
 	};
 }

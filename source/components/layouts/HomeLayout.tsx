@@ -84,6 +84,7 @@ export default function HomeLayout() {
 		{label: '🔥 Trending', view: VIEW.TRENDING},
 		{label: '🆕 New Releases', view: VIEW.NEW_RELEASES},
 		{label: '❤️ Favorites', view: VIEW.FAVORITES},
+		{label: '🤖 AI Playlist', view: VIEW.AI_PLAYLIST},
 		{label: '📻 Radio Streams', view: VIEW.RADIO},
 		{label: '📡 Live Streams', view: VIEW.LIVE_STREAMS},
 		{label: '🎭 Mood Radio', view: VIEW.MOOD_RADIO},

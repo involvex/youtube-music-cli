@@ -70,6 +70,7 @@ export const VIEW = {
 	FAVORITES: 'favorites',
 	HOME: 'home',
 	AI_CHAT: 'ai_chat',
+	AI_PLAYLIST: 'ai_playlist',
 	AI_RECOMMENDATIONS: 'ai_recommendations',
 	STATS: 'stats',
 	RADIO: 'radio',
@@ -104,6 +105,7 @@ export const KEYBINDINGS = {
 	DETACH: ['shift+q'],
 	RESUME_BACKGROUND: ['shift+r'],
 	AI_CHAT: ['a'],
+	AI_PLAYLIST: ['ctrl+shift+p'],
 	AI_RECOMMENDATIONS: ['ctrl+shift+a'],
 	STATS_VIEW: ['o'],
 
