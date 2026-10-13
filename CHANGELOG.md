@@ -1,3 +1,13 @@
+## [0.3.3](https://github.com/involvex/youtube-music-cli/compare/v0.3.2...v0.3.3) (2026-10-13)
+
+### Bug Fixes
+
+- **ai:** route kilo/opencode through OpenAI-compatible chat API with dynamic provider model lists ([adc0b59](https://github.com/involvex/youtube-music-cli/commit/adc0b59ae8b9fbaaf4b89139e812b636f14a4462))
+
+### Features
+
+- **ai-playlist:** add AI Playlist navigation infrastructure ([c2fb92d](https://github.com/involvex/youtube-music-cli/commit/c2fb92d7387219bec06fd5786b2c229f099252fa))
+
 ## [0.3.2](https://github.com/involvex/youtube-music-cli/compare/v0.3.1...v0.3.2) (2026-10-13)
 
 ### Bug Fixes
