@@ -3,6 +3,9 @@ name: Publish Scoop Bucket
 on:
   release:
     types: [created]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -24,14 +27,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.event.release.tag_name || inputs.tag }}"
+          $tag = "${{ github.event.release.tag_name || github.ref_name || inputs.tag }}"
           Write-Host "Resolving assets for tag: $tag"
 
-          # Get asset info for both binaries (output as JSON array for ConvertFrom-Json)
-          $assets = gh release view $tag --json assets --jq '[.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}]'
+          # If triggered by tag push, wait for release to be created by npm-publish workflow
+          $maxAttempts = 30
+          $attempt = 0
+          $assets = $null
+          while ($attempt -lt $maxAttempts) {
+            $assets = gh release view $tag --json assets --jq '[.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}]' 2>$null
+            if ($assets -and $assets.Trim() -ne '' -and $assets -ne '[]') {
+              Write-Host "Found assets on attempt $($attempt + 1)/$maxAttempts"
+              break
+            }
+            $attempt++
+            Write-Host "Release assets not ready yet (attempt $attempt/$maxAttempts), waiting 10s..."
+            Start-Sleep -Seconds 10
+          }
 
-          if (-not $assets) {
-            Write-Error "No matching assets found for tag $tag"
+          if (-not $assets -or $assets.Trim() -eq '' -or $assets -eq '[]') {
+            Write-Error "No matching assets found for tag $tag after $maxAttempts attempts"
             exit 1
           }
 
