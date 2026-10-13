@@ -27,8 +27,8 @@ jobs:
           $tag = "${{ github.event.release.tag_name || inputs.tag }}"
           Write-Host "Resolving assets for tag: $tag"
 
-          # Get asset info for both binaries
-          $assets = gh release view $tag --json assets --jq '.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}'
+          # Get asset info for both binaries (output as JSON array for ConvertFrom-Json)
+          $assets = gh release view $tag --json assets --jq '[.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}]'
 
           if (-not $assets) {
             Write-Error "No matching assets found for tag $tag"
