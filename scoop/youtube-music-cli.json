@@ -1,0 +1,33 @@
+{
+	"version": "{{VERSION}}",
+	"description": "Terminal YouTube Music player",
+	"homepage": "https://github.com/involvex/youtube-music-cli",
+	"license": "MIT",
+	"architecture": {
+		"64bit": {
+			"url": [
+				"https://github.com/involvex/youtube-music-cli/releases/download/{{TAG}}/youtube-music-cli-windows-x64.exe",
+				"https://github.com/involvex/youtube-music-cli/releases/download/{{TAG}}/ymc-win32.exe"
+			],
+			"hash": ["{{HASH_CLI}}", "{{HASH_IMMERSIVE}}"],
+			"bin": [
+				["youtube-music-cli-windows-x64.exe", "youtube-music-cli"],
+				["youtube-music-cli-windows-x64.exe", "ymc"],
+				["ymc-win32.exe", "ymc-win32"]
+			]
+		}
+	},
+	"checkver": {
+		"github": "https://github.com/involvex/youtube-music-cli"
+	},
+	"autoupdate": {
+		"architecture": {
+			"64bit": {
+				"url": [
+					"https://github.com/involvex/youtube-music-cli/releases/download/v{{version}}/youtube-music-cli-windows-x64.exe",
+					"https://github.com/involvex/youtube-music-cli/releases/download/v{{version}}/ymc-win32.exe"
+				]
+			}
+		}
+	}
+}
