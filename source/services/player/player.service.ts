@@ -467,6 +467,7 @@ class PlayerService {
 
 					if (
 						!this.intentionalIpcTeardown &&
+						settled &&
 						this.mpvProcess &&
 						!this.mpvProcess.killed
 					) {

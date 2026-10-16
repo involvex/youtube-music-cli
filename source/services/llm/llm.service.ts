@@ -444,10 +444,10 @@ Be concise and helpful. Use tools to fulfill user requests.`;
 
 		const body = {
 			contents: messages,
+			...(tools.length > 0 ? {tools: [{functionDeclarations: tools}]} : {}),
 			generationConfig: {
 				temperature: this.temperature,
 				maxOutputTokens: this.maxTokens,
-				tools: tools.length > 0 ? [{functionDeclarations: tools}] : [],
 			},
 		};
 

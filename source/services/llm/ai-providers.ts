@@ -31,7 +31,7 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
 		modelsUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
 		chatCompletionsUrl: '',
 		baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-		defaultModel: 'gemini-2.0-flash',
+		defaultModel: 'gemini-flash-lite-latest',
 		envKey: 'GEMINI_API_KEY',
 		isGemini: true,
 	},
