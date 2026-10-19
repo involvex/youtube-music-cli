@@ -76,7 +76,7 @@
 	"prettier": "@vdemedes/prettier-config",
 	"dependencies": {
 		"@bun-win32/kernel32": "^2.0.1",
-		"@bun-win32/user32": "^4.0.1",
+		"@bun-win32/user32": "^5.0.0",
 		"ansi-escapes": "^7.3.0",
 		"discord-rpc": "^4.0.1",
 		"ink": "8.0.0",
