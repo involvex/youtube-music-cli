@@ -29,10 +29,22 @@ export const ICONS = {
 	// Status
 	VOLUME: '♪', // U+266A
 	HEART: '♥', // U+2665
+	CLOCK: '◷', // U+25F7 — recently played / history
+	WARN: '!', // ASCII — online indicator (paired with network-status-label)
+
+	// Navigation labels (single-width; use in Ink bordered layouts)
+	MAGNIFY: '⌕', // U+2315
+	TRENDING: '↑', // U+2191
+	NEW: '+', // ASCII
+	AI: '✦', // U+2726
+	RADIO: '◎', // U+25CE
+	LIVE_STREAM: '◇', // U+25C7
+	MOOD: '◐', // U+25D0
+	DICE: '?', // ASCII
 
 	// Autoplay / radio
 	AUTOPLAY: '∞', // U+221E
 
 	// Offline / downloads
-	FILE_DOWNLOAD: '📁', // File icon for downloads/offline
+	FILE_DOWNLOAD: '⌁', // U+2301 — downloads / offline queue
 } as const;

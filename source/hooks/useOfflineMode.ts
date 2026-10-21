@@ -6,6 +6,7 @@ import {
 	refreshOfflineState,
 	type OfflineState,
 } from '../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusLabel} from '../utils/network-status-label.ts';
 
 export function useOfflineMode() {
 	const [offlineState, setOfflineStateInternal] =
@@ -53,7 +54,7 @@ export function useOfflineMode() {
 
 	const isOffline = offlineState.isOffline;
 	const getOfflineStatus = useCallback(() => {
-		return isOffline ? '📡 Offline' : '⚠️ Online';
+		return formatNetworkStatusLabel(isOffline);
 	}, [isOffline]);
 
 	const refreshStatus = useCallback(async () => {

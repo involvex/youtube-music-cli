@@ -9,6 +9,7 @@ import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusSuffix} from '../../utils/network-status-label.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 
 export default function TrendingLayout() {
@@ -72,9 +73,7 @@ export default function TrendingLayout() {
 				<Text color={theme.colors.primary} bold>
 					🔥 Trending Music
 					{showNetworkStatus
-						? getOfflineState().isOffline
-							? ' 📡 Offline'
-							: ' ⚠️ Online'
+						? formatNetworkStatusSuffix(getOfflineState().isOffline)
 						: ''}
 				</Text>
 			</Box>
