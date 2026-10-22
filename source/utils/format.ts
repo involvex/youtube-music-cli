@@ -1,4 +1,6 @@
 // Format utilities
+import stringWidth from 'string-width';
+
 export function formatBytes(bytes: number): string {
 	if (bytes === 0) return '0 B';
 	const k = 1024;
@@ -31,9 +33,46 @@ export function formatNumber(num: number): string {
 }
 
 export function truncate(text: string, maxLength: number): string {
-	if (text.length <= maxLength) {
+	return truncateToWidth(text, maxLength);
+}
+
+export function truncateToWidth(text: string, maxWidth: number): string {
+	if (maxWidth <= 0) {
+		return '';
+	}
+
+	if (stringWidth(text) <= maxWidth) {
 		return text;
 	}
 
-	return text.slice(0, maxLength - 3) + '...';
+	const ellipsis = '...';
+	const ellipsisWidth = stringWidth(ellipsis);
+	const target = Math.max(0, maxWidth - ellipsisWidth);
+	let width = 0;
+	let result = '';
+
+	for (const char of text) {
+		const charWidth = stringWidth(char);
+		if (width + charWidth > target) {
+			break;
+		}
+
+		result += char;
+		width += charWidth;
+	}
+
+	return result + ellipsis;
+}
+
+/** Icon column + label for Ink rows (fixed display-width icon column). */
+export function formatIconLabel(
+	icon: string,
+	label: string,
+	iconColumnWidth = 2,
+): string {
+	const iconWidth = stringWidth(icon);
+	const pad =
+		iconWidth < iconColumnWidth ? ' '.repeat(iconColumnWidth - iconWidth) : '';
+
+	return `${icon}${pad} ${label}`;
 }

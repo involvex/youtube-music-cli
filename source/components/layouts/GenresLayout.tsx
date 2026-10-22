@@ -8,6 +8,7 @@ import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusSuffix} from '../../utils/network-status-label.ts';
 import type {Genre, Release} from '../../types/youtube-music.types.ts';
 
 interface GenreSection {
@@ -32,9 +33,7 @@ export default function GenresLayout() {
 	const [activeGenreTitle, setActiveGenreTitle] = useState('');
 	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
 	const networkStatusSuffix = showNetworkStatus
-		? getOfflineState().isOffline
-			? ' 📡 Offline'
-			: ' ⚠️ Online'
+		? formatNetworkStatusSuffix(getOfflineState().isOffline)
 		: '';
 
 	useEffect(() => {

@@ -21,6 +21,7 @@ import TextInput from 'ink-text-input';
 import {applySearchFilters} from '../../utils/search-filters.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusParentheses} from '../../utils/network-status-label.ts';
 
 type FilterField = 'artist' | 'album' | 'year';
 
@@ -314,10 +315,8 @@ function SearchLayout() {
 			<Text color={theme.colors.dim}>
 				Limit: {navState.searchLimit}{' '}
 				{showNetworkStatus
-					? getOfflineState().isOffline
-						? '(📡 Offline)'
-						: '(⚠️ Online)'
-					: ''}{' '}
+					? `${formatNetworkStatusParentheses(getOfflineState().isOffline)} `
+					: ''}
 				(Use ] / [ to adjust)
 			</Text>
 

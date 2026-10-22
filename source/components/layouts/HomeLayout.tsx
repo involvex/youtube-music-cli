@@ -9,13 +9,14 @@ import {usePlayer} from '../../hooks/usePlayer.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {VIEW} from '../../utils/constants.ts';
-import {truncate, formatTime} from '../../utils/format.ts';
+import {truncate, formatTime, formatIconLabel} from '../../utils/format.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {type Track} from '../../types/youtube-music.types.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusSuffix} from '../../utils/network-status-label.ts';
 
 export default function HomeLayout() {
 	const {theme} = useTheme();
@@ -77,20 +78,35 @@ export default function HomeLayout() {
 		| {label: string; view: (typeof VIEW)[keyof typeof VIEW]; action?: never}
 		| {label: string; view?: never; action: () => void};
 
+	const quickLinkLabel = (icon: string, text: string): string =>
+		formatIconLabel(icon, text);
+
 	// Quick links
 	const quickLinks: QuickLink[] = [
-		{label: '🔍 Search', view: VIEW.SEARCH},
-		{label: '📜 Playlists', view: VIEW.PLAYLISTS},
-		{label: '🔥 Trending', view: VIEW.TRENDING},
-		{label: '🆕 New Releases', view: VIEW.NEW_RELEASES},
-		{label: '❤️ Favorites', view: VIEW.FAVORITES},
-		{label: '🤖 AI Playlist', view: VIEW.AI_PLAYLIST},
-		{label: '📻 Radio Streams', view: VIEW.RADIO},
-		{label: '📡 Live Streams', view: VIEW.LIVE_STREAMS},
-		{label: '🎭 Mood Radio', view: VIEW.MOOD_RADIO},
-		{label: '🕒 Queue & History', view: VIEW.HISTORY},
-		{label: '🎲 Play Random Song', action: handlePlayRandom},
-		{label: '🎵 Play Random Favorite', action: handlePlayRandomFavorite},
+		{label: quickLinkLabel(ICONS.MAGNIFY, 'Search'), view: VIEW.SEARCH},
+		{label: quickLinkLabel(ICONS.PLAYLIST, 'Playlists'), view: VIEW.PLAYLISTS},
+		{label: quickLinkLabel(ICONS.TRENDING, 'Trending'), view: VIEW.TRENDING},
+		{label: quickLinkLabel(ICONS.NEW, 'New Releases'), view: VIEW.NEW_RELEASES},
+		{label: quickLinkLabel(ICONS.HEART, 'Favorites'), view: VIEW.FAVORITES},
+		{label: quickLinkLabel(ICONS.AI, 'AI Playlist'), view: VIEW.AI_PLAYLIST},
+		{label: quickLinkLabel(ICONS.RADIO, 'Radio Streams'), view: VIEW.RADIO},
+		{
+			label: quickLinkLabel(ICONS.LIVE_STREAM, 'Live Streams'),
+			view: VIEW.LIVE_STREAMS,
+		},
+		{label: quickLinkLabel(ICONS.MOOD, 'Mood Radio'), view: VIEW.MOOD_RADIO},
+		{
+			label: quickLinkLabel(ICONS.CLOCK, 'Queue & History'),
+			view: VIEW.HISTORY,
+		},
+		{
+			label: quickLinkLabel(ICONS.DICE, 'Play Random Song'),
+			action: handlePlayRandom,
+		},
+		{
+			label: quickLinkLabel(ICONS.VOLUME, 'Play Random Favorite'),
+			action: handlePlayRandomFavorite,
+		},
 	];
 
 	const recentHistory = history.slice(0, 5);
@@ -164,11 +180,10 @@ export default function HomeLayout() {
 				justifyContent="center"
 			>
 				<Text bold color={theme.colors.primary}>
-					🎵 {ICONS.PLAY} youtube-music-cli {ICONS.PLAY} 🎵
+					{ICONS.VOLUME} {ICONS.PLAY} youtube-music-cli {ICONS.PLAY}{' '}
+					{ICONS.VOLUME}
 					{showNetworkStatus
-						? offlineState.isOffline
-							? ' 📡 Offline'
-							: ' ⚠️ Online'
+						? formatNetworkStatusSuffix(offlineState.isOffline)
 						: ''}
 				</Text>
 			</Box>
@@ -216,7 +231,7 @@ export default function HomeLayout() {
 						paddingX={1}
 					>
 						<Text bold color={theme.colors.secondary}>
-							🕒 Recently Played
+							{formatIconLabel(ICONS.CLOCK, 'Recently Played')}
 						</Text>
 						{recentHistory.length === 0 ? (
 							<Text color={theme.colors.dim}> No history yet</Text>
@@ -258,7 +273,7 @@ export default function HomeLayout() {
 						paddingX={1}
 					>
 						<Text bold color={theme.colors.secondary}>
-							{ICONS.HEART} Recent Favorites
+							{formatIconLabel(ICONS.HEART, 'Recent Favorites')}
 						</Text>
 						{recentFavorites.length === 0 ? (
 							<Text color={theme.colors.dim}>

@@ -15,6 +15,10 @@ import {ThemeProvider} from '../source/contexts/theme.context.tsx';
 import {KeyboardBlockProvider} from '../source/hooks/useKeyboardBlocker.tsx';
 import {getConfigService} from '../source/services/config/config.service.ts';
 import {
+	NETWORK_STATUS_OFFLINE_LABEL,
+	NETWORK_STATUS_ONLINE_LABEL,
+} from '../source/utils/network-status-label.ts';
+import {
 	resetOfflineStateForTests,
 	setOfflineState,
 } from '../source/services/offline/offline-mode.service.ts';
@@ -23,8 +27,8 @@ import {HistoryProvider} from '../source/stores/history.store.tsx';
 import {NavigationProvider} from '../source/stores/navigation.store.tsx';
 import {PlayerProvider} from '../source/stores/player.store.tsx';
 
-const OFFLINE_BADGE = '📡 Offline';
-const ONLINE_BADGE = '⚠️ Online';
+const OFFLINE_BADGE = NETWORK_STATUS_OFFLINE_LABEL;
+const ONLINE_BADGE = NETWORK_STATUS_ONLINE_LABEL;
 
 // Stub the YouTube client: renderToString executes mount effects, so the
 // layouts' data fetches fire. Empty shapes parse cleanly to [] with no
@@ -71,8 +75,7 @@ function renderFrame(node: ReactElement): string {
 	return renderToString(<Providers>{node}</Providers>);
 }
 
-// HomeLayout always contains a static '📡 Live Streams' quick-link label,
-// so assertions must target the full badge strings, not the bare emoji.
+// HomeLayout quick links include "Live Streams"; assert full badge strings only.
 const headerLayouts: Array<[string, ReactElement]> = [
 	['TrendingLayout', <TrendingLayout key="trending" />],
 	['NewReleasesLayout', <NewReleasesLayout key="releases" />],

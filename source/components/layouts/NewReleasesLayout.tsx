@@ -8,6 +8,7 @@ import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {getMusicService} from '../../services/youtube-music/api.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
+import {formatNetworkStatusSuffix} from '../../utils/network-status-label.ts';
 import type {Release} from '../../types/youtube-music.types.ts';
 
 interface Section {
@@ -115,9 +116,7 @@ export default function NewReleasesLayout() {
 				<Text color={theme.colors.primary} bold>
 					🌟 New Releases
 					{showNetworkStatus
-						? getOfflineState().isOffline
-							? ' 📡 Offline'
-							: ' ⚠️ Online'
+						? formatNetworkStatusSuffix(getOfflineState().isOffline)
 						: ''}
 				</Text>
 			</Box>

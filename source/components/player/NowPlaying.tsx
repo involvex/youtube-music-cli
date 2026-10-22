@@ -10,6 +10,7 @@ import {getConfigService} from '../../services/config/config.service.ts';
 import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
 import {useState, useEffect} from 'react';
 import {ICONS} from '../../utils/icons.ts';
+import {formatNetworkStatusLabel} from '../../utils/network-status-label.ts';
 
 export default function NowPlaying() {
 	const {theme} = useTheme();
@@ -148,7 +149,10 @@ export default function NowPlaying() {
 				<Text color={theme.colors.dim}> / {formatTime(duration)} </Text>
 				<Text color={theme.colors.dim}>[{percentage}%]</Text>
 				{showNetworkStatus && getOfflineState().isOffline && (
-					<Text color={theme.colors.accent}> 📡 Offline</Text>
+					<Text color={theme.colors.accent}>
+						{' '}
+						{formatNetworkStatusLabel(true)}
+					</Text>
 				)}
 				{playerState.isLoading && (
 					<Text color={theme.colors.accent}> Loading...</Text>
