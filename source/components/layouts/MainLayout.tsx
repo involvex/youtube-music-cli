@@ -14,6 +14,7 @@ import SearchLayout from './SearchLayout.tsx';
 import PlayerLayout from './PlayerLayout.tsx';
 import MiniPlayerLayout from './MiniPlayerLayout.tsx';
 import FavoritesLayout from './FavoritesLayout.tsx';
+import AccountLibraryLayout from './AccountLibraryLayout.tsx';
 import PluginsLayout from './PluginsLayout.tsx';
 import Suggestions from '../player/Suggestions.tsx';
 import Settings from '../settings/Settings.tsx';
@@ -163,6 +164,10 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.OFFLINE});
 	}, [dispatch]);
 
+	const goToAccountLibrary = useCallback(() => {
+		dispatch({category: 'NAVIGATE', view: VIEW.ACCOUNT_LIBRARY});
+	}, [dispatch]);
+
 	const handleNetworkRefresh = useCallback(async () => {
 		await refreshOfflineState();
 	}, []);
@@ -253,6 +258,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('MOOD_RADIO'), goToMoodRadio);
 	useKeyBinding(resolveKeybinding('AI_PLAYLIST'), goToAIPlaylist);
 	useKeyBinding(resolveKeybinding('OFFLINE_QUEUE'), goToOffline);
+	useKeyBinding(resolveKeybinding('ACCOUNT_LIBRARY'), goToAccountLibrary);
 	useKeyBinding(resolveKeybinding('DETACH'), handleDetach);
 	useKeyBinding(resolveKeybinding('REFRESH_NETWORK'), handleNetworkRefresh);
 	useKeyBinding(resolveKeybinding('RESUME_BACKGROUND'), handleResumeBackground);
@@ -313,6 +319,9 @@ function MainLayout() {
 
 			case 'favorites':
 				return <FavoritesLayout key="favorites" />;
+
+			case 'account_library':
+				return <AccountLibraryLayout key="account_library" />;
 
 			case 'plugins':
 				return <PluginsLayout key="plugins" />;

@@ -9,6 +9,7 @@ import type {
 } from '../types/youtube-music.types.ts';
 import {getConfigService} from '../services/config/config.service.ts';
 import {getMusicService} from '../services/youtube-music/api.ts';
+import {getAuthService} from '../services/auth/auth.service.ts';
 import {getPlayerService} from '../services/player/player.service.ts';
 import {getDownloadService} from '../services/download/download.service.ts';
 import {formatDownloadProgress} from '../utils/download-progress.ts';
@@ -1165,6 +1166,15 @@ export async function startImmersiveApp(
 			const startIndex = resolveRandomFavoriteStartIndex(favorites.length);
 			await queueAndPlay(favorites, startIndex);
 			return null;
+		},
+		isAccountSignedIn: () => getAuthService().getStatus().loggedIn,
+		onLoadAccountLibrary: async () => musicService.getAccountLibrary(),
+		onPlayAccountPlaylist: async (playlistId: string) => {
+			const loaded = await musicService.getPlaylist(playlistId);
+			if (loaded.tracks.length === 0) {
+				throw new Error(`No tracks in "${loaded.name}"`);
+			}
+			await queueAndPlay(loaded.tracks);
 		},
 		onPlayRadioStation: async (station: RadioStation) => {
 			await playRadioStream(station);

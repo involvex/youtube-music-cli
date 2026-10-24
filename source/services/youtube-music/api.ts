@@ -22,6 +22,12 @@ import {getSearchCache, getSuggestionsCache} from '../cache/cache.service.ts';
 import {getConfigService} from '../config/config.service.ts';
 import {getInvidiousHealthService} from '../invidious/invidious-health.service.ts';
 import {getAuthService} from '../auth/auth.service.ts';
+import {
+	assertAccountLibraryAuth,
+	fetchAccountLibrary,
+	LIKED_MUSIC_PLAYLIST_ID,
+	type AccountLibrary,
+} from './account-library.ts';
 
 // Initialize YouTube client
 let ytClient: Innertube | null = null;
@@ -468,6 +474,15 @@ class MusicService {
 			artistId,
 			name: 'Unknown Artist',
 		};
+	}
+
+	async getAccountLibrary(): Promise<AccountLibrary> {
+		assertAccountLibraryAuth();
+		const yt = await getClient();
+		return fetchAccountLibrary({
+			getLibrary: () => yt.music.getLibrary(),
+			getLikedPlaylist: async () => this.getPlaylist(LIKED_MUSIC_PLAYLIST_ID),
+		});
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist> {

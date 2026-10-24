@@ -2,6 +2,8 @@ import type {
 	AuthCredentials,
 	AuthStatus,
 	AuthMethod,
+	DeviceCodeInfo,
+	SignInOptions,
 } from '../../types/auth.types.ts';
 import {CONFIG_DIR} from '../../utils/constants.ts';
 import {formatError} from '../../utils/error.ts';
@@ -20,6 +22,73 @@ import {Innertube, type OAuth2Tokens} from 'youtubei.js';
 
 const CREDENTIALS_FILE = `${CONFIG_DIR}/credentials.json`;
 const SCHEMA_VERSION = 1;
+const OAUTH_STEP_TIMEOUT_MS = 45_000;
+
+type DeviceAndUserCode = {
+	device_code: string;
+	expires_in: number;
+	interval: number;
+	user_code: string;
+	verification_url: string;
+	error_code?: string;
+};
+
+export const COOKIE_LOGIN_HINT =
+	'OAuth device login can stall on YouTube TV client-id fetch. Use cookies instead:\n' +
+	'  ymc login --cookies-file <path-to-cookies.txt>\n' +
+	'  ymc login --cookies-from-browser edge';
+
+export async function withTimeout<T>(
+	promise: Promise<T>,
+	ms: number,
+	message: string,
+): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<T>((_resolve, reject) => {
+				timer = setTimeout(() => {
+					reject(new Error(message));
+				}, ms);
+			}),
+		]);
+	} finally {
+		if (timer) {
+			clearTimeout(timer);
+		}
+	}
+}
+
+export async function obtainDeviceAndUserCode(oauth: {
+	client_id?: unknown;
+	getClientID: () => Promise<unknown>;
+	getDeviceAndUserCode: () => Promise<DeviceAndUserCode>;
+}): Promise<DeviceAndUserCode> {
+	if (!oauth.client_id) {
+		oauth.client_id = await withTimeout(
+			oauth.getClientID(),
+			OAUTH_STEP_TIMEOUT_MS,
+			'Timed out fetching YouTube TV OAuth client id. YouTube may have changed the TV page.',
+		);
+	}
+
+	const deviceCode = await withTimeout(
+		oauth.getDeviceAndUserCode(),
+		OAUTH_STEP_TIMEOUT_MS,
+		'Timed out requesting a YouTube device code.',
+	);
+
+	if (deviceCode.error_code) {
+		throw new Error(`OAuth error: ${deviceCode.error_code}`);
+	}
+
+	if (!deviceCode.verification_url || !deviceCode.user_code) {
+		throw new Error('YouTube did not return a verification URL and user code.');
+	}
+
+	return deviceCode;
+}
 
 export function parseCredentialsFileContent(
 	data: unknown,
@@ -217,7 +286,7 @@ class AuthService {
 		};
 	}
 
-	async signIn(): Promise<{
+	async signIn(options: SignInOptions = {}): Promise<{
 		success: boolean;
 		verificationUrl?: string;
 		userCode?: string;
@@ -230,7 +299,12 @@ class AuthService {
 		this.loading = true;
 
 		try {
-			const innertube = await Innertube.create();
+			options.onProgress?.('Starting YouTube client...');
+			const innertube = await withTimeout(
+				Innertube.create(),
+				OAUTH_STEP_TIMEOUT_MS,
+				'Timed out creating the YouTube client.',
+			);
 
 			const authPromise = new Promise<{
 				success: boolean;
@@ -254,20 +328,23 @@ class AuthService {
 				});
 			});
 
-			await innertube.session.oauth.init();
-			const deviceCode = await innertube.session.oauth.getDeviceAndUserCode();
-
-			if (deviceCode.error_code) {
-				return {
-					success: false,
-					error: `OAuth error: ${deviceCode.error_code}`,
-				};
-			}
-
+			options.onProgress?.(
+				'Requesting a device code (YouTube TV OAuth, no Google Cloud app)...',
+			);
+			const deviceCode = await obtainDeviceAndUserCode(innertube.session.oauth);
+			const info: DeviceCodeInfo = {
+				verificationUrl: deviceCode.verification_url,
+				userCode: deviceCode.user_code,
+			};
+			options.onDeviceCode?.(info);
 			innertube.session.oauth.pollForAccessToken(deviceCode);
 
 			const result = await authPromise;
-			return result;
+			return {
+				...result,
+				verificationUrl: info.verificationUrl,
+				userCode: info.userCode,
+			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			logger.error('AuthService', 'Sign-in failed', {error: message});

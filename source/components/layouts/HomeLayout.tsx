@@ -88,6 +88,10 @@ export default function HomeLayout() {
 		{label: quickLinkLabel(ICONS.TRENDING, 'Trending'), view: VIEW.TRENDING},
 		{label: quickLinkLabel(ICONS.NEW, 'New Releases'), view: VIEW.NEW_RELEASES},
 		{label: quickLinkLabel(ICONS.HEART, 'Favorites'), view: VIEW.FAVORITES},
+		{
+			label: quickLinkLabel(ICONS.PLAYLIST, 'Account Library'),
+			view: VIEW.ACCOUNT_LIBRARY,
+		},
 		{label: quickLinkLabel(ICONS.AI, 'AI Playlist'), view: VIEW.AI_PLAYLIST},
 		{label: quickLinkLabel(ICONS.RADIO, 'Radio Streams'), view: VIEW.RADIO},
 		{

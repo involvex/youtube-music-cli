@@ -1,9 +1,16 @@
 import type {Playlist, Track} from '../../types/youtube-music.types.ts';
+import type {AccountLibraryPlaylist} from '../../services/youtube-music/account-library.ts';
 import {trackArtists} from '../state/queue-state.ts';
 import {truncate} from '../../utils/format.ts';
 
 export type LibraryView =
-	'menu' | 'playlists' | 'favorites' | 'playlist_edit' | 'add_to_playlist';
+	| 'menu'
+	| 'playlists'
+	| 'favorites'
+	| 'playlist_edit'
+	| 'add_to_playlist'
+	| 'account'
+	| 'account_liked';
 
 export interface LibraryOverlayState {
 	active: boolean;
@@ -14,9 +21,14 @@ export interface LibraryOverlayState {
 	pendingTrack: Track | null;
 	addToPlaylistReturnView: LibraryView | null;
 	addToPlaylistReturnToSearch: boolean;
+	accountLoading: boolean;
+	accountSignedIn: boolean;
+	accountLiked: Track[];
+	accountPlaylists: AccountLibraryPlaylist[];
 }
 
 export const LIBRARY_MENU_ITEMS = [
+	'YouTube Music Library...',
 	'Saved Playlists...',
 	'Favorites...',
 	'Play All Favorites',
@@ -34,6 +46,10 @@ export function createLibraryOverlayState(): LibraryOverlayState {
 		pendingTrack: null,
 		addToPlaylistReturnView: null,
 		addToPlaylistReturnToSearch: false,
+		accountLoading: false,
+		accountSignedIn: false,
+		accountLiked: [],
+		accountPlaylists: [],
 	};
 }
 
@@ -42,6 +58,7 @@ function resetLibraryTransientState(state: LibraryOverlayState): void {
 	state.pendingTrack = null;
 	state.addToPlaylistReturnView = null;
 	state.addToPlaylistReturnToSearch = false;
+	state.accountLoading = false;
 }
 
 export function openLibraryMenu(state: LibraryOverlayState): void {
@@ -66,6 +83,21 @@ export function openFavoritesPicker(state: LibraryOverlayState): void {
 	state.selectedIndex = 0;
 	state.status = null;
 	resetLibraryTransientState(state);
+}
+
+export function openAccountLibrary(state: LibraryOverlayState): void {
+	state.active = true;
+	state.view = 'account';
+	state.selectedIndex = 0;
+	resetLibraryTransientState(state);
+	state.accountLoading = true;
+	state.status = 'Loading YouTube Music library...';
+}
+
+export function openAccountLiked(state: LibraryOverlayState): void {
+	state.view = 'account_liked';
+	state.selectedIndex = 0;
+	state.status = null;
 }
 
 export function openPlaylistEdit(
@@ -144,7 +176,11 @@ export type LibraryInputAction =
 	| 'remove_playlist_track'
 	| 'add_current_to_playlist'
 	| 'confirm_add_to_playlist'
-	| 'cancel_add_to_playlist';
+	| 'cancel_add_to_playlist'
+	| 'open_account_liked'
+	| 'play_account_playlist'
+	| 'play_account_liked'
+	| 'back_to_account';
 
 export function handleLibraryMenuInput(
 	state: LibraryOverlayState,
@@ -170,6 +206,80 @@ export function handleLibraryMenuInput(
 
 	if (key === 'enter') {
 		return 'menu_select';
+	}
+
+	return 'none';
+}
+
+export function accountLibraryRowCount(state: LibraryOverlayState): number {
+	return 1 + state.accountPlaylists.length;
+}
+
+export function handleLibraryAccountInput(
+	state: LibraryOverlayState,
+	key: string,
+	rowCount: number,
+): LibraryInputAction {
+	if (key === 'escape') {
+		state.view = 'menu';
+		state.selectedIndex = 0;
+		state.status = null;
+		return 'back_to_menu';
+	}
+
+	if (state.accountLoading || !state.accountSignedIn || rowCount === 0) {
+		return 'none';
+	}
+
+	if (key === 'up') {
+		state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+		return 'none';
+	}
+
+	if (key === 'down') {
+		state.selectedIndex = Math.min(rowCount - 1, state.selectedIndex + 1);
+		return 'none';
+	}
+
+	if (key === 'enter') {
+		if (state.selectedIndex === 0) {
+			return 'open_account_liked';
+		}
+
+		return 'play_account_playlist';
+	}
+
+	return 'none';
+}
+
+export function handleLibraryAccountLikedInput(
+	state: LibraryOverlayState,
+	key: string,
+	trackCount: number,
+): LibraryInputAction {
+	if (key === 'escape') {
+		state.view = 'account';
+		state.selectedIndex = 0;
+		state.status = null;
+		return 'back_to_account';
+	}
+
+	if (trackCount === 0) {
+		return 'none';
+	}
+
+	if (key === 'up') {
+		state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+		return 'none';
+	}
+
+	if (key === 'down') {
+		state.selectedIndex = Math.min(trackCount - 1, state.selectedIndex + 1);
+		return 'none';
+	}
+
+	if (key === 'enter') {
+		return 'play_account_liked';
 	}
 
 	return 'none';
@@ -326,6 +436,22 @@ export function formatPlaylistLine(
 	maxWidth: number,
 ): string {
 	const suffix = ` (${playlist.tracks.length} tracks)`;
+	const maxName = Math.max(8, maxWidth - suffix.length);
+	const name =
+		playlist.name.length > maxName
+			? `${playlist.name.slice(0, maxName - 3)}...`
+			: playlist.name;
+	return `${name}${suffix}`;
+}
+
+export function formatAccountPlaylistLine(
+	playlist: AccountLibraryPlaylist,
+	maxWidth: number,
+): string {
+	const suffix =
+		typeof playlist.trackCount === 'number'
+			? ` (${playlist.trackCount} tracks)`
+			: '';
 	const maxName = Math.max(8, maxWidth - suffix.length);
 	const name =
 		playlist.name.length > maxName
