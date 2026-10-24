@@ -294,6 +294,51 @@ test(
 );
 
 test(
+	'auth: withTimeout resolves before the deadline and rejects after it',
+	async () => {
+		const {withTimeout} =
+			await import('../source/services/auth/auth.service.ts');
+
+		await expect(withTimeout(Promise.resolve('ok'), 50, 'late')).resolves.toBe(
+			'ok',
+		);
+		await expect(
+			withTimeout(new Promise(() => {}), 20, 'too slow'),
+		).rejects.toThrow('too slow');
+	},
+	{timeout: 60_000},
+);
+
+test(
+	'auth: obtainDeviceAndUserCode reports the code before polling',
+	async () => {
+		const {obtainDeviceAndUserCode} =
+			await import('../source/services/auth/auth.service.ts');
+
+		const oauth = {
+			client_id: undefined,
+			getClientID: async () => ({client_id: 'id', client_secret: 'secret'}),
+			getDeviceAndUserCode: async () => ({
+				device_code: 'dev',
+				expires_in: 1800,
+				interval: 5,
+				user_code: 'ABCD-EFGH',
+				verification_url: 'https://www.google.com/device',
+			}),
+		};
+
+		const deviceCode = await obtainDeviceAndUserCode(oauth);
+		expect(deviceCode.user_code).toBe('ABCD-EFGH');
+		expect(deviceCode.verification_url).toBe('https://www.google.com/device');
+		expect(oauth.client_id).toEqual({
+			client_id: 'id',
+			client_secret: 'secret',
+		});
+	},
+	{timeout: 60_000},
+);
+
+test(
 	'auth: parseCookiesFile parses raw cookie header',
 	async () => {
 		const {parseCookiesFile} =

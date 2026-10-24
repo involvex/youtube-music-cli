@@ -20,3 +20,13 @@ export interface AuthStatus {
 	tokenValid: boolean;
 	cookie?: string;
 }
+
+export interface DeviceCodeInfo {
+	verificationUrl: string;
+	userCode: string;
+}
+
+export interface SignInOptions {
+	onDeviceCode?: (info: DeviceCodeInfo) => void;
+	onProgress?: (message: string) => void;
+}

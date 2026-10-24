@@ -430,7 +430,8 @@ if (command === 'config' && args[0] === 'backup') {
 
 // Handle auth commands
 if (command === 'login') {
-	const {getAuthService} = await import('./services/auth/auth.service.ts');
+	const {COOKIE_LOGIN_HINT, getAuthService} =
+		await import('./services/auth/auth.service.ts');
 	const authService = getAuthService();
 	const status = authService.getStatus();
 
@@ -496,11 +497,19 @@ if (command === 'login') {
 
 	console.log('Starting YouTube Music login...');
 	console.log('');
-	console.log('A device code will be displayed below.');
-	console.log('Open the verification URL and enter the code to authorize.');
-	console.log('');
 
-	const result = await authService.signIn();
+	const result = await authService.signIn({
+		onProgress: message => {
+			console.log(message);
+		},
+		onDeviceCode: ({verificationUrl, userCode}) => {
+			console.log('');
+			console.log(`Open ${verificationUrl} in your browser`);
+			console.log(`Enter this code: ${userCode}`);
+			console.log('');
+			console.log('Waiting for authorization...');
+		},
+	});
 
 	if (result.success) {
 		console.log('');
@@ -508,14 +517,7 @@ if (command === 'login') {
 		process.exit(0);
 	} else {
 		console.error(`\n✗ Login failed: ${result.error ?? 'Unknown error'}`);
-		console.error(
-			'\nTip: You can also sign in using cookies:\n' +
-				'  ymc login --cookies-file <path-to-cookies.txt>\n' +
-				(process.platform === 'win32'
-					? '  Close your browser first, then try:\n' +
-						'  ymc login --cookies-from-browser edge\n'
-					: '  ymc login --cookies-from-browser edge\n'),
-		);
+		console.error(`\n${COOKIE_LOGIN_HINT}`);
 		process.exit(1);
 	}
 }

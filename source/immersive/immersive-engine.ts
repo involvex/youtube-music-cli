@@ -45,16 +45,22 @@ import {
 	type SearchOverlayState,
 } from './ui/search-overlay.ts';
 import {
+	accountLibraryRowCount,
 	closeLibraryOverlay,
 	createLibraryOverlayState,
+	formatAccountPlaylistLine,
 	formatFavoriteLine,
 	formatPlaylistLine,
+	handleLibraryAccountInput,
+	handleLibraryAccountLikedInput,
 	handleLibraryFavoritesInput,
 	handleLibraryMenuInput,
 	handleLibraryPlaylistEditInput,
 	handleLibraryPlaylistInput,
 	handleLibraryAddToPlaylistInput,
 	LIBRARY_MENU_ITEMS,
+	openAccountLibrary,
+	openAccountLiked,
 	openAddToPlaylistPicker,
 	openFavoritesPicker,
 	openLibraryMenu,
@@ -65,6 +71,7 @@ import {
 	formatPlaylistTrackLine,
 	type LibraryOverlayState,
 } from './ui/library-overlay.ts';
+import {SIGNED_OUT_LIBRARY_MESSAGE} from '../services/youtube-music/account-library.ts';
 import {
 	createSettingsOverlayState,
 	handleSettingsInput,
@@ -178,6 +185,16 @@ export interface ImmersiveOptions {
 	onPlayFavoriteTrack?: (track: Track) => Promise<void>;
 	onPlayAllFavorites?: () => Promise<string | null>;
 	onPlayRandomFavorite?: () => Promise<string | null>;
+	isAccountSignedIn?: () => boolean;
+	onLoadAccountLibrary?: () => Promise<{
+		likedSongs: Track[];
+		playlists: Array<{
+			playlistId: string;
+			name: string;
+			trackCount?: number;
+		}>;
+	}>;
+	onPlayAccountPlaylist?: (playlistId: string) => Promise<void>;
 	onPlayRadioStation?: (station: RadioStation) => Promise<void>;
 	onPlayMoodRadio?: (moodId: string) => Promise<string | null>;
 	onToggleShuffle?: () => void;
@@ -683,6 +700,105 @@ export class ImmersiveEngine {
 		}
 	}
 
+	private async loadAccountLibrary(): Promise<void> {
+		if (!this.options.isAccountSignedIn?.()) {
+			this.libraryOverlay.accountLoading = false;
+			this.libraryOverlay.accountSignedIn = false;
+			this.libraryOverlay.accountLiked = [];
+			this.libraryOverlay.accountPlaylists = [];
+			this.libraryOverlay.status = SIGNED_OUT_LIBRARY_MESSAGE;
+			return;
+		}
+
+		this.libraryOverlay.accountLoading = true;
+		this.libraryOverlay.accountSignedIn = true;
+		this.libraryOverlay.status = 'Loading YouTube Music library...';
+		try {
+			const library = await this.options.onLoadAccountLibrary?.();
+			this.libraryOverlay.accountLiked = library?.likedSongs ?? [];
+			this.libraryOverlay.accountPlaylists = library?.playlists ?? [];
+			this.libraryOverlay.accountSignedIn = true;
+			this.libraryOverlay.accountLoading = false;
+			this.libraryOverlay.status = null;
+		} catch (error) {
+			this.libraryOverlay.accountLoading = false;
+			this.libraryOverlay.accountSignedIn =
+				this.options.isAccountSignedIn?.() ?? false;
+			this.libraryOverlay.status =
+				error instanceof Error ? error.message : SIGNED_OUT_LIBRARY_MESSAGE;
+		}
+	}
+
+	private async handleAccountLibraryKey(key: string): Promise<void> {
+		const rowCount = accountLibraryRowCount(this.libraryOverlay);
+		const action = handleLibraryAccountInput(
+			this.libraryOverlay,
+			key,
+			rowCount,
+		);
+		if (action === 'back_to_menu' || action === 'none') {
+			return;
+		}
+
+		if (action === 'open_account_liked') {
+			openAccountLiked(this.libraryOverlay);
+			return;
+		}
+
+		if (action !== 'play_account_playlist') {
+			return;
+		}
+
+		const playlist =
+			this.libraryOverlay.accountPlaylists[
+				this.libraryOverlay.selectedIndex - 1
+			];
+		if (!playlist) {
+			this.libraryOverlay.status = 'No account playlists';
+			return;
+		}
+
+		try {
+			await this.options.onPlayAccountPlaylist?.(playlist.playlistId);
+			closeLibraryOverlay(this.libraryOverlay);
+		} catch (error) {
+			this.libraryOverlay.status =
+				error instanceof Error
+					? error.message
+					: `Failed to play "${playlist.name}"`;
+		}
+	}
+
+	private async handleAccountLikedKey(key: string): Promise<void> {
+		const tracks = this.libraryOverlay.accountLiked;
+		const action = handleLibraryAccountLikedInput(
+			this.libraryOverlay,
+			key,
+			tracks.length,
+		);
+		if (action === 'back_to_account' || action === 'none') {
+			return;
+		}
+
+		if (action !== 'play_account_liked') {
+			return;
+		}
+
+		const track = tracks[this.libraryOverlay.selectedIndex];
+		if (!track) {
+			this.libraryOverlay.status = 'No liked songs';
+			return;
+		}
+
+		try {
+			await this.options.onPlayFavoriteTrack?.(track);
+			closeLibraryOverlay(this.libraryOverlay);
+		} catch (error) {
+			this.libraryOverlay.status =
+				error instanceof Error ? error.message : 'Failed to play liked song';
+		}
+	}
+
 	private async runLibraryAction(
 		action: () => Promise<string | null | undefined> | undefined,
 	): Promise<void> {
@@ -711,29 +827,44 @@ export class ImmersiveEngine {
 				return;
 			}
 
-			switch (this.libraryOverlay.selectedIndex) {
-				case 0:
+			const selected = LIBRARY_MENU_ITEMS[this.libraryOverlay.selectedIndex];
+			switch (selected) {
+				case 'YouTube Music Library...':
+					openAccountLibrary(this.libraryOverlay);
+					void this.loadAccountLibrary();
+					break;
+				case 'Saved Playlists...':
 					this.libraryOverlay.view = 'playlists';
 					this.libraryOverlay.selectedIndex = 0;
 					this.libraryOverlay.status = null;
 					break;
-				case 1:
+				case 'Favorites...':
 					openFavoritesPicker(this.libraryOverlay);
 					break;
-				case 2:
+				case 'Play All Favorites':
 					await this.runLibraryAction(() =>
 						this.options.onPlayAllFavorites?.(),
 					);
 					break;
-				case 3:
+				case 'Random Favorite':
 					await this.runLibraryAction(() =>
 						this.options.onPlayRandomFavorite?.(),
 					);
 					break;
-				case 4:
+				case 'Back':
 					closeLibraryOverlay(this.libraryOverlay);
 					break;
 			}
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'account') {
+			await this.handleAccountLibraryKey(key);
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'account_liked') {
+			await this.handleAccountLikedKey(key);
 			return;
 		}
 
@@ -1852,7 +1983,7 @@ function renderLibraryOverlay(
 		return;
 	}
 
-	const boxH = Math.min(Math.max(8, Math.floor(height * 0.4)), height - 6);
+	const boxH = Math.min(Math.max(10, Math.floor(height * 0.45)), height - 6);
 	const boxY = Math.max(2, Math.floor((height - boxH) / 2));
 	const boxW = Math.min(width - 4, 60);
 	const boxX = Math.floor((width - boxW) / 2);
@@ -1872,6 +2003,102 @@ function renderLibraryOverlay(
 				null,
 				i === overlay.selectedIndex ? {bold: true} : {dim: true},
 			);
+		}
+	} else if (overlay.view === 'account') {
+		fb.setText(boxX + 2, boxY, ' YT MUSIC LIBRARY ', null, null, {
+			bold: true,
+		});
+		if (overlay.accountLoading) {
+			fb.setText(
+				boxX + 2,
+				boxY + 2,
+				'Loading YouTube Music library...',
+				null,
+				null,
+				{dim: true},
+			);
+		} else if (!overlay.accountSignedIn) {
+			fb.setText(
+				boxX + 2,
+				boxY + 2,
+				truncateText(SIGNED_OUT_LIBRARY_MESSAGE, boxW - 4),
+				null,
+				null,
+				{dim: true},
+			);
+		} else {
+			const rows = [
+				`Liked Songs (${overlay.accountLiked.length})`,
+				...overlay.accountPlaylists.map(playlist =>
+					formatAccountPlaylistLine(playlist, boxW - 8),
+				),
+			];
+			const maxLines = boxH - 4;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, rows.length - maxLines),
+				),
+			);
+			const visible = rows.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const lineText = visible[i];
+				if (!lineText) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				fb.setText(
+					boxX + 2,
+					boxY + 2 + i,
+					truncateText(`${marker} ${lineText}`, boxW - 4),
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
+		}
+	} else if (overlay.view === 'account_liked') {
+		fb.setText(boxX + 2, boxY, ' LIKED SONGS ', null, null, {bold: true});
+		const liked = overlay.accountLiked;
+		if (liked.length === 0) {
+			fb.setText(
+				boxX + 2,
+				boxY + 2,
+				overlay.accountSignedIn
+					? 'No liked songs on this account'
+					: truncateText(SIGNED_OUT_LIBRARY_MESSAGE, boxW - 4),
+				null,
+				null,
+				{dim: true},
+			);
+		} else {
+			const maxLines = boxH - 4;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, liked.length - maxLines),
+				),
+			);
+			const visible = liked.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const track = visible[i];
+				if (!track) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				const line = truncateText(
+					`${marker} ${formatFavoriteLine(track, boxW - 8)}`,
+					boxW - 4,
+				);
+				fb.setText(
+					boxX + 2,
+					boxY + 2 + i,
+					line,
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
 		}
 	} else if (overlay.view === 'favorites') {
 		fb.setText(boxX + 2, boxY, ' FAVORITES ', null, null, {bold: true});

@@ -4,8 +4,11 @@ import {useTheme} from '../../hooks/useTheme.ts';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import {useState, useEffect, useCallback, useRef} from 'react';
-import {getAuthService} from '../../services/auth/auth.service.ts';
+import {useState, useCallback, useEffect, useRef} from 'react';
+import {
+	COOKIE_LOGIN_HINT,
+	getAuthService,
+} from '../../services/auth/auth.service.ts';
 
 type LoginState = 'idle' | 'pending' | 'authenticating' | 'success' | 'error';
 
@@ -16,12 +19,14 @@ export default function LoginView() {
 	const status = authService.getStatus();
 
 	const [loginState, setLoginState] = useState<LoginState>('idle');
+	const [progress, setProgress] = useState('Starting login...');
 	const [deviceCode, setDeviceCode] = useState<{
 		verificationUrl: string;
 		userCode: string;
 	} | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [showCookieFallback, setShowCookieFallback] = useState(false);
+	const loginInitiated = useRef(false);
 
 	useKeyBinding(resolveKeybinding('BACK'), () => {
 		dispatch({category: 'GO_BACK'});
@@ -33,83 +38,51 @@ export default function LoginView() {
 		}
 
 		setLoginState('pending');
+		setProgress('Starting login...');
 		setError(null);
 		setShowCookieFallback(false);
+		setDeviceCode(null);
 
-		try {
-			const {Innertube} = await import('youtubei.js');
-			const innertube = await Innertube.create();
+		const result = await getAuthService().signIn({
+			onProgress: message => {
+				setProgress(message);
+			},
+			onDeviceCode: info => {
+				setDeviceCode(info);
+				setLoginState('authenticating');
+			},
+		});
 
-			const authPromise = new Promise<{
-				success: boolean;
-				error?: string;
-			}>(resolve => {
-				innertube.session.once('auth', ({credentials}) => {
-					getAuthService().saveCredentials({
-						schemaVersion: 1,
-						method: 'oauth2',
-						tokens: credentials,
-						signedInAt: new Date().toISOString(),
-					});
-
-					setLoginState('success');
-					resolve({success: true});
-				});
-
-				innertube.session.once('auth-error', err => {
-					setLoginState('error');
-					setError(
-						err instanceof Error ? err.message : 'Authentication failed',
-					);
-					setShowCookieFallback(true);
-					resolve({success: false, error: String(err)});
-				});
-			});
-
-			await innertube.session.oauth.init();
-			const deviceCode = await innertube.session.oauth.getDeviceAndUserCode();
-
-			if (deviceCode.error_code) {
-				setLoginState('error');
-				setError(`OAuth error: ${deviceCode.error_code}`);
-				setShowCookieFallback(true);
-				return;
-			}
-
-			setDeviceCode({
-				verificationUrl: deviceCode.verification_url,
-				userCode: deviceCode.user_code,
-			});
-			setLoginState('authenticating');
-
-			innertube.session.oauth.pollForAccessToken(deviceCode);
-			await authPromise;
-		} catch (err) {
-			setLoginState('error');
-			setError(err instanceof Error ? err.message : 'Login failed');
-			setShowCookieFallback(true);
+		if (result.success) {
+			setLoginState('success');
+			return;
 		}
+
+		setLoginState('error');
+		setError(result.error ?? 'Login failed');
+		setShowCookieFallback(true);
 	}, [status.loggedIn]);
 
-	// Allow r key to retry login (lowercase: uppercase would imply Shift+R,
-	// which is already the global resume-background shortcut).
 	useKeyBinding(['r'], () => {
 		if (loginState === 'error' || showCookieFallback) {
 			setLoginState('idle');
 			setError(null);
 			setShowCookieFallback(false);
+			loginInitiated.current = true;
 			void handleLogin();
 		}
 	});
 
-	const loginInitiated = useRef<boolean>(false);
-
 	useEffect(() => {
-		if (!status.loggedIn && loginState === 'idle' && !loginInitiated.current) {
-			loginInitiated.current = true;
-			void handleLogin();
+		if (status.loggedIn || loginInitiated.current) {
+			return;
 		}
-	}, [status.loggedIn, loginState, handleLogin]);
+
+		loginInitiated.current = true;
+		queueMicrotask(() => {
+			void handleLogin();
+		});
+	}, [handleLogin, status.loggedIn]);
 
 	return (
 		<Box flexDirection="column" paddingX={1} paddingY={1}>
@@ -187,7 +160,7 @@ export default function LoginView() {
 						</Text>
 					</Box>
 					<Box>
-						<Text color={theme.colors.dim}>Press any key to continue</Text>
+						<Text color={theme.colors.dim}>Press Esc to continue</Text>
 					</Box>
 				</Box>
 			) : loginState === 'error' ? (
@@ -204,26 +177,11 @@ export default function LoginView() {
 					)}
 					{showCookieFallback && (
 						<Box flexDirection="column" gap={1} marginTop={1}>
-							<Box>
-								<Text color={theme.colors.text}>
-									OAuth2 is currently broken (YouTube changed their TV page).
-								</Text>
-							</Box>
-							<Box>
-								<Text color={theme.colors.text}>
-									You can sign in using cookies instead:
-								</Text>
-							</Box>
-							<Box>
-								<Text color={theme.colors.dim}>
-									{'  '}ymc login --cookies-file &lt;path-to-cookies.txt&gt;
-								</Text>
-							</Box>
-							<Box>
-								<Text color={theme.colors.dim}>
-									{'  '}ymc login --cookies-from-browser edge
-								</Text>
-							</Box>
+							{COOKIE_LOGIN_HINT.split('\n').map(line => (
+								<Box key={line}>
+									<Text color={theme.colors.text}>{line}</Text>
+								</Box>
+							))}
 						</Box>
 					)}
 					<Box>
@@ -236,13 +194,9 @@ export default function LoginView() {
 						</Text>
 					</Box>
 				</Box>
-			) : loginState === 'pending' ? (
-				<Box>
-					<Text color={theme.colors.dim}>Starting login...</Text>
-				</Box>
 			) : (
 				<Box>
-					<Text color={theme.colors.dim}>Starting login...</Text>
+					<Text color={theme.colors.dim}>{progress}</Text>
 				</Box>
 			)}
 
