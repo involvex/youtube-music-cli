@@ -2,11 +2,14 @@ import {expect, test} from 'bun:test';
 import {
 	fetchAccountLibrary,
 	isLikedMusicPlaylistId,
+	likedMusicBrowseId,
 	mergeAccountLibrary,
 	normalizeAccountPlaylistId,
 	parseAccountLibraryPlaylists,
 	parseAccountLibraryTracks,
+	parseTracksFromInnertubeBrowse,
 	pickLibraryFilter,
+	LIKED_MUSIC_BROWSE_ID,
 	SIGNED_OUT_LIBRARY_MESSAGE,
 } from '../source/services/youtube-music/account-library.ts';
 import {
@@ -30,6 +33,12 @@ test('account library constants and playlist id helpers', () => {
 	expect(normalizeAccountPlaylistId('PLabc')).toBe('PLabc');
 	expect(isLikedMusicPlaylistId('VLLM')).toBe(true);
 	expect(isLikedMusicPlaylistId('PLother')).toBe(false);
+	expect(likedMusicBrowseId('LM')).toBe(LIKED_MUSIC_BROWSE_ID);
+	expect(likedMusicBrowseId('VLLM')).toBe(LIKED_MUSIC_BROWSE_ID);
+	expect(likedMusicBrowseId('FEmusic_liked_videos')).toBe(
+		'FEmusic_liked_videos',
+	);
+	expect(likedMusicBrowseId('PLmine')).toBe(null);
 	expect(SIGNED_OUT_LIBRARY_MESSAGE.includes('ymc login')).toBe(true);
 });
 
@@ -124,6 +133,57 @@ test('pickLibraryFilter matches playlist chips', () => {
 	);
 });
 
+test('parseTracksFromInnertubeBrowse reads playlistItemData without VL playlist fetch', () => {
+	const tracks = parseTracksFromInnertubeBrowse({
+		data: {
+			contents: {
+				singleColumnBrowseResultsRenderer: {
+					tabs: [
+						{
+							tabRenderer: {
+								content: {
+									sectionListRenderer: {
+										contents: [
+											{
+												musicPlaylistShelfRenderer: {
+													contents: [
+														{
+															musicResponsiveListItemRenderer: {
+																playlistItemData: {videoId: 'likedBrowse1'},
+																flexColumns: [
+																	{
+																		musicResponsiveListItemFlexColumnRenderer: {
+																			text: {runs: [{text: 'Liked Browse'}]},
+																		},
+																	},
+																	{
+																		musicResponsiveListItemFlexColumnRenderer: {
+																			text: {runs: [{text: 'Artist A'}]},
+																		},
+																	},
+																],
+															},
+														},
+													],
+												},
+											},
+										],
+									},
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	});
+
+	expect(tracks).toHaveLength(1);
+	expect(tracks[0]?.videoId).toBe('likedBrowse1');
+	expect(tracks[0]?.title).toBe('Liked Browse');
+	expect(tracks[0]?.artists[0]?.name).toBe('Artist A');
+});
+
 test('fetchAccountLibrary uses filters, liked playlist, and continuation', async () => {
 	const library = {
 		filters: ['Playlists', 'Songs'],
@@ -168,11 +228,9 @@ test('fetchAccountLibrary uses filters, liked playlist, and continuation', async
 
 	const result = await fetchAccountLibrary({
 		getLibrary: async () => library,
-		getLikedPlaylist: async () => ({
-			tracks: [
-				{videoId: 'liked111111', title: 'Liked', artists: [{name: 'A'}]},
-			],
-		}),
+		getLikedSongs: async () => [
+			{videoId: 'liked111111', title: 'Liked', artists: [{name: 'A'}]},
+		],
 	});
 
 	expect(result.playlists.map(item => item.playlistId)).toEqual([

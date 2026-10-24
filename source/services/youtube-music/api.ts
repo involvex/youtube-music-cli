@@ -25,7 +25,9 @@ import {getAuthService} from '../auth/auth.service.ts';
 import {
 	assertAccountLibraryAuth,
 	fetchAccountLibrary,
-	LIKED_MUSIC_PLAYLIST_ID,
+	LIKED_MUSIC_BROWSE_ID,
+	likedMusicBrowseId,
+	parseTracksFromInnertubeBrowse,
 	type AccountLibrary,
 } from './account-library.ts';
 
@@ -481,13 +483,32 @@ class MusicService {
 		const yt = await getClient();
 		return fetchAccountLibrary({
 			getLibrary: () => yt.music.getLibrary(),
-			getLikedPlaylist: async () => this.getPlaylist(LIKED_MUSIC_PLAYLIST_ID),
+			getLikedSongs: async () => {
+				const response = await yt.actions.execute('/browse', {
+					browseId: LIKED_MUSIC_BROWSE_ID,
+					client: 'YTMUSIC',
+				});
+				return parseTracksFromInnertubeBrowse(response);
+			},
 		});
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist> {
 		try {
 			const yt = await getClient();
+			const browseId = likedMusicBrowseId(playlistId);
+			if (browseId) {
+				const response = await yt.actions.execute('/browse', {
+					browseId,
+					client: 'YTMUSIC',
+				});
+				return {
+					playlistId,
+					name: browseId === LIKED_MUSIC_BROWSE_ID ? 'Liked Music' : 'Library',
+					tracks: parseTracksFromInnertubeBrowse(response),
+				};
+			}
+
 			const playlistData = (await yt.music.getPlaylist(playlistId)) as {
 				title?: string;
 				name?: string;

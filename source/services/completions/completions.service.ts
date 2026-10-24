@@ -1,6 +1,6 @@
 export type ShellType = 'bash' | 'zsh' | 'powershell' | 'fish';
 
-const COMMANDS = [
+export const COMMANDS = [
 	'play',
 	'search',
 	'playlist',
@@ -17,10 +17,11 @@ const COMMANDS = [
 	'logs',
 	'config',
 	'update',
+	'stats',
 	'login',
 	'logout',
 	'whoami',
-];
+] as const;
 
 const SYNC_SUBCOMMANDS = ['list', 'search'];
 
@@ -45,7 +46,7 @@ const COMPLETIONS_SUBCOMMANDS: ShellType[] = [
 
 const LOGS_SUBCOMMANDS = ['--open', '--get-path', '--set-path'];
 
-const CONFIG_SUBCOMMANDS = ['doctor'];
+const CONFIG_SUBCOMMANDS = ['doctor', 'backup'];
 
 const FLAGS = [
 	'--theme',
@@ -69,6 +70,8 @@ const FLAGS = [
 	'--set-path',
 	'--fix',
 	'--verbose',
+	'--share',
+	'--export',
 ];
 
 export function generateCompletion(shell: ShellType): string {
@@ -128,6 +131,9 @@ _ymc_completions() {
             return ;;
         login|logout|whoami)
             return ;;
+        stats)
+            COMPREPLY=($(compgen -W "--share --export" -- "$cur"))
+            return ;;
         --cookies-file)
             COMPREPLY=($(compgen -f -- "$cur"))
             return ;;
@@ -157,6 +163,10 @@ complete -F _ymc_completions ymc youtube-music-cli
 }
 
 function generateZshCompletion(): string {
+	const commandEntries = COMMANDS.map(
+		cmd => `        '${cmd}:${getCommandDescription(cmd)}'`,
+	).join('\n');
+
 	return `#compdef ymc youtube-music-cli
 # youtube-music-cli zsh completion
 # Add to your zsh config:
@@ -168,24 +178,7 @@ _ymc() {
     local -a commands subcommands flags
 
     commands=(
-        'play:Play a track by ID or YouTube URL'
-        'search:Search for tracks'
-        'playlist:Play a playlist by ID'
-        'sync:Sync a YouTube Music playlist to local config'
-        'suggestions:Show music suggestions'
-        'pause:Pause playback'
-        'resume:Resume playback'
-        'skip:Skip to next track'
-        'back:Go to previous track'
-        'plugins:Manage plugins'
-        'import:Import playlists from Spotify or YouTube'
-        'completions:Generate shell completion scripts'
-        'logs:View and manage debug logs'
-        'config:Manage configuration'
-        'update:Check for updates and auto-update'
-        'login:Sign in to YouTube Music'
-        'logout:Sign out and remove credentials'
-        'whoami:Show current account status'
+${commandEntries}
     )
 
     flags=(
@@ -255,8 +248,17 @@ _ymc() {
             local -a config_cmds
             config_cmds=(
                 'doctor:Check config for issues'
+                'backup:Backup or restore config and data'
             )
             _describe 'config commands' config_cmds
+            return ;;
+        stats)
+            local -a stats_opts
+            stats_opts=(
+                '--share[Print + copy share card]'
+                '--export[Write share card to file]:path:_files'
+            )
+            _describe 'stats options' stats_opts
             return ;;
     esac
 
@@ -341,26 +343,28 @@ $ymcCompleterBlock = {
                 ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
             return
         }
-        'login' {
+        '--cookies-from-browser' {
             $cookieBrowsers = @('chrome', 'firefox', 'edge', 'brave')
-            switch ($prevToken) {
-                '--cookies-file' {
-                    # File completion for cookie file path
-                    $cookieBrowsers | ForEach-Object {}
-                    return
-                }
-                '--cookies-from-browser' {
-                    $cookieBrowsers | Where-Object { $_ -like "$wordToComplete*" } |
-                        ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
-                    return
-                }
-            }
+            $cookieBrowsers | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+            return
+        }
+        'login' {
+            $loginFlags = @('--cookies-file', '--cookies-from-browser')
+            $loginFlags | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
             return
         }
         'logout' {
             return
         }
         'whoami' {
+            return
+        }
+        'stats' {
+            $statsFlags = @('--share', '--export')
+            $statsFlags | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
             return
         }
         { $_ -in '--theme', '-t' } {
@@ -391,7 +395,7 @@ Register-ArgumentCompleter -Native -CommandName @('ymc', 'youtube-music-cli') -S
 function generateFishCompletion(): string {
 	const commandCompletions = COMMANDS.map(
 		cmd =>
-			`complete -c ymc -n '__fish_use_subcommand' -f -a '${cmd}' -d '${getFishDescription(cmd)}'`,
+			`complete -c ymc -n '__fish_use_subcommand' -f -a '${cmd}' -d '${getCommandDescription(cmd)}'`,
 	).join('\n');
 
 	const pluginsCompletions = PLUGINS_SUBCOMMANDS.map(
@@ -473,19 +477,22 @@ complete -c ymc -l get-path -d 'Print log file path'
 complete -c ymc -l set-path -d 'Set custom log file path' -r -F
 complete -c ymc -l fix -d 'Auto-fix config issues'
 complete -c ymc -l verbose -s V -d 'Enable verbose logging output'
+complete -c ymc -l share -d 'Print + copy stats share card'
+complete -c ymc -l export -d 'Write stats share card to file' -r -F
 
 # Also register for youtube-music-cli
 complete -c youtube-music-cli -w ymc
 `;
 }
 
-function getFishDescription(cmd: string): string {
+function getCommandDescription(cmd: string): string {
 	const descriptions: Record<string, string> = {
 		play: 'Play a track by ID or YouTube URL',
 		search: 'Search for tracks',
 		playlist: 'Play a playlist by ID',
 		sync: 'Sync a YouTube Music playlist to local config',
 		suggestions: 'Show music suggestions',
+		radio: 'Play a radio station by ID',
 		pause: 'Pause playback',
 		resume: 'Resume playback',
 		skip: 'Skip to next track',
@@ -496,6 +503,7 @@ function getFishDescription(cmd: string): string {
 		logs: 'View and manage debug logs',
 		config: 'Manage configuration',
 		update: 'Check for updates and auto-update',
+		stats: 'Print listening statistics',
 		login: 'Sign in to YouTube Music',
 		logout: 'Sign out and remove credentials',
 		whoami: 'Show current account status',
