@@ -3,6 +3,7 @@ import {getAuthService} from '../auth/auth.service.ts';
 import {logger} from '../logger/logger.service.ts';
 
 export const LIKED_MUSIC_PLAYLIST_ID = 'LM';
+export const LIKED_MUSIC_BROWSE_ID = 'FEmusic_liked_videos';
 
 export const SIGNED_OUT_LIBRARY_MESSAGE =
 	'Sign in to browse your YouTube Music library (Settings → Login or ymc login).';
@@ -30,7 +31,7 @@ export type AccountLibrary = {
 
 export type AccountLibraryClient = {
 	getLibrary: () => Promise<unknown>;
-	getLikedPlaylist: () => Promise<{tracks: Track[]}>;
+	getLikedSongs: () => Promise<Track[]>;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -84,6 +85,19 @@ export function normalizeAccountPlaylistId(id: string): string {
 
 export function isLikedMusicPlaylistId(id: string): boolean {
 	return normalizeAccountPlaylistId(id) === LIKED_MUSIC_PLAYLIST_ID;
+}
+
+export function likedMusicBrowseId(id: string): string | null {
+	const normalized = normalizeAccountPlaylistId(id);
+	if (normalized === LIKED_MUSIC_PLAYLIST_ID) {
+		return LIKED_MUSIC_BROWSE_ID;
+	}
+
+	if (normalized.startsWith('FEmusic_')) {
+		return normalized;
+	}
+
+	return null;
 }
 
 export function assertAccountLibraryAuth(): void {
@@ -344,6 +358,141 @@ export function parseAccountLibraryTracks(library: unknown): Track[] {
 	return tracks;
 }
 
+function titleFromFlexColumns(item: Record<string, unknown>): string {
+	const columns = item['flexColumns'];
+	if (!Array.isArray(columns) || columns.length === 0) {
+		return '';
+	}
+
+	const first = asRecord(columns[0]);
+	const renderer = first
+		? asRecord(first['musicResponsiveListItemFlexColumnRenderer'])
+		: first;
+	const text = renderer ? asRecord(renderer['text']) : null;
+	const runs = text && Array.isArray(text['runs']) ? text['runs'] : [];
+	const firstRun = runs.length > 0 ? asRecord(runs[0]) : null;
+	return firstRun ? textOf(firstRun['text']) : textOf(text);
+}
+
+function artistFromFlexColumns(item: Record<string, unknown>): string {
+	const columns = item['flexColumns'];
+	if (!Array.isArray(columns) || columns.length < 2) {
+		return '';
+	}
+
+	const second = asRecord(columns[1]);
+	const renderer = second
+		? asRecord(second['musicResponsiveListItemFlexColumnRenderer'])
+		: second;
+	const text = renderer ? asRecord(renderer['text']) : null;
+	const runs = text && Array.isArray(text['runs']) ? text['runs'] : [];
+	const names: string[] = [];
+	for (const run of runs) {
+		const rec = asRecord(run);
+		const value = rec ? textOf(rec['text']) : '';
+		if (value && value !== '•' && !/^\d/.test(value)) {
+			names.push(value);
+		}
+	}
+
+	return names[0] ?? '';
+}
+
+function collectPlaylistItemTracks(
+	node: unknown,
+	sink: Track[],
+	seen: Set<string>,
+	depth: number,
+): void {
+	if (depth > 14 || sink.length >= MAX_LIKED_SONGS) {
+		return;
+	}
+
+	if (Array.isArray(node)) {
+		for (const item of node) {
+			collectPlaylistItemTracks(item, sink, seen, depth + 1);
+		}
+
+		return;
+	}
+
+	const rec = asRecord(node);
+	if (!rec) {
+		return;
+	}
+
+	const renderer = asRecord(rec['musicResponsiveListItemRenderer']) ?? rec;
+	const playlistItem = asRecord(renderer['playlistItemData']);
+	const videoId =
+		(playlistItem && typeof playlistItem['videoId'] === 'string'
+			? playlistItem['videoId']
+			: '') ||
+		(typeof renderer['video_id'] === 'string' ? renderer['video_id'] : '') ||
+		(typeof renderer['videoId'] === 'string' ? renderer['videoId'] : '');
+
+	if (
+		videoId &&
+		videoId.length >= 11 &&
+		!seen.has(videoId) &&
+		!videoId.startsWith('PL') &&
+		!videoId.startsWith('FE')
+	) {
+		seen.add(videoId);
+		const artistName = artistFromFlexColumns(renderer);
+		sink.push({
+			videoId,
+			title:
+				titleFromFlexColumns(renderer) ||
+				textOf(renderer['title']) ||
+				textOf(renderer['name']) ||
+				'Unknown',
+			artists: [
+				{
+					artistId: '',
+					name: artistName || 'Unknown',
+				},
+			],
+			duration: 0,
+		});
+	}
+
+	for (const value of Object.values(rec)) {
+		if (value && typeof value === 'object') {
+			collectPlaylistItemTracks(value, sink, seen, depth + 1);
+		}
+	}
+}
+
+export function parseTracksFromInnertubeBrowse(root: unknown): Track[] {
+	const rec = asRecord(root);
+	const parsed = [
+		...parseAccountLibraryTracks(root),
+		...(rec ? parseAccountLibraryTracks(rec['data']) : []),
+		...(rec ? parseAccountLibraryTracks(rec['contents']) : []),
+	];
+	if (parsed.length > 0) {
+		const seen = new Set<string>();
+		const tracks: Track[] = [];
+		for (const track of parsed) {
+			if (seen.has(track.videoId)) {
+				continue;
+			}
+
+			seen.add(track.videoId);
+			tracks.push(track);
+			if (tracks.length >= MAX_LIKED_SONGS) {
+				break;
+			}
+		}
+
+		return tracks;
+	}
+
+	const sink: Track[] = [];
+	collectPlaylistItemTracks(root, sink, new Set<string>(), 0);
+	return sink;
+}
+
 export function mergeAccountLibrary(
 	playlists: AccountLibraryPlaylist[],
 	likedSongs: Track[],
@@ -474,10 +623,9 @@ export async function fetchAccountLibrary(
 
 	let likedSongs: Track[] = [];
 	try {
-		const liked = await client.getLikedPlaylist();
-		likedSongs = liked.tracks ?? [];
+		likedSongs = await client.getLikedSongs();
 	} catch (error) {
-		logger.warn('AccountLibrary', 'Liked playlist fetch failed', {
+		logger.debug('AccountLibrary', 'Liked songs browse failed', {
 			error: error instanceof Error ? error.message : String(error),
 		});
 	}
