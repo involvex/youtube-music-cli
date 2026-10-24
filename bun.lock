@@ -5,7 +5,7 @@
     "": {
       "name": "youtube-music-cli",
       "dependencies": {
-        "@bun-win32/kernel32": "^2.0.1",
+        "@bun-win32/kernel32": "^3.0.0",
         "@bun-win32/user32": "^5.0.0",
         "ansi-escapes": "^7.3.0",
         "discord-rpc": "^4.0.1",
@@ -116,7 +116,7 @@
 
     "@bun-win32/core": ["@bun-win32/core@2.0.1", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-3xqC3LKrQNOXvvBWFi/CPdS45JllJad6VpJqP/GWdFMhwEe2GlMTV7qnrTRC22fz6J2ycGzxyA/A7Qwf5gKBFw=="],
 
-    "@bun-win32/kernel32": ["@bun-win32/kernel32@2.0.2", "", { "dependencies": { "@bun-win32/core": "2.0.1" }, "peerDependencies": { "typescript": "^5" } }, "sha512-HV6f2Ai59lIBPO5C1HThWW819YU2Lbx33MruXx/+voXqC35775j5s4G7mKUeCFD3720koyw9C2xnZpsUkhoOmw=="],
+    "@bun-win32/kernel32": ["@bun-win32/kernel32@3.0.0", "", { "dependencies": { "@bun-win32/core": "2.0.1" }, "peerDependencies": { "typescript": "^5" } }, "sha512-vbIVl7I+cdQ/l/zRxJHAsCbjgtQsX0TRbX0uGkgceze9CO2HCiqA1xsFqh44eU6cq9E5cZc3hUiUdR16GqSYrg=="],
 
     "@bun-win32/user32": ["@bun-win32/user32@5.0.0", "", { "dependencies": { "@bun-win32/core": "2.0.1" }, "peerDependencies": { "typescript": "^5" } }, "sha512-oi9gSKYPv23tXpY76w/PCcAdHCaDWybOuKeeQb9Bp3uHdvq5ok1o21/aeWYZUT7T+//Hr5nrxSOaCN1Vv9t+VA=="],
 
