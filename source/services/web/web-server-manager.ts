@@ -694,6 +694,8 @@ class WebServerManager {
 		// process must exit itself once the server has stopped.
 		const shutdownOnSignal = (signal: NodeJS.Signals) => {
 			void shutdown().finally(() => {
+				// Stop mpv before exiting so it is not orphaned (sync for Windows)
+				getPlayerService().stop({sync: true});
 				process.exit(signal === 'SIGINT' ? 130 : 143);
 			});
 		};

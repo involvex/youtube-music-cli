@@ -1520,8 +1520,10 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 		};
 
 		// A SIGINT/SIGTERM listener disables Node's default exit, so exit
-		// explicitly (the 'exit' listener then saves).
+		// explicitly (the 'exit' listener then saves). Stop mpv first so it is
+		// not orphaned; sync so Windows taskkill completes before exit.
 		const handleSignal = (signal: NodeJS.Signals) => {
+			playerService.stop({sync: true});
 			process.exit(signal === 'SIGINT' ? 130 : 143);
 		};
 

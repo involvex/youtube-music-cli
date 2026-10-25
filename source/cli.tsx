@@ -16,6 +16,7 @@ import {
 } from './services/completions/completions.service.ts';
 import {getConfigService} from './services/config/config.service.ts';
 import {getPlayerService} from './services/player/player.service.ts';
+import {waitForDirectPlaybackEnd} from './services/player/direct-playback.ts';
 import {
 	showLogs,
 	openLogs,
@@ -662,35 +663,6 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 	// play() resolves once mpv's IPC is connected, not when the track ends.
 	// Exiting here would orphan a detached, idle mpv that never quits.
 	await waitForDirectPlaybackEnd(playerService);
-}
-
-async function waitForDirectPlaybackEnd(
-	playerService: ReturnType<typeof getPlayerService>,
-): Promise<void> {
-	await new Promise<void>(resolve => {
-		let settled = false;
-		const finish = () => {
-			if (settled) return;
-			settled = true;
-			clearInterval(processWatch);
-			process.off('SIGINT', finish);
-			process.off('SIGTERM', finish);
-			playerService.stop();
-			resolve();
-		};
-
-		playerService.onEvent(event => {
-			if (event.eof || event.ipcDisconnected) {
-				finish();
-			}
-		});
-		// Covers mpv dying without a clean IPC close
-		const processWatch = setInterval(() => {
-			if (!playerService.hasMpvProcess()) finish();
-		}, 1000);
-		process.on('SIGINT', finish);
-		process.on('SIGTERM', finish);
-	});
 }
 
 if (command === 'plugins') {
