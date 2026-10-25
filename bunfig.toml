@@ -6,6 +6,8 @@ registry = "https://registry.npmjs.org/"
 global = false
 
 [test]
+# Isolate HOME so tests never touch the real ~/.youtube-music-cli
+preload = ["./tests/setup.ts"]
 coverage = false
 parallel = true
 watch = false

@@ -8,6 +8,7 @@ import {useState, useCallback, useEffect, useRef} from 'react';
 import {
 	COOKIE_LOGIN_HINT,
 	getAuthService,
+	OAUTH_UNSUPPORTED_MESSAGE,
 } from '../../services/auth/auth.service.ts';
 
 type LoginState = 'idle' | 'pending' | 'authenticating' | 'success' | 'error';
@@ -110,6 +111,13 @@ export default function LoginView() {
 						</Box>
 					) : (
 						<>
+							<Box flexDirection="column">
+								{OAUTH_UNSUPPORTED_MESSAGE.split('\n').map(line => (
+									<Text key={line} color="yellow">
+										{line}
+									</Text>
+								))}
+							</Box>
 							{!status.tokenValid && (
 								<Box>
 									<Text color="yellow">

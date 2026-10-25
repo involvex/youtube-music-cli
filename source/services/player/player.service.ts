@@ -1,5 +1,5 @@
 // Audio playback service using mpv media player with IPC control
-import {spawn, type ChildProcess} from 'node:child_process';
+import {spawn, spawnSync, type ChildProcess} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {connect, type Socket} from 'node:net';
@@ -204,7 +204,16 @@ class PlayerService {
 	private ipcReconnectInFlight: Promise<boolean> | null = null;
 	private ipcReadBuffer = '';
 
-	private constructor() {}
+	private constructor() {
+		// mpv is spawned detached with --idle=yes, so it outlives this process
+		// unless killed. detach() clears mpvProcess first, so background
+		// playback still survives an intentional detach.
+		process.once('exit', () => {
+			if (this.mpvProcess) {
+				this.stop({sync: true});
+			}
+		});
+	}
 
 	static getInstance(): PlayerService {
 		if (!PlayerService.instance) {
@@ -429,11 +438,11 @@ class PlayerService {
 					resolve();
 				});
 
-				socket.on('data', (data: Buffer) => {
-					const drained = drainMpvIpcLines(
-						this.ipcReadBuffer,
-						data.toString('utf8'),
-					);
+				// Decode via the socket's StringDecoder: converting each Buffer
+				// chunk separately corrupts multi-byte UTF-8 split across chunks.
+				socket.setEncoding('utf8');
+				socket.on('data', (data: string) => {
+					const drained = drainMpvIpcLines(this.ipcReadBuffer, data);
 					this.ipcReadBuffer = drained.remainder;
 					for (const line of drained.lines) {
 						this.handleIpcLine(line);
@@ -1066,8 +1075,14 @@ class PlayerService {
 		return this.ipcReconnectInFlight;
 	}
 
-	stop(): void {
+	/**
+	 * Stop playback and kill mpv. Pass `sync: true` when the process is about
+	 * to exit (signal handlers, 'exit' listeners): the async Windows taskkill
+	 * is not guaranteed to run once process.exit() has been called.
+	 */
+	stop(options: {sync?: boolean} = {}): void {
 		logger.debug('PlayerService', 'stop() called', {
+			sync: options.sync ?? false,
 			stack: new Error().stack,
 		});
 
@@ -1080,10 +1095,24 @@ class PlayerService {
 				// On Windows, use taskkill to kill the entire process tree
 				// (mpv spawns yt-dlp as a child — SIGTERM only kills mpv, not yt-dlp)
 				if (process.platform === 'win32' && this.mpvProcess.pid) {
-					spawn('taskkill', ['/F', '/T', '/PID', String(this.mpvProcess.pid)], {
-						stdio: 'ignore',
-						detached: true,
-					}).unref();
+					const taskkillArgs = [
+						'/F',
+						'/T',
+						'/PID',
+						String(this.mpvProcess.pid),
+					];
+					if (options.sync) {
+						spawnSync('taskkill', taskkillArgs, {
+							stdio: 'ignore',
+							windowsHide: true,
+							timeout: 5000,
+						});
+					} else {
+						spawn('taskkill', taskkillArgs, {
+							stdio: 'ignore',
+							detached: true,
+						}).unref();
+					}
 				} else {
 					this.mpvProcess.kill('SIGTERM');
 				}

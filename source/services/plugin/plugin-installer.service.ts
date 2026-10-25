@@ -5,7 +5,7 @@ import {formatErrorData} from '../../utils/error.ts';
 import {logger} from '../logger/logger.service.ts';
 import {join} from 'node:path';
 import {existsSync, mkdirSync, rmSync, cpSync} from 'node:fs';
-import {execSync} from 'node:child_process';
+import {execFileSync, execSync} from 'node:child_process';
 
 const PLUGINS_DIR = join(CONFIG_DIR, 'plugins');
 const DEFAULT_PLUGIN_REPO =
@@ -20,6 +20,22 @@ function getPackageManager(): string {
 	}
 
 	return 'npm';
+}
+
+/**
+ * Plugin ids become directory names under PLUGINS_DIR. Reject anything that
+ * could resolve outside it (e.g. "..", "../x", absolute paths) or hide as a
+ * dot-directory such as ".temp-install".
+ */
+export function isSafePluginId(id: string | undefined): id is string {
+	return typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id);
+}
+
+function invalidPluginIdResult(id: string | undefined): PluginInstallResult {
+	return {
+		success: false,
+		error: `Invalid plugin id: ${JSON.stringify(id)}`,
+	};
 }
 
 /**
@@ -47,6 +63,10 @@ class PluginInstallerService {
 				pluginName = match?.[1] || 'unknown-plugin';
 			}
 
+			if (!isSafePluginId(pluginName)) {
+				return invalidPluginIdResult(pluginName);
+			}
+
 			const targetDir = join(PLUGINS_DIR, pluginName);
 
 			// Check if plugin already exists
@@ -59,7 +79,9 @@ class PluginInstallerService {
 
 			// Clone repository
 			try {
-				execSync(`git clone "${repoUrl}" "${targetDir}"`, {
+				// No shell (quotes in the URL can't inject commands) and "--" so a
+				// URL like "--upload-pack=..." can't be parsed as a git option.
+				execFileSync('git', ['clone', '--', repoUrl, targetDir], {
 					stdio: 'pipe',
 					windowsHide: true,
 				});
@@ -144,6 +166,10 @@ class PluginInstallerService {
 			`Installing ${pluginName} from default repo`,
 		);
 
+		if (!isSafePluginId(pluginName)) {
+			return invalidPluginIdResult(pluginName);
+		}
+
 		// For now, use sparse checkout or clone entire repo and copy plugin
 		// Simplified: clone entire repo to temp, copy plugin, delete temp
 		try {
@@ -151,7 +177,7 @@ class PluginInstallerService {
 
 			// Clone default repo
 			if (!existsSync(tempDir)) {
-				execSync(`git clone "${DEFAULT_PLUGIN_REPO}" "${tempDir}"`, {
+				execFileSync('git', ['clone', '--', DEFAULT_PLUGIN_REPO, tempDir], {
 					stdio: 'pipe',
 					windowsHide: true,
 				});
@@ -253,6 +279,10 @@ class PluginInstallerService {
 				name: string;
 			};
 
+			if (!isSafePluginId(manifest.id)) {
+				return invalidPluginIdResult(manifest.id);
+			}
+
 			const targetDir = join(PLUGINS_DIR, manifest.id);
 
 			if (existsSync(targetDir)) {
@@ -291,6 +321,11 @@ class PluginInstallerService {
 	 * Uninstall a plugin
 	 */
 	async uninstall(pluginId: string): Promise<PluginInstallResult> {
+		// Without this, `uninstall ..` would recursively delete the config dir
+		if (!isSafePluginId(pluginId)) {
+			return invalidPluginIdResult(pluginId);
+		}
+
 		const pluginDir = join(PLUGINS_DIR, pluginId);
 
 		if (!existsSync(pluginDir)) {

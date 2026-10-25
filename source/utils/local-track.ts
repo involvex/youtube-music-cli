@@ -42,7 +42,10 @@ export function classifyPlayMedia(url: string): string {
 }
 
 export function sanitizeDownloadFilename(value: string): string {
-	return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim();
+	const cleaned = value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim();
+	// Artist/album names come from remote metadata; "." or ".." used as a
+	// path segment would escape the download directory.
+	return /^\.+$/.test(cleaned) ? cleaned.replace(/\./g, '_') : cleaned;
 }
 
 export function getTrackDestinationPath(

@@ -38,6 +38,19 @@ export const COOKIE_LOGIN_HINT =
 	'  ymc login --cookies-file <path-to-cookies.txt>\n' +
 	'  ymc login --cookies-from-browser edge';
 
+/**
+ * YouTube only accepts TV OAuth tokens on requests from its TV client; every
+ * other client (incl. YouTube Music's WEB_REMIX) gets HTTP 400. yt-dlp dropped
+ * OAuth login for the same reason (yt-dlp#11558).
+ */
+export const OAUTH_UNSUPPORTED_MESSAGE =
+	'YouTube no longer accepts device-code (TV OAuth) sign-in for YouTube Music: ' +
+	'its requests fail with HTTP 400. Search and playback work without signing in; ' +
+	'for your library, sign in with cookies instead:\n' +
+	'  ymc logout\n' +
+	'  ymc login --cookies-from-browser <chrome|firefox|edge|brave>\n' +
+	'  ymc login --cookies-file <path-to-cookies.txt>';
+
 export async function withTimeout<T>(
 	promise: Promise<T>,
 	ms: number,

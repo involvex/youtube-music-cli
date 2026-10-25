@@ -16,6 +16,7 @@ import {
 import {
 	loadPlayerState,
 	savePlayerState,
+	savePlayerStateSync,
 } from '../services/player-state/player-state.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
 import {
@@ -1486,17 +1487,21 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 		state.radioSeed,
 	]);
 
-	// Save immediately on unmount/quit
+	// Save synchronously on exit. Every quit path calls process.exit(), which
+	// skips unmount and beforeExit and would cut off an async write, and the
+	// regular save above is debounced by up to 5s.
+	const latestStateRef = useRef(state);
 	useEffect(() => {
-		const stateRef = {current: state}; // Capture state in ref for exit handler
-		const isInitialized = isInitializedRef.current;
+		latestStateRef.current = state;
+	});
 
+	useEffect(() => {
 		const handleExit = () => {
 			// Only save if initialized (has attempted to load or restore state)
-			if (!isInitialized) return;
+			if (!isInitializedRef.current) return;
 
-			const currentState = stateRef.current;
-			void savePlayerState({
+			const currentState = latestStateRef.current;
+			savePlayerStateSync({
 				currentTrack: currentState.currentTrack,
 				queue: currentState.queue,
 				queuePosition: currentState.queuePosition,
@@ -1514,21 +1519,24 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 			});
 		};
 
-		process.on('beforeExit', handleExit);
-		process.on('SIGINT', handleExit);
-		process.on('SIGTERM', handleExit);
+		// A SIGINT/SIGTERM listener disables Node's default exit, so exit
+		// explicitly (the 'exit' listener then saves). Stop mpv first so it is
+		// not orphaned; sync so Windows taskkill completes before exit.
+		const handleSignal = (signal: NodeJS.Signals) => {
+			playerService.stop({sync: true});
+			process.exit(signal === 'SIGINT' ? 130 : 143);
+		};
 
-		// Update ref when state changes
-		stateRef.current = state;
+		process.on('exit', handleExit);
+		process.on('SIGINT', handleSignal);
+		process.on('SIGTERM', handleSignal);
 
 		return () => {
 			handleExit(); // Save on component unmount
-			process.off('beforeExit', handleExit);
-			process.off('SIGINT', handleExit);
-			process.off('SIGTERM', handleExit);
+			process.off('exit', handleExit);
+			process.off('SIGINT', handleSignal);
+			process.off('SIGTERM', handleSignal);
 		};
-		// Only register handlers once, update via ref
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Web streaming: Broadcast state changes to connected clients

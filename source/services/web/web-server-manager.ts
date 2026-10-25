@@ -91,8 +91,8 @@ class WebServerManager {
 			return;
 		}
 
-		// Apply CLI options
-		const finalConfig = {...this.config};
+		// Apply CLI options (copy auth too so the stored config is not mutated)
+		const finalConfig = {...this.config, auth: {...this.config.auth}};
 
 		if (options) {
 			if (options.host !== undefined) {
@@ -690,15 +690,24 @@ class WebServerManager {
 		const shutdown = async () => {
 			await this.stop();
 		};
+		// A SIGINT/SIGTERM listener disables Node's default exit, so the
+		// process must exit itself once the server has stopped.
+		const shutdownOnSignal = (signal: NodeJS.Signals) => {
+			void shutdown().finally(() => {
+				// Stop mpv before exiting so it is not orphaned (sync for Windows)
+				getPlayerService().stop({sync: true});
+				process.exit(signal === 'SIGINT' ? 130 : 143);
+			});
+		};
 
 		process.on('beforeExit', shutdown);
-		process.on('SIGINT', shutdown);
-		process.on('SIGTERM', shutdown);
+		process.on('SIGINT', shutdownOnSignal);
+		process.on('SIGTERM', shutdownOnSignal);
 
 		this.cleanupHooks.push(() => {
 			process.off('beforeExit', shutdown);
-			process.off('SIGINT', shutdown);
-			process.off('SIGTERM', shutdown);
+			process.off('SIGINT', shutdownOnSignal);
+			process.off('SIGTERM', shutdownOnSignal);
 		});
 	}
 

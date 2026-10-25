@@ -9,7 +9,6 @@ import {getPluginUpdaterService} from './services/plugin/plugin-updater.service.
 import {getPluginRegistryService} from './services/plugin/plugin-registry.service.ts';
 import {getImportService} from './services/import/import.service.ts';
 import {getWebServerManager} from './services/web/web-server-manager.ts';
-import {getWebStreamingService} from './services/web/web-streaming.service.ts';
 import {getVersionCheckService} from './services/version-check/version-check.service.ts';
 import {
 	generateCompletion,
@@ -17,6 +16,7 @@ import {
 } from './services/completions/completions.service.ts';
 import {getConfigService} from './services/config/config.service.ts';
 import {getPlayerService} from './services/player/player.service.ts';
+import {waitForDirectPlaybackEnd} from './services/player/direct-playback.ts';
 import {
 	showLogs,
 	openLogs,
@@ -430,7 +430,7 @@ if (command === 'config' && args[0] === 'backup') {
 
 // Handle auth commands
 if (command === 'login') {
-	const {COOKIE_LOGIN_HINT, getAuthService} =
+	const {COOKIE_LOGIN_HINT, OAUTH_UNSUPPORTED_MESSAGE, getAuthService} =
 		await import('./services/auth/auth.service.ts');
 	const authService = getAuthService();
 	const status = authService.getStatus();
@@ -489,8 +489,8 @@ if (command === 'login') {
 		console.log(`Already signed in as: ${accountLabel}`);
 		if (status.method === 'cookie') {
 			console.log('(Using cookie-based authentication)');
-		} else if (!status.tokenValid) {
-			console.log('(Token expired — will refresh on next API call)');
+		} else {
+			console.log(`\n${OAUTH_UNSUPPORTED_MESSAGE}`);
 		}
 		process.exit(0);
 	}
@@ -514,6 +514,7 @@ if (command === 'login') {
 	if (result.success) {
 		console.log('');
 		console.log('✓ Successfully signed in to YouTube Music!');
+		console.log(`\n${OAUTH_UNSUPPORTED_MESSAGE}`);
 		process.exit(0);
 	} else {
 		console.error(`\n✗ Login failed: ${result.error ?? 'Unknown error'}`);
@@ -658,6 +659,10 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 		}
 		await playerService.play(resolved.url, playbackOptions);
 	}
+
+	// play() resolves once mpv's IPC is connected, not when the track ends.
+	// Exiting here would orphan a detached, idle mpv that never quits.
+	await waitForDirectPlaybackEnd(playerService);
 }
 
 if (command === 'plugins') {
@@ -1106,13 +1111,6 @@ Examples:
 
 					const serverUrl = webManager.getServerUrl();
 					console.log(`Web UI server running at: ${serverUrl}`);
-
-					// Set up import progress streaming
-					const streamingService = getWebStreamingService();
-					const importService = getImportService();
-					importService.onProgress(progress => {
-						streamingService.onImportProgress(progress);
-					});
 
 					// If web-only mode, just keep the server running
 					if (flags.webOnly) {

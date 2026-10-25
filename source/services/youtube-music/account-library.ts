@@ -1,5 +1,8 @@
 import type {Track} from '../../types/youtube-music.types.ts';
-import {getAuthService} from '../auth/auth.service.ts';
+import {
+	getAuthService,
+	OAUTH_UNSUPPORTED_MESSAGE,
+} from '../auth/auth.service.ts';
 import {logger} from '../logger/logger.service.ts';
 
 export const LIKED_MUSIC_PLAYLIST_ID = 'LM';
@@ -102,8 +105,14 @@ export function likedMusicBrowseId(id: string): string | null {
 }
 
 export function assertAccountLibraryAuth(): void {
-	if (!getAuthService().getStatus().loggedIn) {
+	const status = getAuthService().getStatus();
+	if (!status.loggedIn) {
 		throw new AccountLibraryAuthError();
+	}
+
+	// TV OAuth tokens are rejected (HTTP 400) for YouTube Music requests
+	if (status.method === 'oauth2') {
+		throw new AccountLibraryAuthError(OAUTH_UNSUPPORTED_MESSAGE);
 	}
 }
 

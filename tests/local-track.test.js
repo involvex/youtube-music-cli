@@ -153,3 +153,15 @@ test('resolveTrackPlayUrl uses YouTube when preferLocal is false', () => {
 		`https://www.youtube.com/watch?v=${sampleTrack.videoId}`,
 	);
 });
+
+test('getTrackDestinationPath keeps "." and ".." metadata inside the download dir', () => {
+	const hostile = {
+		...sampleTrack,
+		artists: [{name: '..', id: 'a'}],
+		album: {name: '.', id: 'b'},
+	};
+	const dest = getTrackDestinationPath(hostile, '/dl', 'mp3');
+
+	expect(path.relative('/dl', dest).startsWith('..')).toBe(false);
+	expect(dest).toBe(path.join('/dl', '__', '_', 'Test Song [abc123XYZ01].mp3'));
+});
