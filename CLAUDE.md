@@ -14,7 +14,7 @@ bun run build        # CLI + web companion
 bun run test         # bun:test
 bun run format       # Prettier
 bun run lint         # ESLint
-bun run typecheck    # tsc --noEmit
+bun run typecheck    # bun check
 bun run sync:skills  # Copy .agents/skills → .claude/skills
 ```
 

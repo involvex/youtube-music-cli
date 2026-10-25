@@ -27,7 +27,7 @@ This file provides guidance for AI agents operating in this repository.
 | `bun run format:check` | Check formatting without modifying                    |
 | `bun run lint`         | Lint code with ESLint                                 |
 | `bun run lint:fix`     | Fix linting issues automatically                      |
-| `bun run typecheck`    | Type check without emitting                           |
+| `bun run typecheck`    | Type check via `bun check` (no emit)                  |
 | `bun run prebuild`     | Run format → lint:fix → typecheck (used before build) |
 
 ### Testing
@@ -213,7 +213,7 @@ bun run start        # Run built binary
 # Quality
 bun run format       # Format code
 bun run lint:fix     # Fix lint issues
-bun run typecheck    # Check types
+bun run typecheck    # bun check
 bun run test         # Run tests
 
 # Single test
