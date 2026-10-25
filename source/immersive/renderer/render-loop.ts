@@ -18,8 +18,6 @@ export class RenderLoop {
 	private frameCount = 0;
 	private fps = 0;
 	private lastFpsUpdate = 0;
-	private debugRenderCount = 0;
-
 	constructor(frameBuffer: FrameBuffer, config: Partial<RenderConfig> = {}) {
 		this.frameBuffer = frameBuffer;
 		this.config = {
@@ -113,38 +111,6 @@ export class RenderLoop {
 			if (y < rows.length - 1) {
 				output += '\n';
 			}
-		}
-
-		this.debugRenderCount++;
-		if (this.debugRenderCount % 900 === 0) {
-			const mem = process.memoryUsage();
-			// #region agent log
-			fetch(
-				'http://127.0.0.1:7639/ingest/7c0f2421-9802-418d-ac83-797a04e69089',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-Debug-Session-Id': 'e16c7e',
-					},
-					body: JSON.stringify({
-						sessionId: 'e16c7e',
-						runId: 'pre-fix',
-						hypothesisId: 'E',
-						location: 'render-loop.ts:render',
-						message: 'ansi output size sample',
-						data: {
-							outputBytes: output.length,
-							terminalW: this.frameBuffer.width,
-							terminalH: this.frameBuffer.height,
-							rssMb: Math.round(mem.rss / 1024 / 1024),
-							fps: this.fps,
-						},
-						timestamp: Date.now(),
-					}),
-				},
-			).catch(() => {});
-			// #endregion
 		}
 
 		this.writeOutput(output);

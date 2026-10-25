@@ -14,6 +14,7 @@ import {parseStreamMetadata} from '../radio-stations/stream-metadata.ts';
 import type {StreamNowPlaying} from '../../types/radio-station.types.ts';
 import {appendMpvYtdlCookieArgs} from './ytdl-cookies.ts';
 import {classifyPlayMedia} from '../../utils/local-track.ts';
+import {drainMpvIpcLines} from './mpv-ipc-buffer.ts';
 
 export type PlayOptions = {
 	volume?: number;
@@ -57,9 +58,9 @@ export function buildMpvArgs(
 		}
 	}
 
-	if (crossfadeDuration > 0) {
-		audioFilters.push(`acrossfade=d=${crossfadeDuration}`);
-	}
+	// mpv's `acrossfade` filter needs two inputs and cannot be set globally on
+	// single-track playback. Crossfade duration is reserved for future queue
+	// transitions; gapless-audio handles back-to-back tracks today.
 
 	const presetFilters = EQUALIZER_PRESET_FILTERS[eqPreset] ?? [];
 	if (presetFilters.length > 0) {
@@ -80,7 +81,7 @@ export function buildMpvArgs(
 		'--cache=yes',
 		'--cache-secs=30',
 		'--network-timeout=10',
-		`--gapless-audio=${gapless ? 'yes' : 'no'}`,
+		`--gapless-audio=${crossfadeDuration > 0 || gapless ? 'yes' : 'no'}`,
 	];
 
 	// Keep mpv in idle mode so it holds the IPC socket open waiting for
@@ -201,6 +202,7 @@ class PlayerService {
 	private lastVolumeChangeTimestamp = 0; // For correlating volume changes with pause events
 	private intentionalIpcTeardown = false;
 	private ipcReconnectInFlight: Promise<boolean> | null = null;
+	private ipcReadBuffer = '';
 
 	private constructor() {}
 
@@ -284,6 +286,7 @@ class PlayerService {
 	}
 
 	private destroyIpcSocket(): void {
+		this.ipcReadBuffer = '';
 		if (!this.ipcSocket || this.ipcSocket.destroyed) {
 			this.ipcSocket = null;
 			return;
@@ -427,7 +430,14 @@ class PlayerService {
 				});
 
 				socket.on('data', (data: Buffer) => {
-					this.handleIpcMessage(data.toString());
+					const drained = drainMpvIpcLines(
+						this.ipcReadBuffer,
+						data.toString('utf8'),
+					);
+					this.ipcReadBuffer = drained.remainder;
+					for (const line of drained.lines) {
+						this.handleIpcLine(line);
+					}
 				});
 
 				socket.on('error', (err: Error) => {
@@ -505,28 +515,60 @@ class PlayerService {
 	}
 
 	/**
-	 * Handle IPC message from mpv
+	 * Handle one newline-delimited IPC JSON line from mpv.
 	 */
-	private handleIpcMessage(data: string): void {
-		const lines = data.trim().split('\n');
+	private handleIpcLine(line: string): void {
+		try {
+			const message = JSON.parse(line) as {
+				event?: string;
+				name?: string;
+				data?: unknown;
+				reason?: string;
+				error?: string;
+			};
 
-		for (const line of lines) {
-			try {
-				const message = JSON.parse(line);
+			if (message.event === 'property-change' && message.name) {
+				this.handlePropertyChange({
+					name: message.name,
+					data: message.data,
+				});
+				return;
+			}
 
-				if (message.event === 'property-change') {
-					this.handlePropertyChange(message);
-				} else if (message.error !== 'success' && message.error) {
-					logger.warn('PlayerService', 'IPC error response', {
-						error: message.error,
-					});
-				}
-			} catch (err) {
-				logger.debug('PlayerService', 'Failed to parse IPC message', {
-					data: line,
-					error: formatError(err),
+			if (message.event === 'end-file') {
+				this.handleEndFileEvent(message.reason);
+				return;
+			}
+
+			if (message.error !== 'success' && message.error) {
+				logger.warn('PlayerService', 'IPC error response', {
+					error: message.error,
 				});
 			}
+		} catch (err) {
+			logger.debug('PlayerService', 'Failed to parse IPC message', {
+				data: line,
+				error: formatError(err),
+			});
+		}
+	}
+
+	private handleEndFileEvent(reason?: string): void {
+		if (!this.eventCallback) {
+			return;
+		}
+
+		if (reason === 'error') {
+			this.isPlaying = false;
+			logger.warn('PlayerService', 'Playback ended with error');
+			this.eventCallback({eof: true});
+			return;
+		}
+
+		if (reason === 'eof' || reason === 'stop' || reason === 'quit') {
+			this.isPlaying = false;
+			logger.info('PlayerService', 'End of file (end-file event)', {reason});
+			this.eventCallback({eof: true});
 		}
 	}
 
@@ -690,8 +732,13 @@ class PlayerService {
 					cookiesFromBrowser:
 						options?.cookiesFromBrowser ?? config.get('cookiesFromBrowser'),
 					gaplessPlayback: options?.gaplessPlayback,
-					crossfadeDuration: options?.crossfadeDuration,
-					equalizerPreset: options?.equalizerPreset,
+					crossfadeDuration:
+						options?.crossfadeDuration ?? config.get('crossfadeDuration'),
+					equalizerPreset:
+						options?.equalizerPreset ?? config.get('equalizerPreset'),
+					volumeFadeDuration:
+						options?.volumeFadeDuration ?? config.get('volumeFadeDuration'),
+					duration: options?.duration,
 					subtitlesEnabled: config.get('subtitlesEnabled'),
 				});
 
@@ -1140,6 +1187,13 @@ class PlayerService {
 
 	getVolume(): number {
 		return this.currentVolume;
+	}
+
+	seek(positionSeconds: number): void {
+		const seconds = Math.max(0, positionSeconds);
+		if (this.ipcSocket && !this.ipcSocket.destroyed) {
+			this.sendIpcCommand(['set_property', 'time-pos', seconds]);
+		}
 	}
 
 	setSpeed(speed: number): void {
