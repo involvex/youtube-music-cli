@@ -429,7 +429,7 @@ if (command === 'config' && args[0] === 'backup') {
 
 // Handle auth commands
 if (command === 'login') {
-	const {COOKIE_LOGIN_HINT, getAuthService} =
+	const {COOKIE_LOGIN_HINT, OAUTH_UNSUPPORTED_MESSAGE, getAuthService} =
 		await import('./services/auth/auth.service.ts');
 	const authService = getAuthService();
 	const status = authService.getStatus();
@@ -488,8 +488,8 @@ if (command === 'login') {
 		console.log(`Already signed in as: ${accountLabel}`);
 		if (status.method === 'cookie') {
 			console.log('(Using cookie-based authentication)');
-		} else if (!status.tokenValid) {
-			console.log('(Token expired — will refresh on next API call)');
+		} else {
+			console.log(`\n${OAUTH_UNSUPPORTED_MESSAGE}`);
 		}
 		process.exit(0);
 	}
@@ -513,6 +513,7 @@ if (command === 'login') {
 	if (result.success) {
 		console.log('');
 		console.log('✓ Successfully signed in to YouTube Music!');
+		console.log(`\n${OAUTH_UNSUPPORTED_MESSAGE}`);
 		process.exit(0);
 	} else {
 		console.error(`\n✗ Login failed: ${result.error ?? 'Unknown error'}`);

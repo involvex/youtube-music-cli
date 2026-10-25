@@ -355,3 +355,42 @@ test(
 	},
 	{timeout: 60_000},
 );
+
+test('auth: OAuth sessions are rejected for the account library with a cookie hint', async () => {
+	const {getAuthService, OAUTH_UNSUPPORTED_MESSAGE} =
+		await import('../source/services/auth/auth.service.ts');
+	const {assertAccountLibraryAuth, AccountLibraryAuthError} =
+		await import('../source/services/youtube-music/account-library.ts');
+	const authService = getAuthService();
+
+	authService.saveCredentials({
+		schemaVersion: 1,
+		method: 'oauth2',
+		tokens: sampleTokens,
+		signedInAt: new Date().toISOString(),
+	});
+
+	try {
+		expect(() => assertAccountLibraryAuth()).toThrow(AccountLibraryAuthError);
+		expect(() => assertAccountLibraryAuth()).toThrow(OAUTH_UNSUPPORTED_MESSAGE);
+		expect(OAUTH_UNSUPPORTED_MESSAGE).toContain('--cookies-from-browser');
+
+		// Cookie sessions are still accepted
+		authService.saveCredentials({
+			schemaVersion: 1,
+			method: 'cookie',
+			cookie: 'SID=test-sid',
+			signedInAt: new Date().toISOString(),
+		});
+		expect(() => assertAccountLibraryAuth()).not.toThrow();
+	} finally {
+		// Cookie sign-out is local only (no network revoke)
+		authService.saveCredentials({
+			schemaVersion: 1,
+			method: 'cookie',
+			cookie: 'SID=test-sid',
+			signedInAt: new Date().toISOString(),
+		});
+		await authService.signOut();
+	}
+});
