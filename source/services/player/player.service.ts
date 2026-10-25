@@ -204,7 +204,16 @@ class PlayerService {
 	private ipcReconnectInFlight: Promise<boolean> | null = null;
 	private ipcReadBuffer = '';
 
-	private constructor() {}
+	private constructor() {
+		// mpv is spawned detached with --idle=yes, so it outlives this process
+		// unless killed. detach() clears mpvProcess first, so background
+		// playback still survives an intentional detach.
+		process.once('exit', () => {
+			if (this.mpvProcess) {
+				this.stop();
+			}
+		});
+	}
 
 	static getInstance(): PlayerService {
 		if (!PlayerService.instance) {
@@ -429,11 +438,11 @@ class PlayerService {
 					resolve();
 				});
 
-				socket.on('data', (data: Buffer) => {
-					const drained = drainMpvIpcLines(
-						this.ipcReadBuffer,
-						data.toString('utf8'),
-					);
+				// Decode via the socket's StringDecoder: converting each Buffer
+				// chunk separately corrupts multi-byte UTF-8 split across chunks.
+				socket.setEncoding('utf8');
+				socket.on('data', (data: string) => {
+					const drained = drainMpvIpcLines(this.ipcReadBuffer, data);
 					this.ipcReadBuffer = drained.remainder;
 					for (const line of drained.lines) {
 						this.handleIpcLine(line);

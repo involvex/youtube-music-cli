@@ -1,6 +1,6 @@
 // Player state persistence service
 import {writeFile, readFile, mkdir, rename, unlink} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
+import {existsSync, mkdirSync, renameSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {CONFIG_DIR} from '../../utils/constants.ts';
 import {formatError, formatErrorData} from '../../utils/error.ts';
@@ -135,6 +135,35 @@ export async function savePlayerState(
 		});
 	} finally {
 		releaseLock();
+	}
+}
+
+/**
+ * Synchronous save for process 'exit' handlers, where async work never
+ * completes. Uses its own temp file so it cannot clash with an in-flight
+ * async save.
+ */
+export function savePlayerStateSync(
+	state: Partial<PersistedPlayerState>,
+): void {
+	try {
+		if (!existsSync(CONFIG_DIR)) {
+			mkdirSync(CONFIG_DIR, {recursive: true});
+		}
+
+		const stateToSave: PersistedPlayerState = {
+			...defaultState,
+			...state,
+			schemaVersion: SCHEMA_VERSION,
+			lastUpdated: new Date().toISOString(),
+		};
+		const tempFile = `${STATE_FILE}.exit.tmp`;
+		writeFileSync(tempFile, JSON.stringify(stateToSave, null, 2), 'utf8');
+		renameSync(tempFile, STATE_FILE);
+	} catch (error) {
+		logger.error('PlayerStateService', 'Failed to save player state on exit', {
+			...formatErrorData(error),
+		});
 	}
 }
 

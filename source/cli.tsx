@@ -9,7 +9,6 @@ import {getPluginUpdaterService} from './services/plugin/plugin-updater.service.
 import {getPluginRegistryService} from './services/plugin/plugin-registry.service.ts';
 import {getImportService} from './services/import/import.service.ts';
 import {getWebServerManager} from './services/web/web-server-manager.ts';
-import {getWebStreamingService} from './services/web/web-streaming.service.ts';
 import {getVersionCheckService} from './services/version-check/version-check.service.ts';
 import {
 	generateCompletion,
@@ -658,6 +657,39 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 		}
 		await playerService.play(resolved.url, playbackOptions);
 	}
+
+	// play() resolves once mpv's IPC is connected, not when the track ends.
+	// Exiting here would orphan a detached, idle mpv that never quits.
+	await waitForDirectPlaybackEnd(playerService);
+}
+
+async function waitForDirectPlaybackEnd(
+	playerService: ReturnType<typeof getPlayerService>,
+): Promise<void> {
+	await new Promise<void>(resolve => {
+		let settled = false;
+		const finish = () => {
+			if (settled) return;
+			settled = true;
+			clearInterval(processWatch);
+			process.off('SIGINT', finish);
+			process.off('SIGTERM', finish);
+			playerService.stop();
+			resolve();
+		};
+
+		playerService.onEvent(event => {
+			if (event.eof || event.ipcDisconnected) {
+				finish();
+			}
+		});
+		// Covers mpv dying without a clean IPC close
+		const processWatch = setInterval(() => {
+			if (!playerService.hasMpvProcess()) finish();
+		}, 1000);
+		process.on('SIGINT', finish);
+		process.on('SIGTERM', finish);
+	});
 }
 
 if (command === 'plugins') {
@@ -1106,13 +1138,6 @@ Examples:
 
 					const serverUrl = webManager.getServerUrl();
 					console.log(`Web UI server running at: ${serverUrl}`);
-
-					// Set up import progress streaming
-					const streamingService = getWebStreamingService();
-					const importService = getImportService();
-					importService.onProgress(progress => {
-						streamingService.onImportProgress(progress);
-					});
 
 					// If web-only mode, just keep the server running
 					if (flags.webOnly) {
