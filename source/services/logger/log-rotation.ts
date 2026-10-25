@@ -1,12 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
+import {CONFIG_DIR} from '../../utils/constants.ts';
 
 export const LOG_RETENTION_DAYS = 14;
 export const MAX_LOG_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function getDefaultLogsDirectory(): string {
-	return path.join(os.homedir(), '.youtube-music-cli', 'logs');
+	// Same base as the rest of the app (honours HOME; os.homedir() may not)
+	return path.join(CONFIG_DIR, 'logs');
 }
 
 export function formatLogDate(date: Date = new Date()): string {
