@@ -428,7 +428,9 @@ class DownloadService {
 			'-f',
 			'bestaudio',
 			'--output',
-			outputPath,
+			// yt-dlp treats --output as a template; titles containing e.g.
+			// "%(id)s" would otherwise be expanded and the file never found.
+			outputPath.replace(/%/g, '%%'),
 		];
 		appendYtDlpCookieArgs(ytdlpArgs, {
 			cookiesFile: config.get('cookiesFile'),

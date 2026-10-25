@@ -28,6 +28,7 @@ import {refreshKeybindings} from '../../utils/keybinding-resolver.ts';
 const MAX_BACKUPS = 5;
 const BACKUP_DIR = CONFIG_DIR;
 const BACKUP_PREFIX = 'config.json.bak.';
+const CONFIG_FILE_MODE = 0o600;
 
 class ConfigService {
 	private configPath: string;
@@ -221,7 +222,11 @@ class ConfigService {
 			await this.createBackup();
 
 			const tempFile = `${this.configPath}.tmp`;
-			await writeFile(tempFile, JSON.stringify(this.config, null, 2), 'utf8');
+			// Config holds API keys and tokens: keep it owner-only
+			await writeFile(tempFile, JSON.stringify(this.config, null, 2), {
+				encoding: 'utf8',
+				mode: CONFIG_FILE_MODE,
+			});
 
 			// Atomic rename - works on Windows since Node 10+
 			// On Windows, if target exists and is locked, remove first then rename
@@ -267,9 +272,13 @@ class ConfigService {
 
 	setSync<K extends keyof Config>(key: K, value: Config[K]): void {
 		this.config[key] = value;
-		// Write synchronously for critical operations
-		const tempFile = `${this.configPath}.tmp`;
-		writeFileSync(tempFile, JSON.stringify(this.config, null, 2), 'utf8');
+		// Write synchronously for critical operations. Separate temp file so an
+		// in-flight async save() cannot have its temp file renamed away.
+		const tempFile = `${this.configPath}.sync.tmp`;
+		writeFileSync(tempFile, JSON.stringify(this.config, null, 2), {
+			encoding: 'utf8',
+			mode: CONFIG_FILE_MODE,
+		});
 
 		// Atomic rename with retry on Windows
 		let attempts = 0;
