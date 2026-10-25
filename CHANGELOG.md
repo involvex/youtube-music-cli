@@ -1,3 +1,11 @@
+## [0.3.5](https://github.com/involvex/youtube-music-cli/compare/v0.3.3...v0.3.5) (2026-10-25)
+
+### Bug Fixes
+
+- address playback, auth, and web security issues ([#69](https://github.com/involvex/youtube-music-cli/issues/69)) ([5aa851c](https://github.com/involvex/youtube-music-cli/commit/5aa851c86c5671ef1ed2560781511ea7d5c2f191))
+- make textOf safe for bun check and use bun check for typecheck ([58cb317](https://github.com/involvex/youtube-music-cli/commit/58cb317a5a0093590def979e85e3564434b9e4a8))
+- **tui:** align Ink home layout with BMP icons and display-width text ([263a785](https://github.com/involvex/youtube-music-cli/commit/263a78504779e5a377a1c9e64c41b973399f2d54)), closes [#65](https://github.com/involvex/youtube-music-cli/issues/65)
+
 ## [0.3.3](https://github.com/involvex/youtube-music-cli/compare/v0.3.2...v0.3.3) (2026-10-13)
 
 ### Bug Fixes

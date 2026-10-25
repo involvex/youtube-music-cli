@@ -61,7 +61,7 @@ bun run lint:fix # Fix linting issues automatically
 ### Type Checking
 
 ```bash
-bun run typecheck # Type check without emitting
+bun run typecheck # Type check via bun check
 ```
 
 ### Testing

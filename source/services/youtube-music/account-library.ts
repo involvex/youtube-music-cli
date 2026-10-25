@@ -63,8 +63,9 @@ function textOf(value: unknown): string {
 		return rec['text'].trim();
 	}
 
-	if (typeof rec['toString'] === 'function') {
-		const rendered = rec['toString']();
+	const toStringFn = rec['toString'];
+	if (typeof toStringFn === 'function') {
+		const rendered = (toStringFn as () => unknown).call(rec);
 		if (
 			typeof rendered === 'string' &&
 			rendered &&

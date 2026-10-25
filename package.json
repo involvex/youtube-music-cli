@@ -1,6 +1,6 @@
 {
 	"name": "@involvex/youtube-music-cli",
-	"version": "0.3.3",
+	"version": "0.3.5",
 	"description": "- A Commandline music player for youtube-music",
 	"repository": {
 		"type": "git",
@@ -61,7 +61,7 @@
 		"start": "bun run dist/source/cli.js",
 		"start:node": "node dist/source/cli.js",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
 		"clean": "rimraf dist",
 		"release": "powershell -File scripts/release.ps1",
