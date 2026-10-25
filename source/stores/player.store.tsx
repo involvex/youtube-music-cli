@@ -175,6 +175,14 @@ export function playerReducer(
 		case 'PREVIOUS': {
 			const prevPosition = state.queuePosition - 1;
 			if (prevPosition < 0) {
+				if (state.progress > 3) {
+					playerService.seek(0);
+					return {
+						...state,
+						progress: 0,
+						playRequestId: state.playRequestId + 1,
+					};
+				}
 				return state;
 			}
 			if (state.progress > 3) {
@@ -193,11 +201,17 @@ export function playerReducer(
 			};
 		}
 
-		case 'SEEK':
+		case 'SEEK': {
+			const position = Math.max(
+				0,
+				Math.min(action.position, state.duration || action.position),
+			);
+			playerService.seek(position);
 			return {
 				...state,
-				progress: Math.max(0, Math.min(action.position, state.duration)),
+				progress: position,
 			};
+		}
 
 		case 'SET_VOLUME': {
 			const newVolume = Math.max(0, Math.min(100, action.volume));
@@ -284,7 +298,26 @@ export function playerReducer(
 		case 'REMOVE_FROM_QUEUE': {
 			const newQueue = [...state.queue];
 			newQueue.splice(action.index, 1);
-			return {...state, queue: newQueue};
+			let queuePosition = state.queuePosition;
+			if (action.index < state.queuePosition) {
+				queuePosition -= 1;
+			} else if (action.index === state.queuePosition) {
+				queuePosition = Math.min(queuePosition, newQueue.length - 1);
+				if (queuePosition < 0) {
+					queuePosition = 0;
+				}
+			}
+			const currentTrack = newQueue[queuePosition] ?? null;
+			return {
+				...state,
+				queue: newQueue,
+				queuePosition,
+				currentTrack,
+				playRequestId:
+					action.index === state.queuePosition
+						? state.playRequestId + 1
+						: state.playRequestId,
+			};
 		}
 
 		case 'CLEAR_QUEUE':
@@ -322,9 +355,8 @@ export function playerReducer(
 		case 'TICK':
 			if (state.isPlaying && state.duration > 0) {
 				const newProgress = state.progress + 1;
-				// Don't exceed duration
 				if (newProgress >= state.duration) {
-					return {...state, progress: state.duration, isPlaying: false};
+					return {...state, progress: state.duration};
 				}
 				return {...state, progress: newProgress};
 			}

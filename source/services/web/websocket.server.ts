@@ -12,6 +12,7 @@ import type {Track} from '../../types/youtube-music.types.ts';
 import {getWebStreamingService} from './web-streaming.service.ts';
 import {getStaticFileService} from './static-file.service.ts';
 import {logger} from '../logger/logger.service.ts';
+import {isWebSocketOriginAllowed} from './web-config-policy.ts';
 
 interface WebSocketServerOptions {
 	config: WebServerConfig;
@@ -173,6 +174,19 @@ class WebSocketServerClass {
 	private handleWebSocketConnection(ws: WebSocket, req: IncomingMessage): void {
 		const clientId = this.generateClientId();
 
+		if (!isWebSocketOriginAllowed(req, this.config.allowedOrigins)) {
+			logger.warn(
+				'WebSocketServer',
+				'Rejected connection (origin not allowed)',
+				{
+					clientId,
+					origin: req.headers.origin,
+				},
+			);
+			ws.close(1008, 'Origin not allowed');
+			return;
+		}
+
 		logger.info('WebSocketServer', 'New connection', {
 			clientId,
 			ip: req.socket.remoteAddress,
@@ -231,6 +245,7 @@ class WebSocketServerClass {
 	private handleClientCommand(_clientId: string, message: ClientMessage): void {
 		switch (message.type) {
 			case 'command':
+				// Ink TUI handles commands via WebStreamingService.onMessage.
 				if (this.onCommand) {
 					this.onCommand(message.action);
 				}

@@ -21,11 +21,16 @@ import {
 	flattenRadioStations,
 } from '../radio-stations/radio-stations.service.ts';
 import {getFavoritesManager} from '../favorites/favorites.service.ts';
+import {
+	defaultWebAllowedOrigins,
+	filterWebRemoteConfig,
+} from './web-config-policy.ts';
 
 class WebServerManager {
 	private config: WebServerConfig;
 	private isRunning = false;
 	private cleanupHooks: Array<() => void> = [];
+	private webOnlyMode = false;
 
 	// Internal state for web-only mode (when PlayerProvider is not mounted)
 	private internalState: PlayerState = {
@@ -64,7 +69,7 @@ class WebServerManager {
 			host: 'localhost',
 			port: 8080,
 			enableCors: true,
-			allowedOrigins: ['*'],
+			allowedOrigins: defaultWebAllowedOrigins(8080),
 			auth: {enabled: false},
 		};
 
@@ -100,16 +105,23 @@ class WebServerManager {
 				finalConfig.auth.enabled = true;
 				finalConfig.auth.token = options.auth;
 			}
+			if (options.webOnly !== undefined) {
+				this.webOnlyMode = options.webOnly;
+			}
+		}
+
+		if (
+			finalConfig.allowedOrigins.length === 0 ||
+			(finalConfig.allowedOrigins.length === 1 &&
+				finalConfig.allowedOrigins[0] === '*')
+		) {
+			finalConfig.allowedOrigins = defaultWebAllowedOrigins(finalConfig.port);
 		}
 
 		logger.info('WebServerManager', 'Starting web server', finalConfig);
 
 		try {
 			const wsServer = getWebSocketServer();
-
-			// Set up command handler
-			const cleanupCommand = this.setupCommandHandler();
-			this.cleanupHooks.push(cleanupCommand);
 
 			// Set up import handler
 			const cleanupImport = this.setupImportHandler();
@@ -118,7 +130,7 @@ class WebServerManager {
 			// Start the server
 			await wsServer.start({
 				config: finalConfig,
-				onCommand: this.handleCommand.bind(this),
+				onCommand: this.webOnlyMode ? this.handleCommand.bind(this) : undefined,
 				onImportRequest: this.handleImportRequest.bind(this),
 				onSearchRequest: this.handleSearchRequest.bind(this),
 				onConfigUpdate: this.handleConfigUpdate.bind(this),
@@ -161,21 +173,6 @@ class WebServerManager {
 		await wsServer.stop();
 
 		this.isRunning = false;
-	}
-
-	/**
-	 * Set up player command handler
-	 */
-	private setupCommandHandler(): () => void {
-		const streamingService = getWebStreamingService();
-
-		const unsubscribe = streamingService.onMessage(message => {
-			if (message.type === 'command') {
-				this.handleCommand(message.action);
-			}
-		});
-
-		return unsubscribe;
 	}
 
 	/**
@@ -326,11 +323,12 @@ class WebServerManager {
 			}
 			case 'SEEK':
 				if (action.position !== undefined) {
-					this.internalState.progress = Math.max(
+					const position = Math.max(
 						0,
 						Math.min(action.position, this.internalState.duration),
 					);
-					// Note: Seeking via mpv IPC would require additional implementation
+					this.internalState.progress = position;
+					playerService.seek(position);
 				}
 				break;
 			case 'SET_VOLUME':
@@ -617,13 +615,15 @@ class WebServerManager {
 	 * Handle config update from web client
 	 */
 	private handleConfigUpdate(config: Record<string, unknown>): void {
-		logger.info('WebServerManager', 'Config update from client', {config});
+		const safeUpdates = filterWebRemoteConfig(config);
+		logger.info('WebServerManager', 'Config update from client', {
+			keys: Object.keys(safeUpdates),
+		});
 
 		try {
 			const configService = getConfigService();
 
-			// Apply each config key
-			for (const [key, value] of Object.entries(config)) {
+			for (const [key, value] of Object.entries(safeUpdates)) {
 				configService.set(
 					key as keyof import('../../types/config.types.ts').Config,
 					value as never,
@@ -634,7 +634,7 @@ class WebServerManager {
 			const streamingService = getWebStreamingService();
 			streamingService.broadcast({
 				type: 'config-update',
-				config,
+				config: safeUpdates as Record<string, unknown>,
 			});
 		} catch (error) {
 			logger.error('WebServerManager', 'Config update failed', {

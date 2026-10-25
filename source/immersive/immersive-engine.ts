@@ -236,7 +236,6 @@ export class ImmersiveEngine {
 	private exitHandler: (() => void) | null = null;
 	private resizeHandler: (() => void) | null = null;
 	private listenersRemoved = false;
-	private debugFrameCounter = 0;
 
 	constructor(options: ImmersiveOptions) {
 		this.options = options;
@@ -357,42 +356,6 @@ export class ImmersiveEngine {
 
 			const playerState = this.options.getState?.();
 			const {width: tw, height: th} = getTerminalInfo();
-
-			this.debugFrameCounter++;
-			if (this.debugFrameCounter % 900 === 0) {
-				const mem = process.memoryUsage();
-				const favoritesCount = this.options.getFavoriteTracks?.().length ?? 0;
-				// #region agent log
-				fetch(
-					'http://127.0.0.1:7639/ingest/7c0f2421-9802-418d-ac83-797a04e69089',
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-Debug-Session-Id': 'e16c7e',
-						},
-						body: JSON.stringify({
-							sessionId: 'e16c7e',
-							runId: 'pre-fix',
-							hypothesisId: 'B,C,E',
-							location: 'immersive-engine.ts:render-loop',
-							message: 'render frame memory sample',
-							data: {
-								frame: this.debugFrameCounter,
-								rssMb: Math.round(mem.rss / 1024 / 1024),
-								heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
-								terminalW: tw,
-								terminalH: th,
-								cellCount: tw * th,
-								queueLength: playerState?.queue.length ?? 0,
-								favoritesCount,
-							},
-							timestamp: Date.now(),
-						}),
-					},
-				).catch(() => {});
-				// #endregion
-			}
 
 			if (tw !== this.effectiveWidth || th !== this.effectiveHeight) {
 				this.effectiveWidth = tw;

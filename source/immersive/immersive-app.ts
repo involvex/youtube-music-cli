@@ -319,33 +319,6 @@ export async function startImmersiveApp(
 			sessionHistory,
 			explicitQueueLength: state.explicitQueueLength,
 		};
-		if (state.queue.length >= 50) {
-			// #region agent log
-			fetch(
-				'http://127.0.0.1:7639/ingest/7c0f2421-9802-418d-ac83-797a04e69089',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-Debug-Session-Id': 'e16c7e',
-					},
-					body: JSON.stringify({
-						sessionId: 'e16c7e',
-						runId: 'pre-fix',
-						hypothesisId: 'A,D',
-						location: 'immersive-app.ts:persistImmersivePlayerState',
-						message: 'persist state with large queue',
-						data: {
-							queueLength: state.queue.length,
-							sessionHistoryLength: sessionHistory.length,
-							payloadBytes: JSON.stringify(payload).length,
-						},
-						timestamp: Date.now(),
-					}),
-				},
-			).catch(() => {});
-			// #endregion
-		}
 		void savePlayerState(payload);
 	};
 
@@ -663,36 +636,6 @@ export async function startImmersiveApp(
 			}
 
 			const added = appendTracksForAutoplay(state, tracks);
-			if (added > 0) {
-				const mem = process.memoryUsage();
-				// #region agent log
-				fetch(
-					'http://127.0.0.1:7639/ingest/7c0f2421-9802-418d-ac83-797a04e69089',
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-Debug-Session-Id': 'e16c7e',
-						},
-						body: JSON.stringify({
-							sessionId: 'e16c7e',
-							runId: 'pre-fix',
-							hypothesisId: 'A',
-							location: 'immersive-app.ts:runAutoplayTick',
-							message: 'autoplay appended tracks',
-							data: {
-								added,
-								queueLengthBefore,
-								queueLengthAfter: state.queue.length,
-								rssMb: Math.round(mem.rss / 1024 / 1024),
-								heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
-							},
-							timestamp: Date.now(),
-						}),
-					},
-				).catch(() => {});
-				// #endregion
-			}
 			if (added === 0) {
 				fetchedForVideoId = null;
 				autoplayFailedCycles++;
@@ -992,43 +935,11 @@ export async function startImmersiveApp(
 		void runAutoplayTick();
 	}, AUTOPLAY_TICK_MS);
 
-	const debugMemoryProbe = setInterval(() => {
-		const mem = process.memoryUsage();
-		// #region agent log
-		fetch('http://127.0.0.1:7639/ingest/7c0f2421-9802-418d-ac83-797a04e69089', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Debug-Session-Id': 'e16c7e',
-			},
-			body: JSON.stringify({
-				sessionId: 'e16c7e',
-				runId: 'pre-fix',
-				hypothesisId: 'A,B,C,D,E',
-				location: 'immersive-app.ts:debugMemoryProbe',
-				message: 'periodic memory probe',
-				data: {
-					rssMb: Math.round(mem.rss / 1024 / 1024),
-					heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
-					externalMb: Math.round(mem.external / 1024 / 1024),
-					queueLength: state.queue.length,
-					queueIndex: state.queueIndex,
-					sessionHistoryLength: sessionHistory.length,
-					autoplay: state.autoplay,
-					isPlaying: state.isPlaying,
-				},
-				timestamp: Date.now(),
-			}),
-		}).catch(() => {});
-		// #endregion
-	}, 30_000);
-
 	process.on('exit', () => {
 		unregisterGlobalHotkeys();
 		clearInterval(stallWatchdog);
 		clearInterval(progressAdvanceCheck);
 		clearInterval(autoplayTick);
-		clearInterval(debugMemoryProbe);
 		if (autoplayRetryTimer) {
 			clearTimeout(autoplayRetryTimer);
 		}

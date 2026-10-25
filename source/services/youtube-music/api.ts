@@ -183,15 +183,15 @@ async function getClient() {
 			cookie: getAuthService().getCookie() ?? undefined,
 		});
 
-		// Restore authenticated session if credentials exist
-		// (cookie auth doesn't need restoration — cookie is already passed above)
-		try {
-			const authService = getAuthService();
-			if (authService.getCachedCredentials()) {
-				await authService.restoreSession(ytClient);
-			}
-		} catch {
-			// Auth restoration is non-fatal — continue unauthenticated
+		// Device OAuth (YouTube TV) tokens break YouTube Music (WEB_REMIX) API
+		// requests with HTTP 400. Cookie auth is passed at create(); OAuth users
+		// should use `ymc login --cookies-from-browser` instead.
+		const authService = getAuthService();
+		if (authService.getCachedCredentials()) {
+			logger.warn(
+				'MusicService',
+				'Skipping OAuth session restore for YouTube Music API (use cookie login)',
+			);
 		}
 	}
 	return ytClient;
