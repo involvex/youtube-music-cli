@@ -7,6 +7,8 @@ import {
 	Shuffle,
 	SkipBack,
 	SkipForward,
+	Volume2,
+	VolumeX,
 } from 'lucide-react';
 
 export interface TransportProps {
@@ -15,12 +17,14 @@ export interface TransportProps {
 	shuffle: boolean;
 	repeat: 'off' | 'all' | 'one';
 	autoplay: boolean;
+	isBrowserMuted?: boolean;
 	onPlayPause: () => void;
 	onNext: () => void;
 	onPrevious: () => void;
 	onToggleShuffle: () => void;
 	onToggleRepeat: () => void;
 	onToggleAutoplay: () => void;
+	onToggleBrowserMute?: () => void;
 }
 
 export default function Transport({
@@ -29,12 +33,14 @@ export default function Transport({
 	shuffle,
 	repeat,
 	autoplay,
+	isBrowserMuted = false,
 	onPlayPause,
 	onNext,
 	onPrevious,
 	onToggleShuffle,
 	onToggleRepeat,
 	onToggleAutoplay,
+	onToggleBrowserMute,
 }: TransportProps) {
 	const repeatLabel =
 		repeat === 'off'
@@ -108,6 +114,29 @@ export default function Transport({
 			>
 				<InfinityIcon size={20} aria-hidden />
 			</button>
+
+			{onToggleBrowserMute && (
+				<button
+					type="button"
+					className={`transport__btn transport__btn--mode${isBrowserMuted ? ' transport__btn--active' : ''}`}
+					onClick={onToggleBrowserMute}
+					aria-pressed={isBrowserMuted}
+					aria-label={
+						isBrowserMuted ? 'Unmute browser audio' : 'Mute browser audio'
+					}
+					title={
+						isBrowserMuted
+							? 'Browser muted (mpv still plays)'
+							: 'Mute browser only (mpv still plays)'
+					}
+				>
+					{isBrowserMuted ? (
+						<VolumeX size={20} aria-hidden />
+					) : (
+						<Volume2 size={20} aria-hidden />
+					)}
+				</button>
+			)}
 		</div>
 	);
 }

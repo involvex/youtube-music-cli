@@ -18,6 +18,7 @@ import {
 	displayWebHost,
 	isWebSocketOriginAllowed,
 } from './web-config-policy.ts';
+import {handleWebAudioRequest} from './web-audio-proxy.service.ts';
 
 interface WebSocketServerOptions {
 	config: WebServerConfig;
@@ -154,10 +155,13 @@ class WebSocketServerClass {
 					this.config.allowedOrigins.includes(origin))
 			) {
 				res.setHeader('Access-Control-Allow-Origin', origin);
-				res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+				res.setHeader(
+					'Access-Control-Allow-Methods',
+					'GET, HEAD, POST, OPTIONS',
+				);
 				res.setHeader(
 					'Access-Control-Allow-Headers',
-					'Content-Type, Authorization',
+					'Content-Type, Authorization, Range',
 				);
 			}
 		}
@@ -169,9 +173,12 @@ class WebSocketServerClass {
 			return;
 		}
 
-		// Serve static files
 		const url = req.url ?? '/';
-		this.staticFileService.serve(url, req, res);
+		void handleWebAudioRequest(req, res).then(handled => {
+			if (!handled) {
+				this.staticFileService.serve(url, req, res);
+			}
+		});
 	}
 
 	/**

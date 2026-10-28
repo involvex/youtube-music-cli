@@ -11,6 +11,24 @@ type WebSocketLike = WebSocketServer | WebSocket;
 
 type MessageHandler = (message: ClientMessage) => void;
 
+/** Fields that must reach remotes immediately (skip progress throttle). */
+export const WEB_CONTROL_STATE_FIELDS = [
+	'isPlaying',
+	'currentTrack',
+	'playbackMode',
+	'error',
+	'currentStation',
+	'queuePosition',
+] as const satisfies ReadonlyArray<keyof PlayerState>;
+
+export function shouldFlushWebStateImmediately(
+	delta: Partial<PlayerState>,
+): boolean {
+	return WEB_CONTROL_STATE_FIELDS.some(field =>
+		Object.prototype.hasOwnProperty.call(delta, field),
+	);
+}
+
 class WebStreamingService {
 	private clients = new Map<string, WebSocketLike>();
 	private clientInfo = new Map<string, WebSocketClient>();
@@ -243,20 +261,24 @@ class WebStreamingService {
 		// Clear existing timer
 		if (this.updateTimer) {
 			clearTimeout(this.updateTimer);
+			this.updateTimer = null;
 		}
 
-		// If throttle period passed, send immediately
-		if (now - this.lastUpdateTime >= this.UPDATE_THROTTLE_MS) {
+		// Control fields (play/pause, track change) skip the progress throttle
+		if (
+			shouldFlushWebStateImmediately(delta) ||
+			now - this.lastUpdateTime >= this.UPDATE_THROTTLE_MS
+		) {
 			this.sendPendingUpdate();
-		} else {
-			// Otherwise, schedule update
-			this.updateTimer = setTimeout(
-				() => {
-					this.sendPendingUpdate();
-				},
-				this.UPDATE_THROTTLE_MS - (now - this.lastUpdateTime),
-			);
+			return;
 		}
+
+		this.updateTimer = setTimeout(
+			() => {
+				this.sendPendingUpdate();
+			},
+			this.UPDATE_THROTTLE_MS - (now - this.lastUpdateTime),
+		);
 	}
 
 	/**

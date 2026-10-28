@@ -31,6 +31,26 @@ test('web-config-policy: filters sensitive config keys', async () => {
 	expect(filtered.llm).toBeUndefined();
 });
 
+test('web-streaming: control fields flush immediately', async () => {
+	const {shouldFlushWebStateImmediately} =
+		await import('../source/services/web/web-streaming.service.ts');
+
+	expect(shouldFlushWebStateImmediately({isPlaying: false})).toBe(true);
+	expect(shouldFlushWebStateImmediately({progress: 12})).toBe(false);
+	expect(
+		shouldFlushWebStateImmediately({progress: 12, currentTrack: null}),
+	).toBe(true);
+});
+
+test('web-audio-proxy: recognizes /audio routes', async () => {
+	const {isWebAudioRequest} =
+		await import('../source/services/web/web-audio-proxy.service.ts');
+
+	expect(isWebAudioRequest('/audio')).toBe(true);
+	expect(isWebAudioRequest('/audio?videoId=abc123xyz00')).toBe(true);
+	expect(isWebAudioRequest('/index.html')).toBe(false);
+});
+
 test('web-config-policy: rejects cross-site websocket origins by default', async () => {
 	const {defaultWebAllowedOrigins, isWebSocketOriginAllowed} =
 		await import('../source/services/web/web-config-policy.ts');

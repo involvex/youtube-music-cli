@@ -2,6 +2,7 @@ import {useCallback, useEffect, useState} from 'react';
 import {Heart} from 'lucide-react';
 import {useWebSocket} from './hooks/useWebSocket';
 import {useMediaSession} from './hooks/useMediaSession';
+import {useMirrorAudio} from './hooks/useMirrorAudio';
 import {
 	usePlayerStore,
 	type PlayerStore,
@@ -123,6 +124,20 @@ function App() {
 		[send],
 	);
 
+	const handlePlayPause = useCallback(() => {
+		const playing = usePlayerStore.getState().isPlaying;
+		setState({isPlaying: !playing});
+		sendCommand({category: playing ? 'PAUSE' : 'RESUME'});
+	}, [sendCommand, setState]);
+
+	const {isBrowserMuted, toggleBrowserMute} = useMirrorAudio({
+		isPlaying,
+		progress,
+		currentTrack,
+		currentStation,
+		playbackMode,
+	});
+
 	const isMiniRoute =
 		typeof window !== 'undefined' &&
 		(window.location.pathname === '/mini' ||
@@ -137,8 +152,14 @@ function App() {
 		progress,
 		currentStation,
 		streamNowPlaying,
-		onPlay: useCallback(() => sendCommand({category: 'RESUME'}), [sendCommand]),
-		onPause: useCallback(() => sendCommand({category: 'PAUSE'}), [sendCommand]),
+		onPlay: useCallback(() => {
+			setState({isPlaying: true});
+			sendCommand({category: 'RESUME'});
+		}, [sendCommand, setState]),
+		onPause: useCallback(() => {
+			setState({isPlaying: false});
+			sendCommand({category: 'PAUSE'});
+		}, [sendCommand, setState]),
 		onNext: useCallback(() => sendCommand({category: 'NEXT'}), [sendCommand]),
 		onPrevious: useCallback(
 			() => sendCommand({category: 'PREVIOUS'}),
@@ -207,10 +228,8 @@ function App() {
 		shuffle,
 		repeat,
 		autoplay,
-		onPlayPause: useCallback(
-			() => sendCommand({category: isPlaying ? 'PAUSE' : 'RESUME'}),
-			[isPlaying, sendCommand],
-		),
+		isBrowserMuted,
+		onPlayPause: handlePlayPause,
 		onNext: useCallback(() => sendCommand({category: 'NEXT'}), [sendCommand]),
 		onPrevious: useCallback(
 			() => sendCommand({category: 'PREVIOUS'}),
@@ -228,6 +247,7 @@ function App() {
 			() => sendCommand({category: 'TOGGLE_AUTOPLAY'}),
 			[sendCommand],
 		),
+		onToggleBrowserMute: toggleBrowserMute,
 	};
 
 	if (isMiniRoute) {
