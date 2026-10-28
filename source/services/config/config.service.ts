@@ -85,7 +85,7 @@ class ConfigService {
 			crossfadeDuration: 0,
 			volumeFadeDuration: 0,
 			equalizerPreset: 'flat',
-			maxHistoryEntries: 2000,
+			maxHistoryEntries: 0,
 			cacheTtlMinutes: 5,
 			cacheMaxEntries: 100,
 		};
@@ -105,6 +105,11 @@ class ConfigService {
 					(id): id is string => typeof id === 'string' && id.length > 0,
 				);
 				delete parsed['favorites'];
+			}
+
+			// Pre-0.3.7 default (2000) capped Listening Stats at exactly 2000 plays.
+			if (parsed['maxHistoryEntries'] === 2000) {
+				parsed['maxHistoryEntries'] = 0;
 			}
 
 			return {...this.getDefaultConfig(), ...(parsed as unknown as Config)};

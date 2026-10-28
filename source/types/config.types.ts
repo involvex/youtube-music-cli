@@ -56,7 +56,7 @@ export interface Config {
 	cookiesFile?: string;
 	/** Browser profile for yt-dlp --cookies-from-browser (Edge recommended on Windows). */
 	cookiesFromBrowser?: CookiesFromBrowser;
-	/** Cap for persisted listening history entries (default 2000). */
+	/** Cap for persisted listening history (0 = unlimited, default). */
 	maxHistoryEntries?: number;
 	/** Search/suggestions API cache TTL in minutes (default 5). */
 	cacheTtlMinutes?: number;

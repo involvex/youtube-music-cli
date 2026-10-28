@@ -13,7 +13,8 @@ import type {Track} from '../../types/youtube-music.types.ts';
 
 const HISTORY_FILE = join(CONFIG_DIR, 'history.json');
 const SCHEMA_VERSION = 1;
-export const DEFAULT_MAX_HISTORY_ENTRIES = 2000;
+/** 0 = unlimited (no trim). Positive values keep only the newest N plays. */
+export const DEFAULT_MAX_HISTORY_ENTRIES = 0;
 
 const defaultHistory: PersistedHistory = {
 	schemaVersion: SCHEMA_VERSION,
@@ -28,7 +29,7 @@ export function getMaxHistoryEntries(): number {
 	if (
 		typeof configured === 'number' &&
 		Number.isFinite(configured) &&
-		configured > 0
+		configured >= 0
 	) {
 		return Math.floor(configured);
 	}
@@ -39,7 +40,7 @@ export function trimHistoryEntries(
 	entries: HistoryEntry[],
 	maxEntries: number = getMaxHistoryEntries(),
 ): HistoryEntry[] {
-	if (entries.length <= maxEntries) {
+	if (maxEntries <= 0 || entries.length <= maxEntries) {
 		return entries;
 	}
 	return entries.slice(0, maxEntries);

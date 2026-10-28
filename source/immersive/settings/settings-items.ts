@@ -22,10 +22,14 @@ import {
 	getProviderPreset,
 } from '../../services/llm/ai-providers.ts';
 import type {LLMProvider} from '../../types/llm.types.ts';
+import {
+	formatThemeLabel,
+	nextBuiltinThemeId,
+} from '../../config/themes.config.ts';
 
 type ConfigService = ReturnType<typeof getConfigService>;
 
-export const IMMERSIVE_SETTINGS_COUNT = 29;
+export const IMMERSIVE_SETTINGS_COUNT = 30;
 
 const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a'];
@@ -79,10 +83,10 @@ export function getSettingsRowKind(index: number): SettingsRowKind {
 	if (index === 0) {
 		return 'navigate';
 	}
-	if (index === 11 || index === 15 || index === 17 || index === 21) {
+	if (index === 12 || index === 16 || index === 18 || index === 22) {
 		return 'text';
 	}
-	if (index >= 23 && index <= 26) {
+	if (index >= 24 && index <= 27) {
 		return 'navigate';
 	}
 	return 'cycle';
@@ -90,13 +94,13 @@ export function getSettingsRowKind(index: number): SettingsRowKind {
 
 export function getSettingsTextField(index: number): SettingsTextField | null {
 	switch (index) {
-		case 11:
+		case 12:
 			return 'llmApiKey';
-		case 15:
+		case 16:
 			return 'llmBaseUrl';
-		case 17:
+		case 18:
 			return 'downloadDirectory';
-		case 21:
+		case 22:
 			return 'cookiesFile';
 		default:
 			return null;
@@ -175,8 +179,11 @@ export function buildImmersiveSettingsRows(
 			? `${formatTime(remainingSeconds)} remaining (Enter to cancel)`
 			: 'Off (Enter to set)';
 
+	const themeId = String(config.get('theme') ?? 'dark');
+
 	return [
 		{label: 'Account', value: '→'},
+		{label: 'Theme', value: formatThemeLabel(themeId)},
 		{label: 'Stream Quality', value: quality.toUpperCase()},
 		{
 			label: 'Audio Normalization',
@@ -318,6 +325,12 @@ export async function cycleImmersiveSetting(
 			}
 		}
 		case 1: {
+			const current = String(config.get('theme') ?? 'dark');
+			const next = nextBuiltinThemeId(current);
+			config.updateTheme(next);
+			return `Theme: ${formatThemeLabel(next)}`;
+		}
+		case 2: {
 			const current = config.get('streamQuality') ?? 'high';
 			const currentIndex = QUALITIES.indexOf(
 				current as (typeof QUALITIES)[number],
@@ -327,17 +340,17 @@ export async function cycleImmersiveSetting(
 			config.set('streamQuality', nextQuality);
 			return `Stream quality: ${nextQuality.toUpperCase()}`;
 		}
-		case 2: {
+		case 3: {
 			const next = !(config.get('audioNormalization') ?? false);
 			config.set('audioNormalization', next);
 			return `Audio normalization: ${formatOnOff(next)}`;
 		}
-		case 3: {
+		case 4: {
 			const next = !(config.get('gaplessPlayback') ?? true);
 			config.set('gaplessPlayback', next);
 			return `Gapless playback: ${formatOnOff(next)}`;
 		}
-		case 4: {
+		case 5: {
 			const current = config.get('crossfadeDuration') ?? 0;
 			const currentIndex = CROSSFADE_PRESETS.indexOf(current);
 			const next =
@@ -348,7 +361,7 @@ export async function cycleImmersiveSetting(
 			config.set('crossfadeDuration', next);
 			return next === 0 ? 'Crossfade: Off' : `Crossfade: ${next}s`;
 		}
-		case 5: {
+		case 6: {
 			const current = config.get('volumeFadeDuration') ?? 0;
 			const currentIndex = VOLUME_FADE_PRESETS.indexOf(current);
 			const next =
@@ -359,7 +372,7 @@ export async function cycleImmersiveSetting(
 			config.set('volumeFadeDuration', next);
 			return next === 0 ? 'Volume fade: Off' : `Volume fade: ${next}s`;
 		}
-		case 6: {
+		case 7: {
 			const current = config.get('equalizerPreset') ?? 'flat';
 			const currentIndex = EQUALIZER_PRESETS.indexOf(current);
 			const nextPreset =
@@ -368,27 +381,27 @@ export async function cycleImmersiveSetting(
 			config.set('equalizerPreset', nextPreset);
 			return `Equalizer: ${formatEqualizerLabel(nextPreset)}`;
 		}
-		case 7: {
+		case 8: {
 			const next = !(config.get('subtitlesEnabled') ?? false);
 			config.set('subtitlesEnabled', next);
 			return `Subtitles: ${formatOnOff(next)}`;
 		}
-		case 8: {
+		case 9: {
 			const next = !(config.get('notifications') ?? false);
 			config.set('notifications', next);
 			return `Notifications: ${formatOnOff(next)}`;
 		}
-		case 9: {
+		case 10: {
 			const next = !(config.get('discordRichPresence') ?? false);
 			config.set('discordRichPresence', next);
 			return `Discord Rich Presence: ${formatOnOff(next)}`;
 		}
-		case 10: {
+		case 11: {
 			const next = !config.getLLMEnabled();
 			config.setLLMEnabled(next);
 			return `AI Assistant: ${formatOnOff(next)}`;
 		}
-		case 12: {
+		case 13: {
 			const ids = AI_PROVIDER_PRESETS.map(p => p.id);
 			const current = resolveLLMProvider(config);
 			const next = ids[(ids.indexOf(current) + 1) % ids.length] ?? 'kilo';
@@ -411,7 +424,7 @@ export async function cycleImmersiveSetting(
 			}
 			return `AI provider: ${preset.label}`;
 		}
-		case 13: {
+		case 14: {
 			const provider = resolveLLMProvider(config);
 			const preset = getProviderPreset(provider);
 			const {models} = await getAvailableModels(
@@ -425,7 +438,7 @@ export async function cycleImmersiveSetting(
 			config.setLLMConfig({...config.getLLMConfig(), model: nextModel});
 			return `Model: ${nextModel}`;
 		}
-		case 14: {
+		case 15: {
 			const current = config.getLLMConfig()?.temperature ?? 0.7;
 			const currentIndex = LLM_TEMPERATURES.indexOf(current);
 			const nextTemp =
@@ -433,12 +446,12 @@ export async function cycleImmersiveSetting(
 			config.setLLMConfig({...config.getLLMConfig(), temperature: nextTemp});
 			return `Temperature: ${nextTemp.toFixed(1)}`;
 		}
-		case 16: {
+		case 17: {
 			const next = !(config.get('downloadsEnabled') ?? false);
 			config.set('downloadsEnabled', next);
 			return `Download feature: ${formatOnOff(next)}`;
 		}
-		case 18: {
+		case 19: {
 			const current = config.get('downloadFormat') ?? 'mp3';
 			const currentIndex = DOWNLOAD_FORMATS.indexOf(current);
 			const nextFormat =
@@ -446,17 +459,17 @@ export async function cycleImmersiveSetting(
 			config.set('downloadFormat', nextFormat);
 			return `Download format: ${nextFormat.toUpperCase()}`;
 		}
-		case 19: {
+		case 20: {
 			const next = !(config.get('preferLocalPlayback') ?? true);
 			config.set('preferLocalPlayback', next);
 			return `Prefer local playback: ${formatOnOff(next)}`;
 		}
-		case 20: {
+		case 21: {
 			const next = nextCookiesFromBrowser(config.get('cookiesFromBrowser'));
 			config.set('cookiesFromBrowser', next);
 			return `Cookies from browser: ${formatCookiesFromBrowserLabel(next)}`;
 		}
-		case 22: {
+		case 23: {
 			const timerService = getSleepTimerService();
 			if (timerService.isActive()) {
 				timerService.cancel();
@@ -479,15 +492,15 @@ export async function cycleImmersiveSetting(
 			);
 			return `Sleep timer: ${nextPreset} min`;
 		}
-		case 23:
-			return 'Import Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 24:
-			return 'Export Playlists: run youtube-music-cli (standard TUI) for this feature';
+			return 'Import Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 25:
-			return 'Custom Keybindings: run youtube-music-cli (standard TUI) for this feature';
+			return 'Export Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 26:
+			return 'Custom Keybindings: run youtube-music-cli (standard TUI) for this feature';
+		case 27:
 			return 'Manage Plugins: run youtube-music-cli (standard TUI) for this feature';
-		case 27: {
+		case 28: {
 			const current = config.get('cacheTtlMinutes') ?? 5;
 			const currentIndex = CACHE_TTL_PRESETS.indexOf(current);
 			const next =
@@ -498,7 +511,7 @@ export async function cycleImmersiveSetting(
 			config.set('cacheTtlMinutes', next);
 			return `Cache TTL: ${next}m`;
 		}
-		case 28: {
+		case 29: {
 			const current = config.get('cacheMaxEntries') ?? 100;
 			const currentIndex = CACHE_ENTRIES_PRESETS.indexOf(current);
 			const next =

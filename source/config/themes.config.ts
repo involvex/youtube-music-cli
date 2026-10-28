@@ -165,3 +165,23 @@ export const BUILTIN_THEMES: Record<string, Theme> = {
 };
 
 export const DEFAULT_THEME: Theme = BUILTIN_THEMES['dark'] as Theme;
+
+/** Builtin theme ids for Settings cycling (excludes `custom`). */
+export const BUILTIN_THEME_IDS: string[] = Object.keys(BUILTIN_THEMES);
+
+export function nextBuiltinThemeId(current: string): string {
+	const index = BUILTIN_THEME_IDS.indexOf(current);
+	const nextIndex = index === -1 ? 0 : (index + 1) % BUILTIN_THEME_IDS.length;
+	return BUILTIN_THEME_IDS[nextIndex] ?? 'dark';
+}
+
+export function formatThemeLabel(themeId: string): string {
+	const theme = BUILTIN_THEMES[themeId];
+	if (theme?.name) {
+		return theme.name;
+	}
+	if (themeId === 'custom') {
+		return 'Custom';
+	}
+	return themeId;
+}
