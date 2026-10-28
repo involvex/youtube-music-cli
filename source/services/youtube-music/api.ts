@@ -30,6 +30,7 @@ import {
 	parseTracksFromInnertubeBrowse,
 	type AccountLibrary,
 } from './account-library.ts';
+import {getYtDlpStreamUrl} from './ytdlp-stream-url.ts';
 
 // Initialize YouTube client
 let ytClient: Innertube | null = null;
@@ -1031,7 +1032,7 @@ class MusicService {
 	async getStreamUrl(videoId: string): Promise<string> {
 		logger.info('MusicService', 'Starting stream extraction', {videoId});
 
-		// Method 1: youtubei.js (already used for search/metadata)
+		// Method 1: youtubei.js (fast when formats expose a decipherable URL)
 		try {
 			logger.debug('MusicService', 'Attempting youtubei.js extraction', {
 				videoId,
@@ -1051,13 +1052,29 @@ class MusicService {
 
 			logger.warn('MusicService', 'youtubei.js: No audio format URL found');
 		} catch (error) {
-			logger.error('MusicService', 'youtubei.js extraction failed', {
+			// Common with SABR / empty cipher ("No valid URL to decipher") — not fatal.
+			logger.warn('MusicService', 'youtubei.js extraction failed', {
 				error: error instanceof Error ? error.message : String(error),
-				stack: error instanceof Error ? error.stack : undefined,
 			});
 		}
 
-		// Method 2: Invidious API (last resort)
+		// Method 2: yt-dlp direct URL (same stack as mpv / downloads)
+		try {
+			logger.debug('MusicService', 'Attempting yt-dlp -g extraction', {
+				videoId,
+			});
+			const url = await getYtDlpStreamUrl(videoId);
+			logger.info('MusicService', 'Using yt-dlp stream', {
+				urlLength: url.length,
+			});
+			return url;
+		} catch (error) {
+			logger.warn('MusicService', 'yt-dlp extraction failed', {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+
+		// Method 3: Invidious API (last resort)
 		try {
 			logger.debug('MusicService', 'Attempting Invidious extraction', {
 				videoId,

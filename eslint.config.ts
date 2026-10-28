@@ -20,7 +20,14 @@ export default defineConfig([
 		],
 	},
 	{
+		files: ['web/public/sw.js'],
+		plugins: {js},
+		extends: ['js/recommended'],
+		languageOptions: {globals: {...globals.serviceworker}},
+	},
+	{
 		files: ['**/*.{js,mjs,cjs}'],
+		ignores: ['web/public/sw.js'],
 		plugins: {js},
 		extends: ['js/recommended'],
 		languageOptions: {globals: {...globals.node}},

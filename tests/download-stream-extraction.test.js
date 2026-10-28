@@ -1,6 +1,6 @@
 import {expect, test} from 'bun:test';
 
-test('getStreamUrl prefers youtubei.js then Invidious (no ytdl/youtube-ext)', async () => {
+test('getStreamUrl prefers youtubei.js then yt-dlp then Invidious', async () => {
 	const attempts = [];
 
 	const fakeYt = {
@@ -52,18 +52,18 @@ test('getStreamUrl prefers youtubei.js then Invidious (no ytdl/youtube-ext)', as
 	expect(attempts.includes('invidious-called')).toBe(false);
 });
 
-test('getStreamUrl falls through to Invidious when youtubei fails', async () => {
+test('getStreamUrl falls through to yt-dlp then Invidious when youtubei fails', async () => {
 	const attempts = [];
 
 	const failingYt = {
 		session: {player: {}},
 		async getBasicInfo() {
 			attempts.push('youtubei');
-			throw new Error('ParsingError');
+			throw new Error('No valid URL to decipher');
 		},
 	};
 
-	async function getStreamUrl(videoId, yt, invidious) {
+	async function getStreamUrl(videoId, yt, ytdlp, invidious) {
 		try {
 			const info = await yt.getBasicInfo(videoId);
 			const format = info.chooseFormat({type: 'audio', quality: 'best'});
@@ -78,16 +78,63 @@ test('getStreamUrl falls through to Invidious when youtubei fails', async () => 
 			attempts.push('youtubei-failed');
 		}
 
+		try {
+			attempts.push('try-ytdlp');
+			return await ytdlp(videoId);
+		} catch {
+			attempts.push('ytdlp-failed');
+		}
+
 		return invidious(videoId);
 	}
 
-	const url = await getStreamUrl('xyz', failingYt, async id => {
-		attempts.push(`invidious:${id}`);
-		return 'https://invidious.example/stream';
-	});
+	const url = await getStreamUrl(
+		'xyz',
+		failingYt,
+		async () => {
+			throw new Error('yt-dlp missing');
+		},
+		async id => {
+			attempts.push(`invidious:${id}`);
+			return 'https://invidious.example/stream';
+		},
+	);
 
 	expect(url).toBe('https://invidious.example/stream');
-	expect(attempts).toEqual(['youtubei', 'youtubei-failed', 'invidious:xyz']);
+	expect(attempts).toEqual([
+		'youtubei',
+		'youtubei-failed',
+		'try-ytdlp',
+		'ytdlp-failed',
+		'invidious:xyz',
+	]);
+});
+
+test('getStreamUrl uses yt-dlp when youtubei returns empty cipher', async () => {
+	const attempts = [];
+
+	async function getStreamUrl(videoId, youtubei, ytdlp) {
+		try {
+			attempts.push('youtubei');
+			const url = await youtubei(videoId);
+			if (url) return url;
+		} catch {
+			attempts.push('youtubei-failed');
+		}
+		attempts.push('ytdlp');
+		return ytdlp(videoId);
+	}
+
+	const url = await getStreamUrl(
+		'abc',
+		async () => {
+			throw new Error('No valid URL to decipher');
+		},
+		async () => 'https://googlevideo.example/audio',
+	);
+
+	expect(url).toBe('https://googlevideo.example/audio');
+	expect(attempts).toEqual(['youtubei', 'youtubei-failed', 'ytdlp']);
 });
 
 test('download acquire order prefers yt-dlp then stream then mpv', async () => {
