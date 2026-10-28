@@ -1,18 +1,10 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {parse} from 'yaml';
+import {BOOT_TAGLINE, resolveBootArt} from '../utils/boot-art.ts';
 import {APP_NAME, APP_VERSION, GITHUB_REPO_URL} from '../utils/constants.ts';
 
-const YMC_ART = [
-	' __     ____  __  _____ ',
-	' \\ \\   / /  \\/  |/ ____|',
-	' \\ \\_/ /| \\  / | |     ',
-	'   \\   / | |\\/| | |     ',
-	'    | |  | |  | | |____ ',
-	'    |_|  |_|  |_|\\_____|',
-];
-
-const BOOT_TIMEOUT_MS = 1500;
+const BOOT_TIMEOUT_MS = 1800;
 const ANSI_RESET = '\x1B[0m';
 const ANSI_GREEN = '\x1B[32m';
 const ANSI_GREEN_BRIGHT = '\x1B[92m';
@@ -51,29 +43,82 @@ function padEnd(str: string, len: number): string {
 	return str;
 }
 
-function drawBootScreen(artLines: string[], sponsor: string): void {
-	const maxWidth = Math.max(...artLines.map(line => line.length));
-	const frameWidth = maxWidth + 2;
-
-	process.stdout.write(
-		`${ANSI_BOLD}${ANSI_GREEN_BRIGHT}+${'-'.repeat(frameWidth)}+${ANSI_RESET}\n`,
-	);
-
-	for (const line of artLines) {
-		const padded = padEnd(line, maxWidth);
-		process.stdout.write(
-			`${ANSI_BOLD}${ANSI_GREEN}| ${padded} |${ANSI_RESET}\n`,
-		);
+function centerLine(str: string, width: number): string {
+	if (str.length >= width) {
+		return str.slice(0, width);
 	}
 
-	process.stdout.write(
-		`${ANSI_BOLD}${ANSI_GREEN_BRIGHT}+${'-'.repeat(frameWidth)}+${ANSI_RESET}\n`,
-	);
+	const left = Math.floor((width - str.length) / 2);
+	return padEnd(' '.repeat(left) + str, width);
+}
 
-	process.stdout.write(`\n`);
-	process.stdout.write(`${ANSI_DIM}${APP_NAME} v${APP_VERSION}${ANSI_RESET}\n`);
-	process.stdout.write(`${ANSI_DIM}${GITHUB_REPO_URL}${ANSI_RESET}\n`);
-	process.stdout.write(`${ANSI_DIM}${sponsor}${ANSI_RESET}\n`);
+function drawBootScreen(
+	artLines: string[],
+	sponsor: string,
+	columns: number,
+	rows: number,
+): void {
+	const frameWidth = Math.max(columns, 20);
+	const frameHeight = Math.max(rows, 10);
+	const innerWidth = Math.max(frameWidth - 2, 1);
+	const innerHeight = Math.max(frameHeight - 2, 1);
+
+	const contentLines = [
+		...artLines,
+		'',
+		BOOT_TAGLINE,
+		'',
+		`${APP_NAME} v${APP_VERSION}`,
+		GITHUB_REPO_URL,
+		sponsor,
+		'',
+		'press any key',
+	];
+
+	const topPad = Math.max(
+		0,
+		Math.floor((innerHeight - contentLines.length) / 2),
+	);
+	const bottomPad = Math.max(0, innerHeight - contentLines.length - topPad);
+
+	const bright = (text: string) =>
+		`${ANSI_BOLD}${ANSI_GREEN_BRIGHT}${text}${ANSI_RESET}`;
+	const green = (text: string) =>
+		`${ANSI_BOLD}${ANSI_GREEN}${text}${ANSI_RESET}`;
+	const dim = (text: string) => `${ANSI_DIM}${text}${ANSI_RESET}`;
+
+	process.stdout.write(bright(`+${'-'.repeat(innerWidth)}+`) + '\n');
+
+	for (let i = 0; i < topPad; i++) {
+		process.stdout.write(green(`|${' '.repeat(innerWidth)}|`) + '\n');
+	}
+
+	for (let i = 0; i < contentLines.length; i++) {
+		const line = contentLines[i] ?? '';
+		const centered = centerLine(line, innerWidth);
+		const isArt = i < artLines.length;
+		const isTagline = line === BOOT_TAGLINE;
+		const isPrompt = line === 'press any key';
+
+		let painted: string;
+		if (isArt || isPrompt) {
+			painted = bright(centered);
+		} else if (isTagline) {
+			painted = green(centered);
+		} else if (line.length === 0) {
+			painted = centered;
+		} else {
+			painted = dim(centered);
+		}
+
+		process.stdout.write(green('|') + painted + green('|') + '\n');
+	}
+
+	for (let i = 0; i < bottomPad; i++) {
+		process.stdout.write(green(`|${' '.repeat(innerWidth)}|`) + '\n');
+	}
+
+	process.stdout.write(bright(`+${'-'.repeat(innerWidth)}+`) + '\n');
 }
 
 export async function showImmersiveBootScreen(): Promise<void> {
@@ -86,11 +131,9 @@ export async function showImmersiveBootScreen(): Promise<void> {
 	}
 
 	const width = process.stdout.columns || 120;
-	const artLines = width < 30 ? ['YMC'] : YMC_ART;
-	const sponsor = getSponsorLine();
-	const contentHeight = artLines.length + 6;
 	const height = process.stdout.rows || 30;
-	const verticalPad = Math.max(0, Math.floor((height - contentHeight) / 2) - 1);
+	const artLines = resolveBootArt(Math.max(width - 4, 10));
+	const sponsor = getSponsorLine();
 
 	let stdinRawMode = false;
 	let stdinListener: ((data: string) => void) | null = null;
@@ -120,11 +163,7 @@ export async function showImmersiveBootScreen(): Promise<void> {
 		process.stdout.write(ANSI_HIDE_CURSOR);
 		process.stdout.write(ANSI_CLEAR);
 
-		for (let i = 0; i < verticalPad; i++) {
-			process.stdout.write('\n');
-		}
-
-		drawBootScreen(artLines, sponsor);
+		drawBootScreen(artLines, sponsor, width, height);
 
 		await new Promise<void>(res => {
 			resolved = false;

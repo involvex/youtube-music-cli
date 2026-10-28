@@ -54,6 +54,7 @@
 		"dev": "bun run --bun source/cli.tsx",
 		"dev:win32": "bun run --bun source/immersive-entry.tsx",
 		"dev:watch": "bun run --bun --watch source/cli.tsx",
+		"dev:win32:watch": "bun run --bun --watch source/immersive-entry.tsx",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",

@@ -4,18 +4,10 @@ import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {getSponsorLine} from '../../utils/funding.ts';
+import {BOOT_TAGLINE, resolveBootArt} from '../../utils/boot-art.ts';
 import {APP_NAME, APP_VERSION, GITHUB_REPO_URL} from '../../utils/constants.ts';
 
-const YMC_ART = [
-	' __     ____  __  _____ ',
-	' \\ \\   / /  \\/  |/ ____|',
-	' \\ \\_/ /| \\  / | |     ',
-	'   \\   / | |\\/| | |     ',
-	'    | |  | |  | | |____ ',
-	'    |_|  |_|  |_|\\_____|',
-];
-
-const DEFAULT_TIMEOUT_MS = 1500;
+const DEFAULT_TIMEOUT_MS = 1800;
 
 export default function BootScreen({onBooted}: {onBooted: () => void}) {
 	const theme = useTheme();
@@ -35,51 +27,53 @@ export default function BootScreen({onBooted}: {onBooted: () => void}) {
 		return () => clearTimeout(timer);
 	}, [onBooted]);
 
-	const artLines = useMemo(() => {
-		if (columns < 30) {
-			return ['YMC'];
-		}
-
-		const maxWidth = Math.max(...YMC_ART.map(line => line.length));
-		const scale = Math.min(1, Math.floor((columns - 4) / maxWidth));
-		const trimmed = YMC_ART.map(line =>
-			line.slice(0, Math.floor(maxWidth * scale)),
-		);
-
-		return trimmed;
-	}, [columns]);
-
+	const artLines = useMemo(() => resolveBootArt(columns - 4), [columns]);
 	const sponsor = useMemo(() => getSponsorLine(), []);
 
 	if (timedOut) return null;
 
+	const frameWidth = Math.max(columns, 20);
+	const frameHeight = Math.max(rows, 10);
+
 	return (
-		<Box
-			flexDirection="column"
-			justifyContent="center"
-			alignItems="center"
-			height={rows}
-		>
+		<Box width={frameWidth} height={frameHeight} flexDirection="column">
 			<Box
 				borderStyle="round"
 				borderColor={theme.theme.colors.secondary}
-				padding={1}
+				width={frameWidth}
+				height={frameHeight}
+				flexDirection="column"
+				justifyContent="center"
+				alignItems="center"
+				paddingX={2}
 			>
-				<Text color={theme.theme.colors.primary}>{artLines.join('\n')}</Text>
-			</Box>
-			<Box marginTop={1} flexDirection="column" alignItems="center">
-				<Text color={theme.theme.colors.text}>
-					{APP_NAME} v{APP_VERSION}
-				</Text>
-				<Box marginTop={1}>
-					<Text color={theme.theme.colors.dim} dimColor>
-						{GITHUB_REPO_URL}
+				{artLines.map((line, index) => (
+					<Text key={index} color={theme.theme.colors.primary} bold>
+						{line}
 					</Text>
+				))}
+				<Box marginTop={1}>
+					<Text color={theme.theme.colors.secondary}>{BOOT_TAGLINE}</Text>
 				</Box>
-				<Box marginTop={1}>
-					<Text color={theme.theme.colors.dim} dimColor>
-						{sponsor}
+				<Box marginTop={2} flexDirection="column" alignItems="center">
+					<Text color={theme.theme.colors.text}>
+						{APP_NAME} v{APP_VERSION}
 					</Text>
+					<Box marginTop={1}>
+						<Text color={theme.theme.colors.dim} dimColor>
+							{GITHUB_REPO_URL}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color={theme.theme.colors.dim} dimColor>
+							{sponsor}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color={theme.theme.colors.primary} bold>
+							press any key
+						</Text>
+					</Box>
 				</Box>
 			</Box>
 		</Box>
