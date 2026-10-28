@@ -1,6 +1,11 @@
 import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 
+const serverHost = process.env.HOST ?? '0.0.0.0';
+const serverPort = Number(process.env.PORT) || 3000;
+const target = process.env.TARGET ?? `localhost:${serverPort}`;
+const wsTarget = `ws://${target}`;
+
 export default defineConfig({
 	plugins: [react()],
 	build: {
@@ -8,10 +13,11 @@ export default defineConfig({
 		emptyOutDir: true,
 	},
 	server: {
-		port: 3000,
+		port: serverPort,
+		host: serverHost,
 		proxy: {
 			'/ws': {
-				target: 'ws://localhost:8080',
+				target: wsTarget,
 				ws: true,
 			},
 		},

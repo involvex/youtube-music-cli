@@ -268,14 +268,14 @@ dist/ymc-win32.exe
 Every production build (`bun run build`) includes the browser companion at `dist/web/`. No separate `build:web` step is required for users.
 
 ```bash
-# TUI + web UI (default http://localhost:8080)
+# TUI + web UI (default http://0.0.0.0:3000 → open http://localhost:3000)
 youtube-music-cli --web
 
 # Web UI only (no terminal interface)
 youtube-music-cli --web-only
 
 # Custom host/port and optional auth token
-youtube-music-cli --web --web-host 0.0.0.0 --web-port 3000 --web-auth secret
+youtube-music-cli --web --host 127.0.0.1 --port 8080 --web-auth secret
 ```
 
 Open the printed URL in a browser for synced playback controls, queue, search, volume, shuffle/repeat/autoplay, and dark/light theme. State stays in sync with the CLI over WebSocket (`/ws`).
@@ -353,8 +353,8 @@ If you installed the CLI globally with an alias or script name, make sure `ymc` 
 | `--headless` |       | Run without TUI                              |
 | `--web`      |       | Enable web companion UI (bundled in build)   |
 | `--web-only` |       | Web UI only (no TUI)                         |
-| `--web-host` |       | Web server host (default: `localhost`)       |
-| `--web-port` |       | Web server port (default: `8080`)            |
+| `--host`     |       | Web server host (default: `0.0.0.0`)         |
+| `--port`     |       | Web server port (default: `3000`)            |
 | `--web-auth` |       | Optional auth token for the web server       |
 | `--win32`    |       | Immersive fullscreen mode (Windows only)     |
 | `--help`     | `-h`  | Show help                                    |

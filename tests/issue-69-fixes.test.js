@@ -35,17 +35,40 @@ test('web-config-policy: rejects cross-site websocket origins by default', async
 	const {defaultWebAllowedOrigins, isWebSocketOriginAllowed} =
 		await import('../source/services/web/web-config-policy.ts');
 
-	const allowed = defaultWebAllowedOrigins(8080);
+	const allowed = defaultWebAllowedOrigins(3000);
 	expect(
 		isWebSocketOriginAllowed(
-			{headers: {origin: 'https://evil.example', host: 'localhost:8080'}},
+			{headers: {origin: 'https://evil.example', host: 'localhost:3000'}},
 			allowed,
 		),
 	).toBe(false);
 	expect(
 		isWebSocketOriginAllowed(
-			{headers: {origin: 'http://localhost:8080', host: 'localhost:8080'}},
+			{headers: {origin: 'http://localhost:3000', host: 'localhost:3000'}},
 			allowed,
 		),
 	).toBe(true);
+	// LAN / non-loopback same-origin must work when bound to 0.0.0.0
+	expect(
+		isWebSocketOriginAllowed(
+			{
+				headers: {
+					origin: 'http://192.168.1.10:3000',
+					host: '192.168.1.10:3000',
+				},
+			},
+			allowed,
+		),
+	).toBe(true);
+	expect(
+		isWebSocketOriginAllowed(
+			{
+				headers: {
+					origin: 'http://192.168.1.10:3000',
+					host: 'localhost:3000',
+				},
+			},
+			allowed,
+		),
+	).toBe(false);
 });

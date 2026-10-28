@@ -22,8 +22,8 @@ export interface Flags {
 	importName?: string;
 	// Web server flags
 	web?: boolean;
-	webHost?: string;
-	webPort?: number;
+	host?: string;
+	port?: number;
 	webOnly?: boolean;
 	webAuth?: string;
 	// Windows immersive mode flag

@@ -22,6 +22,8 @@ import {
 } from '../radio-stations/radio-stations.service.ts';
 import {getFavoritesManager} from '../favorites/favorites.service.ts';
 import {
+	DEFAULT_WEB_HOST,
+	DEFAULT_WEB_PORT,
 	defaultWebAllowedOrigins,
 	filterWebRemoteConfig,
 } from './web-config-policy.ts';
@@ -66,10 +68,10 @@ class WebServerManager {
 
 		this.config = savedConfig ?? {
 			enabled: false,
-			host: 'localhost',
-			port: 8080,
+			host: DEFAULT_WEB_HOST,
+			port: DEFAULT_WEB_PORT,
 			enableCors: true,
-			allowedOrigins: defaultWebAllowedOrigins(8080),
+			allowedOrigins: defaultWebAllowedOrigins(DEFAULT_WEB_PORT),
 			auth: {enabled: false},
 		};
 

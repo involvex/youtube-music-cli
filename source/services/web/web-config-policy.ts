@@ -32,12 +32,20 @@ export function filterWebRemoteConfig(
 	return filtered;
 }
 
+export const DEFAULT_WEB_HOST = '0.0.0.0';
+export const DEFAULT_WEB_PORT = 3000;
+
 export function defaultWebAllowedOrigins(port: number): string[] {
 	return [
 		`http://localhost:${port}`,
 		`http://127.0.0.1:${port}`,
 		`http://[::1]:${port}`,
 	];
+}
+
+/** Browser-facing host when listening on all interfaces. */
+export function displayWebHost(bindHost: string): string {
+	return bindHost === '0.0.0.0' || bindHost === '::' ? 'localhost' : bindHost;
 }
 
 export function isWebSocketOriginAllowed(
@@ -50,7 +58,18 @@ export function isWebSocketOriginAllowed(
 
 	const origin = req.headers.origin;
 	if (origin) {
-		return allowedOrigins.includes(origin);
+		if (allowedOrigins.includes(origin)) {
+			return true;
+		}
+
+		// Same-origin: page was served by this server (LAN IP, hostname, etc.)
+		try {
+			const originHost = new URL(origin).host.toLowerCase();
+			const requestHost = (req.headers.host ?? '').toLowerCase();
+			return Boolean(requestHost) && originHost === requestHost;
+		} catch {
+			return false;
+		}
 	}
 
 	// Non-browser clients may omit Origin; allow only loopback Host.

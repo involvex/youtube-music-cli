@@ -9,6 +9,10 @@ import {getPluginUpdaterService} from './services/plugin/plugin-updater.service.
 import {getPluginRegistryService} from './services/plugin/plugin-registry.service.ts';
 import {getImportService} from './services/import/import.service.ts';
 import {getWebServerManager} from './services/web/web-server-manager.ts';
+import {
+	DEFAULT_WEB_HOST,
+	DEFAULT_WEB_PORT,
+} from './services/web/web-config-policy.ts';
 import {getVersionCheckService} from './services/version-check/version-check.service.ts';
 import {
 	generateCompletion,
@@ -132,8 +136,8 @@ const cli = meow(
 	  --headless           Run without TUI (just play)
 	  --win32              Windows immersive TUI mode with visualizer
 	  --web                Enable web UI server
-	  --web-host           Web server host (default: localhost)
-	  --web-port           Web server port (default: 8080)
+	  --host               Web server host (default: 0.0.0.0)
+	  --port               Web server port (default: 3000)
 	  --web-only           Run web server without CLI UI
 	  --web-auth           Authentication token for web server
 	--name               Custom name for imported playlist
@@ -153,7 +157,7 @@ const cli = meow(
 	  $ youtube-music-cli play dQw4w9WgXcQ --headless
 	  $ youtube-music-cli plugins install adblock
 	  $ youtube-music-cli import spotify "https://open.spotify.com/playlist/..."
-	  $ youtube-music-cli --web --web-port 3000
+	  $ youtube-music-cli --web --port 3000
 	  $ youtube-music-cli completions powershell | Out-String | Invoke-Expression
 `,
 	{
@@ -190,10 +194,10 @@ const cli = meow(
 				type: 'boolean',
 				default: false,
 			},
-			webHost: {
+			host: {
 				type: 'string',
 			},
-			webPort: {
+			port: {
 				type: 'number',
 			},
 			webOnly: {
@@ -1103,8 +1107,8 @@ Examples:
 
 					await webManager.start({
 						enabled: true,
-						host: flags.webHost ?? 'localhost',
-						port: flags.webPort ?? 8080,
+						host: flags.host ?? DEFAULT_WEB_HOST,
+						port: flags.port ?? DEFAULT_WEB_PORT,
 						webOnly: flags.webOnly,
 						auth: flags.webAuth,
 					});

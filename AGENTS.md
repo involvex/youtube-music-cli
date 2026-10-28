@@ -229,8 +229,9 @@ youtube-music-cli search <query>     # Search and play
 youtube-music-cli playlist <id>      # Play playlist
 youtube-music-cli --theme=matrix    # Set theme
 youtube-music-cli --headless         # Run without TUI
-youtube-music-cli --web              # TUI + bundled web companion
+youtube-music-cli --web              # TUI + bundled web companion (0.0.0.0:3000)
 youtube-music-cli --web-only         # Web companion only
+youtube-music-cli --web --host 127.0.0.1 --port 8080
 youtube-music-cli --win32            # Windows immersive mode (Bun native)
 ```
 

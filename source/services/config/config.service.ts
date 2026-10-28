@@ -21,7 +21,11 @@ import type {Config} from '../../types/config.types.ts';
 import {BUILTIN_THEMES, DEFAULT_THEME} from '../../config/themes.config.ts';
 import type {Theme} from '../../types/theme.types.ts';
 import {formatError} from '../../utils/error.ts';
-import {defaultWebAllowedOrigins} from '../web/web-config-policy.ts';
+import {
+	DEFAULT_WEB_HOST,
+	DEFAULT_WEB_PORT,
+	defaultWebAllowedOrigins,
+} from '../web/web-config-policy.ts';
 import path from 'node:path';
 import {refreshKeybindings} from '../../utils/keybinding-resolver.ts';
 
@@ -69,10 +73,10 @@ class ConfigService {
 			subtitlesEnabled: false,
 			webServer: {
 				enabled: false,
-				host: 'localhost',
-				port: 8080,
+				host: DEFAULT_WEB_HOST,
+				port: DEFAULT_WEB_PORT,
 				enableCors: true,
-				allowedOrigins: defaultWebAllowedOrigins(8080),
+				allowedOrigins: defaultWebAllowedOrigins(DEFAULT_WEB_PORT),
 				auth: {
 					enabled: false,
 				},

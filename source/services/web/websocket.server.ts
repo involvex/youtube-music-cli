@@ -12,7 +12,12 @@ import type {Track} from '../../types/youtube-music.types.ts';
 import {getWebStreamingService} from './web-streaming.service.ts';
 import {getStaticFileService} from './static-file.service.ts';
 import {logger} from '../logger/logger.service.ts';
-import {isWebSocketOriginAllowed} from './web-config-policy.ts';
+import {
+	DEFAULT_WEB_HOST,
+	DEFAULT_WEB_PORT,
+	displayWebHost,
+	isWebSocketOriginAllowed,
+} from './web-config-policy.ts';
 
 interface WebSocketServerOptions {
 	config: WebServerConfig;
@@ -58,8 +63,8 @@ class WebSocketServerClass {
 	constructor() {
 		this.config = {
 			enabled: false,
-			host: 'localhost',
-			port: 8080,
+			host: DEFAULT_WEB_HOST,
+			port: DEFAULT_WEB_PORT,
 			enableCors: true,
 			allowedOrigins: ['*'],
 			auth: {enabled: false},
@@ -125,7 +130,8 @@ class WebSocketServerClass {
 				},
 				() => {
 					logger.info('WebSocketServer', 'Server started', {
-						url: `http://${this.config.host}:${this.config.port}`,
+						url: `http://${displayWebHost(this.config.host)}:${this.config.port}`,
+						bind: `${this.config.host}:${this.config.port}`,
 					});
 					resolve();
 				},
@@ -378,7 +384,7 @@ class WebSocketServerClass {
 		if (!this.isRunning()) {
 			throw new Error('Server is not running');
 		}
-		return `http://${this.config.host}:${this.config.port}`;
+		return `http://${displayWebHost(this.config.host)}:${this.config.port}`;
 	}
 }
 

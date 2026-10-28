@@ -56,8 +56,8 @@ const FLAGS = [
 	'--headless',
 	'--win32',
 	'--web',
-	'--web-host',
-	'--web-port',
+	'--host',
+	'--port',
 	'--web-only',
 	'--web-auth',
 	'--cookies-file',
@@ -188,8 +188,8 @@ ${commandEntries}
         '--repeat[Repeat mode]:mode:(off all one)'
         '--headless[Run without TUI]'
         '--web[Enable web UI server]'
-        '--web-host[Web server host]:host:'
-        '--web-port[Web server port]:port:'
+        '--host[Web server host (default: 0.0.0.0)]:host:'
+        '--port[Web server port (default: 3000)]:port:'
         '--web-only[Run web server without CLI UI]'
         '--web-auth[Authentication token for web server]:token:'
         '--cookies-file[Cookie file path for cookie-based auth]:path:_files'
@@ -463,8 +463,8 @@ complete -c ymc -l shuffle -s s -d 'Enable shuffle mode'
 complete -c ymc -l repeat -s r -d 'Repeat mode' -r -a 'off all one'
 complete -c ymc -l headless -d 'Run without TUI'
 complete -c ymc -l web -d 'Enable web UI server'
-complete -c ymc -l web-host -d 'Web server host' -r
-complete -c ymc -l web-port -d 'Web server port' -r
+complete -c ymc -l host -d 'Web server host (default: 0.0.0.0)' -r
+complete -c ymc -l port -d 'Web server port (default: 3000)' -r
 complete -c ymc -l web-only -d 'Run web server without CLI UI'
 complete -c ymc -l web-auth -d 'Authentication token for web server' -r
 complete -c ymc -l cookies-file -d 'Cookie file path for cookie-based auth' -r -F
