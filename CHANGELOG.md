@@ -1,3 +1,11 @@
+## [0.3.6](https://github.com/involvex/youtube-music-cli/compare/v0.3.5...v0.3.6) (2026-10-28)
+
+### Bug Fixes
+
+- bind web UI on 0.0.0.0:3000 and allow LAN WebSocket access ([01c376a](https://github.com/involvex/youtube-music-cli/commit/01c376ac42117770025e0a04ec26c9e99af25f99))
+- harden playback security and lifecycle ([#71](https://github.com/involvex/youtube-music-cli/issues/71)) ([2ec4b84](https://github.com/involvex/youtube-music-cli/commit/2ec4b84a2395a971943310b13c1eec28ddc173ce)), closes [#69](https://github.com/involvex/youtube-music-cli/issues/69)
+- sync web play/pause and add mirror browser audio ([d790cea](https://github.com/involvex/youtube-music-cli/commit/d790cea37cd682ecd8a1e23cf40eecc878228e49))
+
 ## [0.3.5](https://github.com/involvex/youtube-music-cli/compare/v0.3.3...v0.3.5) (2026-10-25)
 
 ### Bug Fixes
