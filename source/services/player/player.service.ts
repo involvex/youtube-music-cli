@@ -1042,6 +1042,11 @@ class PlayerService {
 	 * Reconnect IPC to a still-running mpv without reloading the current file.
 	 */
 	async tryReconnectIpc(): Promise<boolean> {
+		// Block during initial connection attempt
+		if (this.ipcConnectPending) {
+			return true;
+		}
+
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
 			return true;
 		}
@@ -1054,12 +1059,16 @@ class PlayerService {
 			return this.ipcReconnectInFlight;
 		}
 
+		// Carry current URL if exists
+		const urlToLoad = this.currentUrl;
+
 		this.ipcReconnectInFlight = (async () => {
 			try {
 				logger.info('PlayerService', 'Attempting IPC reconnect', {
 					ipcPath: this.ipcPath,
+					url: urlToLoad ? `${urlToLoad.substring(0, 100)}...` : null,
 				});
-				await this.connectIpc();
+				await this.connectIpc(urlToLoad ?? undefined);
 				logger.info('PlayerService', 'IPC reconnect succeeded');
 				return true;
 			} catch (error) {
