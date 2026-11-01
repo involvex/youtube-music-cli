@@ -5,17 +5,17 @@ import React from 'react';
 import {SEARCH_TYPE} from '../../utils/constants.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {Box, Text} from 'ink';
+import {Box, Text, useInput} from 'ink';
 import TextInput from 'ink-text-input';
 import {getConfigService} from '../../services/config/config.service.ts';
 
 type Props = {
 	onInput: (input: string) => void;
 	isActive?: boolean;
+	tabEnabled?: boolean;
 };
 
-function SearchBar({onInput, isActive = true}: Props) {
+function SearchBar({onInput, isActive = true, tabEnabled = true}: Props) {
 	const {theme} = useTheme();
 	const {state: navState, dispatch} = useNavigation();
 	const [input, setInput] = useState('');
@@ -25,7 +25,6 @@ function SearchBar({onInput, isActive = true}: Props) {
 
 	// Handle type switching
 	const cycleType = useCallback(() => {
-		if (!isActive) return;
 		const currentIndex = searchTypes.indexOf(navState.searchType);
 		const nextIndex = (currentIndex + 1) % searchTypes.length;
 		const nextType = searchTypes[nextIndex];
@@ -35,7 +34,20 @@ function SearchBar({onInput, isActive = true}: Props) {
 				searchType: nextType,
 			});
 		}
-	}, [navState.searchType, searchTypes, dispatch, isActive]);
+	}, [navState.searchType, searchTypes, dispatch]);
+
+	// Handle Tab to cycle search type via direct useInput (fix #43: the
+	// registry path does not fire reliably while the text input is focused).
+	// tabEnabled (not isActive) so Tab works both while typing AND while
+	// results are shown; only filter editing disables it.
+	useInput(
+		(input, key) => {
+			if (key.tab) {
+				cycleType();
+			}
+		},
+		{isActive: tabEnabled},
+	);
 
 	// Handle submit via ink-text-input's onSubmit
 	const handleSubmit = useCallback(
@@ -48,10 +60,6 @@ function SearchBar({onInput, isActive = true}: Props) {
 		},
 		[dispatch, onInput, isActive, config],
 	);
-
-	// Handle Tab to cycle search type via the central registry. This needs
-	// bypassBlock so it works while the text input is focused (blocked).
-	useKeyBinding(['tab'], cycleType, {bypassBlock: true});
 
 	// Note: Escape is intentionally NOT handled here. While typing, Escape
 	// leaves the search view via SearchLayout's BACK handler (bypass), so Esc

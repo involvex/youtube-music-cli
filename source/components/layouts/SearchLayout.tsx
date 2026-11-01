@@ -322,6 +322,7 @@ function SearchLayout() {
 
 			<SearchBar
 				isActive={!editingFilter && isTyping && !isSearching}
+				tabEnabled={!editingFilter}
 				onInput={input => {
 					void performSearch(input);
 				}}
