@@ -86,7 +86,10 @@ export function navigationReducer(
 			return {...state, searchQuery: action.query};
 
 		case 'SET_SEARCH_CATEGORY':
-			return {...state, searchCategory: action.category};
+			// The action payload carries searchType (see SetSearchCategoryAction);
+			// the previous code wrote searchCategory, which nothing reads, so the
+			// UI never updated when Tab cycled search types (fixes #43).
+			return {...state, searchType: action.searchType};
 
 		case 'SET_SEARCH_FILTERS':
 			return {

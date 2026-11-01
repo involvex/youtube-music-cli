@@ -182,7 +182,7 @@ export interface SetSearchQueryAction {
 
 export interface SetSearchCategoryAction {
 	readonly category: 'SET_SEARCH_CATEGORY';
-	searchType: string;
+	searchType: 'all' | 'songs' | 'albums' | 'artists' | 'playlists';
 }
 
 export interface SetSearchFiltersAction {
