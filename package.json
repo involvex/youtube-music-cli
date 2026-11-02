@@ -95,7 +95,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@sindresorhus/tsconfig": "^8.1.0",
+		"@sindresorhus/tsconfig": "^9.0.0",
 		"@tsconfig/bun": "^1.0.11",
 		"@types/bun": "^1.4.4",
 		"@types/node": "^26.2.0",
