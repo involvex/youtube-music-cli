@@ -27,7 +27,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.event.release.tag_name || github.ref_name || inputs.tag }}"
+          # Prefer workflow_dispatch input; otherwise release event / tag push ref.
+          # Do NOT put github.ref_name before inputs.tag — dispatch --ref main would
+          # resolve to "main" and never see the intended release tag.
+          $tag = "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
           Write-Host "Resolving assets for tag: $tag"
 
           # Tag push races npm-publish: assets can appear one-by-one. Wait until
