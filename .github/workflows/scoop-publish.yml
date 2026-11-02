@@ -30,37 +30,31 @@ jobs:
           $tag = "${{ github.event.release.tag_name || github.ref_name || inputs.tag }}"
           Write-Host "Resolving assets for tag: $tag"
 
-          # If triggered by tag push, wait for release to be created by npm-publish workflow
-          $maxAttempts = 30
+          # Tag push races npm-publish: assets can appear one-by-one. Wait until
+          # BOTH scoop binaries exist before continuing.
+          $maxAttempts = 36
           $attempt = 0
-          $assets = $null
+          $cliAsset = $null
+          $immersiveAsset = $null
           while ($attempt -lt $maxAttempts) {
             $assets = gh release view $tag --json assets --jq '[.assets[] | select(.name | test("youtube-music-cli-windows-x64\\.exe$|ymc-win32\\.exe$")) | {name, url}]' 2>$null
             if ($assets -and $assets.Trim() -ne '' -and $assets -ne '[]') {
-              Write-Host "Found assets on attempt $($attempt + 1)/$maxAttempts"
-              break
+              $assetsArray = $assets | ConvertFrom-Json
+              $cliAsset = $assetsArray | Where-Object { $_.name -match 'youtube-music-cli-windows-x64\.exe$' } | Select-Object -First 1
+              $immersiveAsset = $assetsArray | Where-Object { $_.name -match 'ymc-win32\.exe$' } | Select-Object -First 1
+              if ($cliAsset -and $immersiveAsset) {
+                Write-Host "Found both scoop assets on attempt $($attempt + 1)/$maxAttempts"
+                break
+              }
+              Write-Host "Partial assets (cli=$([bool]$cliAsset), immersive=$([bool]$immersiveAsset)) on attempt $($attempt + 1)/$maxAttempts"
             }
             $attempt++
             Write-Host "Release assets not ready yet (attempt $attempt/$maxAttempts), waiting 10s..."
             Start-Sleep -Seconds 10
           }
 
-          if (-not $assets -or $assets.Trim() -eq '' -or $assets -eq '[]') {
-            Write-Error "No matching assets found for tag $tag after $maxAttempts attempts"
-            exit 1
-          }
-
-          $assetsArray = $assets | ConvertFrom-Json
-
-          $cliAsset = $assetsArray | Where-Object { $_.name -match 'youtube-music-cli-windows-x64\.exe$' }
-          $immersiveAsset = $assetsArray | Where-Object { $_.name -match 'ymc-win32\.exe$' }
-
-          if (-not $cliAsset) {
-            Write-Error "CLI asset (youtube-music-cli-windows-x64.exe) not found in release"
-            exit 1
-          }
-          if (-not $immersiveAsset) {
-            Write-Error "Immersive asset (ymc-win32.exe) not found in release"
+          if (-not $cliAsset -or -not $immersiveAsset) {
+            Write-Error "CLI and immersive assets not both present for tag $tag after $maxAttempts attempts"
             exit 1
           }
 
