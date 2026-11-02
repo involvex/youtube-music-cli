@@ -378,7 +378,7 @@ test(
 		const overlay = createSettingsOverlayState();
 		openSettingsOverlay(overlay);
 		expect(overlay.active).toBe(true);
-		expect(SETTINGS_ROW_COUNT).toBe(30);
+		expect(SETTINGS_ROW_COUNT).toBe(31);
 
 		expect(handleSettingsInput(overlay, 'down', SETTINGS_ROW_COUNT)).toBe(
 			'none',
@@ -391,7 +391,7 @@ test(
 		expect(handleSettingsInput(overlay, 'enter', SETTINGS_ROW_COUNT)).toBe(
 			'begin_text',
 		);
-		overlay.selectedIndex = 24;
+		overlay.selectedIndex = 25;
 		expect(handleSettingsInput(overlay, 'enter', SETTINGS_ROW_COUNT)).toBe(
 			'navigate',
 		);
