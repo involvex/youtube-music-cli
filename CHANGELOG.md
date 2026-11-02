@@ -1,8 +1,16 @@
-## Unreleased
+## [0.3.7](https://github.com/involvex/youtube-music-cli/compare/v0.3.6...v0.3.7) (2026-11-02)
+
+### Bug Fixes
+
+- **player:** prevent silent playback on macOS by blocking reconnect during initial IPC connection ([c4fd004](https://github.com/involvex/youtube-music-cli/commit/c4fd004daa9fbec222fb5821f19fc950efe0e0ea)), closes [#59](https://github.com/involvex/youtube-music-cli/issues/59)
+- Tab now actually cycles search type ([#43](https://github.com/involvex/youtube-music-cli/issues/43)) ([#74](https://github.com/involvex/youtube-music-cli/issues/74)) ([f637a55](https://github.com/involvex/youtube-music-cli/commit/f637a55e9564e6724255b7f76a5651d91336c6ed))
 
 ### Features
 
-- **mpv opts (#75):** launch with `--force-window=no` and `--speed` (default 1); Settings / `mpvExtraArgs` for extra CLI flags (denylists IPC-breaking options)
+- pixelfont boot banner with fullscreen frame ([5f01983](https://github.com/involvex/youtube-music-cli/commit/5f019835c41d79065fd30a5262b39267cf07a60d))
+- **player:** harden mpv spawn and add mpvExtraArgs ([#76](https://github.com/involvex/youtube-music-cli/issues/76)) ([3db9bc4](https://github.com/involvex/youtube-music-cli/commit/3db9bc4110fcaffa2fcaffe078ceb150b0f99249)), closes [#75](https://github.com/involvex/youtube-music-cli/issues/75)
+- unlimited listening history and Settings theme cycle ([17ea7fd](https://github.com/involvex/youtube-music-cli/commit/17ea7fd4162206091f51665cb5b41854a436473a))
+- web PWA shell and yt-dlp stream URL fallback ([da28b62](https://github.com/involvex/youtube-music-cli/commit/da28b629880284270689feca9ddac7ebc87af979))
 
 ## [0.3.6](https://github.com/involvex/youtube-music-cli/compare/v0.3.5...v0.3.6) (2026-10-28)
 
