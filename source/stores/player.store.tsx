@@ -898,6 +898,7 @@ function PlayerManager() {
 
 					await playerService.play(trackUrl, {
 						volume: state.volume,
+						speed: state.speed ?? 1,
 						audioNormalization: config.get('audioNormalization') ?? false,
 						proxy: config.get('proxy'),
 						cookiesFile: config.get('cookiesFile'),
@@ -908,6 +909,7 @@ function PlayerManager() {
 						volumeFadeDuration: config.get('volumeFadeDuration') ?? 0,
 						duration: track.duration,
 						trackId: track.videoId,
+						mpvExtraArgs: config.get('mpvExtraArgs'),
 					});
 
 					logger.info('PlayerManager', 'Playback started successfully', {
@@ -942,6 +944,7 @@ function PlayerManager() {
 							const streamUrl = await musicService.getStreamUrl(track.videoId);
 							await playerService.play(streamUrl, {
 								volume: state.volume,
+								speed: state.speed ?? 1,
 								audioNormalization:
 									fallbackConfig.get('audioNormalization') ?? false,
 								proxy: fallbackConfig.get('proxy'),
@@ -953,6 +956,7 @@ function PlayerManager() {
 									fallbackConfig.get('volumeFadeDuration') ?? 0,
 								duration: track.duration,
 								trackId: track.videoId,
+								mpvExtraArgs: fallbackConfig.get('mpvExtraArgs'),
 							});
 							dispatch({category: 'SET_LOADING', loading: false});
 							return;
@@ -1038,6 +1042,7 @@ function PlayerManager() {
 				try {
 					await playerService.play(station.streamUrl, {
 						volume: state.volume,
+						speed: state.speed ?? 1,
 						trackId: station.id,
 						audioNormalization: config.get('audioNormalization') ?? false,
 						proxy: config.get('proxy'),
@@ -1045,6 +1050,7 @@ function PlayerManager() {
 						crossfadeDuration: config.get('crossfadeDuration') ?? 0,
 						equalizerPreset: config.get('equalizerPreset') ?? 'flat',
 						volumeFadeDuration: config.get('volumeFadeDuration') ?? 0,
+						mpvExtraArgs: config.get('mpvExtraArgs'),
 					});
 
 					if (attempt === 1 && config.get('notifications')) {

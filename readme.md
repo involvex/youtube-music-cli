@@ -508,6 +508,18 @@ Config is stored in `~/.youtube-music-cli/config.json`:
 - MP3/M4A files are tagged with metadata (`title`, `artist`, `album`) and include cover art when available.
 - When a track is available on disk, playback prefers the local file (`preferLocalPlayback`, default `true`; Settings toggle). An index is kept at `~/.youtube-music-cli/downloads-index.json`. Legacy title-only filenames are still detected.
 
+### mpv Extra Args
+
+YMC already launches mpv with `--no-video`, `--force-window=no`, and `--speed` matching the player. If your `mpv.conf` still interferes (or you need flags like `--no-config`), set **Settings → mpv Extra Args** or `"mpvExtraArgs"` in `~/.youtube-music-cli/config.json`.
+
+Example:
+
+```json
+"mpvExtraArgs": "--no-config"
+```
+
+Args apply on the next track spawn. Conflicting flags (especially a second `--af=`) can break playback. `--input-ipc-server` and disabling idle are stripped so IPC keeps working.
+
 ## Troubleshooting
 
 ### mpv not found

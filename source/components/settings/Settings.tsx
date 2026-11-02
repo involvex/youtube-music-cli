@@ -72,6 +72,7 @@ const SETTINGS_ITEMS = [
 	'Show Network Status',
 	'Cookies From Browser',
 	'Cookies File',
+	'mpv Extra Args',
 	'Sleep Timer',
 	'Import Playlists',
 	'Export Playlists',
@@ -133,6 +134,10 @@ export default function Settings() {
 		config.get('cookiesFile') ?? '',
 	);
 	const [isEditingCookiesFile, setIsEditingCookiesFile] = useState(false);
+	const [mpvExtraArgs, setMpvExtraArgs] = useState(
+		config.get('mpvExtraArgs') ?? '',
+	);
+	const [isEditingMpvExtraArgs, setIsEditingMpvExtraArgs] = useState(false);
 	const [llmEnabled, setLLMEnabled] = useState(config.getLLMEnabled());
 	const [llmApiKey, setLLMApiKey] = useState(config.getLLMApiKey() ?? '');
 	const [llmProvider, setLLMProvider] = useState<LLMProvider>(
@@ -469,18 +474,20 @@ export default function Settings() {
 		} else if (selectedIndex === 24) {
 			setIsEditingCookiesFile(true);
 		} else if (selectedIndex === 25) {
-			cycleSleepTimer();
+			setIsEditingMpvExtraArgs(true);
 		} else if (selectedIndex === 26) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
+			cycleSleepTimer();
 		} else if (selectedIndex === 27) {
-			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
+			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
 		} else if (selectedIndex === 28) {
-			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
+			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
 		} else if (selectedIndex === 29) {
-			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
+			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
 		} else if (selectedIndex === 30) {
-			cycleCacheTtl();
+			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
 		} else if (selectedIndex === 31) {
+			cycleCacheTtl();
+		} else if (selectedIndex === 32) {
 			cycleCacheEntries();
 		}
 	};
@@ -497,7 +504,8 @@ export default function Settings() {
 		isEditingApiKey ||
 		isEditingDownloadDirectory ||
 		isEditingBaseUrl ||
-		isEditingCookiesFile;
+		isEditingCookiesFile ||
+		isEditingMpvExtraArgs;
 	useKeyboardBlocker(isEditingText);
 
 	useKeyBinding(
@@ -508,6 +516,7 @@ export default function Settings() {
 				setIsEditingDownloadDirectory(false);
 				setIsEditingBaseUrl(false);
 				setIsEditingCookiesFile(false);
+				setIsEditingMpvExtraArgs(false);
 				return;
 			}
 			dispatch({category: 'GO_BACK'});
@@ -1000,41 +1009,56 @@ export default function Settings() {
 				)}
 			</Box>
 
-			{/* Sleep Timer */}
+			{/* mpv Extra Args */}
 			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 25 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 25
-							? theme.colors.background
-							: isActive
-								? theme.colors.accent
-								: theme.colors.text
-					}
-					bold={selectedIndex === 25}
-				>
-					{sleepTimerLabel}
-				</Text>
+				{isEditingMpvExtraArgs && selectedIndex === 25 ? (
+					<TextInput
+						value={mpvExtraArgs}
+						onChange={setMpvExtraArgs}
+						onSubmit={value => {
+							const trimmed = value.trim();
+							setMpvExtraArgs(trimmed);
+							config.set('mpvExtraArgs', trimmed || undefined);
+							setIsEditingMpvExtraArgs(false);
+						}}
+						placeholder="e.g. --no-config (applies on next track)"
+						focus
+					/>
+				) : (
+					<Text
+						backgroundColor={
+							selectedIndex === 25 ? theme.colors.primary : undefined
+						}
+						color={
+							selectedIndex === 25 ? theme.colors.background : theme.colors.text
+						}
+						bold={selectedIndex === 25}
+					>
+						mpv Extra Args: {mpvExtraArgs.trim() || '(not set)'}
+					</Text>
+				)}
 			</Box>
 
-			{/* Import Playlists */}
+			{/* Sleep Timer */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
 						selectedIndex === 26 ? theme.colors.primary : undefined
 					}
 					color={
-						selectedIndex === 26 ? theme.colors.background : theme.colors.text
+						selectedIndex === 26
+							? theme.colors.background
+							: isActive
+								? theme.colors.accent
+								: theme.colors.text
 					}
 					bold={selectedIndex === 26}
 				>
-					Import Playlists →
+					{sleepTimerLabel}
 				</Text>
 			</Box>
 
-			{/* Export Playlists */}
+			{/* Import Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1045,11 +1069,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 27}
 				>
-					Export Playlists →
+					Import Playlists →
 				</Text>
 			</Box>
 
-			{/* Custom Keybindings */}
+			{/* Export Playlists */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1060,11 +1084,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 28}
 				>
-					Custom Keybindings →
+					Export Playlists →
 				</Text>
 			</Box>
 
-			{/* Manage Plugins */}
+			{/* Custom Keybindings */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1075,11 +1099,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 29}
 				>
-					Manage Plugins →
+					Custom Keybindings →
 				</Text>
 			</Box>
 
-			{/* Cache TTL */}
+			{/* Manage Plugins */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1090,11 +1114,11 @@ export default function Settings() {
 					}
 					bold={selectedIndex === 30}
 				>
-					Cache TTL: {cacheTtlMinutes}m
+					Manage Plugins →
 				</Text>
 			</Box>
 
-			{/* Cache Max Entries */}
+			{/* Cache TTL */}
 			<Box paddingX={1}>
 				<Text
 					backgroundColor={
@@ -1104,6 +1128,21 @@ export default function Settings() {
 						selectedIndex === 31 ? theme.colors.background : theme.colors.text
 					}
 					bold={selectedIndex === 31}
+				>
+					Cache TTL: {cacheTtlMinutes}m
+				</Text>
+			</Box>
+
+			{/* Cache Max Entries */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 32 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 32 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 32}
 				>
 					Cache Max Entries: {cacheMaxEntries}
 				</Text>

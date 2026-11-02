@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+- **mpv opts (#75):** launch with `--force-window=no` and `--speed` (default 1); Settings / `mpvExtraArgs` for extra CLI flags (denylists IPC-breaking options)
+
 ## [0.3.6](https://github.com/involvex/youtube-music-cli/compare/v0.3.5...v0.3.6) (2026-10-28)
 
 ### Bug Fixes
