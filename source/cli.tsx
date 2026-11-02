@@ -597,11 +597,13 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 	const config = getConfigService();
 	const playbackOptions = {
 		volume: flags.volume ?? config.get('volume'),
+		speed: 1,
 		audioNormalization: config.get('audioNormalization'),
 		volumeFadeDuration: config.get('volumeFadeDuration'),
 		proxy: config.get('proxy'),
 		cookiesFile: config.get('cookiesFile'),
 		cookiesFromBrowser: config.get('cookiesFromBrowser'),
+		mpvExtraArgs: config.get('mpvExtraArgs'),
 	};
 
 	const isDirectAudioUrl = (url: string): boolean => {

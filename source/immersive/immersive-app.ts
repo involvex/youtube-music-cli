@@ -95,6 +95,7 @@ function getPlaybackOptions(volume: number) {
 	const config = getConfigService();
 	return {
 		volume,
+		speed: 1,
 		audioNormalization: config.get('audioNormalization'),
 		volumeFadeDuration: config.get('volumeFadeDuration'),
 		gaplessPlayback: config.get('gaplessPlayback'),
@@ -103,6 +104,7 @@ function getPlaybackOptions(volume: number) {
 		proxy: config.get('proxy'),
 		cookiesFile: config.get('cookiesFile'),
 		cookiesFromBrowser: config.get('cookiesFromBrowser'),
+		mpvExtraArgs: config.get('mpvExtraArgs'),
 	};
 }
 

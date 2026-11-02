@@ -29,7 +29,7 @@ import {
 
 type ConfigService = ReturnType<typeof getConfigService>;
 
-export const IMMERSIVE_SETTINGS_COUNT = 30;
+export const IMMERSIVE_SETTINGS_COUNT = 31;
 
 const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a'];
@@ -67,7 +67,11 @@ function resolveLLMProvider(config: ConfigService): LLMProvider {
 }
 
 export type SettingsTextField =
-	'llmApiKey' | 'llmBaseUrl' | 'downloadDirectory' | 'cookiesFile';
+	| 'llmApiKey'
+	| 'llmBaseUrl'
+	| 'downloadDirectory'
+	| 'cookiesFile'
+	| 'mpvExtraArgs';
 
 export type SettingsRowKind = 'cycle' | 'text' | 'navigate';
 
@@ -83,10 +87,16 @@ export function getSettingsRowKind(index: number): SettingsRowKind {
 	if (index === 0) {
 		return 'navigate';
 	}
-	if (index === 12 || index === 16 || index === 18 || index === 22) {
+	if (
+		index === 12 ||
+		index === 16 ||
+		index === 18 ||
+		index === 22 ||
+		index === 23
+	) {
 		return 'text';
 	}
-	if (index >= 24 && index <= 27) {
+	if (index >= 25 && index <= 28) {
 		return 'navigate';
 	}
 	return 'cycle';
@@ -102,6 +112,8 @@ export function getSettingsTextField(index: number): SettingsTextField | null {
 			return 'downloadDirectory';
 		case 22:
 			return 'cookiesFile';
+		case 23:
+			return 'mpvExtraArgs';
 		default:
 			return null;
 	}
@@ -152,6 +164,8 @@ export function getSettingsTextDraft(
 			return config.get('downloadDirectory') ?? '';
 		case 'cookiesFile':
 			return config.get('cookiesFile') ?? '';
+		case 'mpvExtraArgs':
+			return config.get('mpvExtraArgs') ?? '';
 	}
 }
 
@@ -240,6 +254,10 @@ export function buildImmersiveSettingsRows(
 			label: 'Cookies File',
 			value: config.get('cookiesFile')?.trim() || '(not set)',
 		},
+		{
+			label: 'mpv Extra Args',
+			value: config.get('mpvExtraArgs')?.trim() || '(not set)',
+		},
 		{label: 'Sleep Timer', value: sleepTimerValue},
 		{label: 'Import Playlists', value: '→'},
 		{label: 'Export Playlists', value: '→'},
@@ -294,6 +312,12 @@ export function saveSettingsTextField(
 			return trimmed
 				? 'Saved cookies file (preferred over browser cookies)'
 				: 'Cleared cookies file';
+		}
+		case 'mpvExtraArgs': {
+			config.set('mpvExtraArgs', trimmed || undefined);
+			return trimmed
+				? 'Saved mpv extra args (applies on next track)'
+				: 'Cleared mpv extra args';
 		}
 	}
 }
@@ -469,7 +493,7 @@ export async function cycleImmersiveSetting(
 			config.set('cookiesFromBrowser', next);
 			return `Cookies from browser: ${formatCookiesFromBrowserLabel(next)}`;
 		}
-		case 23: {
+		case 24: {
 			const timerService = getSleepTimerService();
 			if (timerService.isActive()) {
 				timerService.cancel();
@@ -492,15 +516,15 @@ export async function cycleImmersiveSetting(
 			);
 			return `Sleep timer: ${nextPreset} min`;
 		}
-		case 24:
-			return 'Import Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 25:
-			return 'Export Playlists: run youtube-music-cli (standard TUI) for this feature';
+			return 'Import Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 26:
-			return 'Custom Keybindings: run youtube-music-cli (standard TUI) for this feature';
+			return 'Export Playlists: run youtube-music-cli (standard TUI) for this feature';
 		case 27:
+			return 'Custom Keybindings: run youtube-music-cli (standard TUI) for this feature';
+		case 28:
 			return 'Manage Plugins: run youtube-music-cli (standard TUI) for this feature';
-		case 28: {
+		case 29: {
 			const current = config.get('cacheTtlMinutes') ?? 5;
 			const currentIndex = CACHE_TTL_PRESETS.indexOf(current);
 			const next =
@@ -511,7 +535,7 @@ export async function cycleImmersiveSetting(
 			config.set('cacheTtlMinutes', next);
 			return `Cache TTL: ${next}m`;
 		}
-		case 29: {
+		case 30: {
 			const current = config.get('cacheMaxEntries') ?? 100;
 			const currentIndex = CACHE_ENTRIES_PRESETS.indexOf(current);
 			const next =

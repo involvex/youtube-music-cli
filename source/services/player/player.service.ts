@@ -15,9 +15,12 @@ import type {StreamNowPlaying} from '../../types/radio-station.types.ts';
 import {appendMpvYtdlCookieArgs} from './ytdl-cookies.ts';
 import {classifyPlayMedia} from '../../utils/local-track.ts';
 import {drainMpvIpcLines} from './mpv-ipc-buffer.ts';
+import {sanitizeMpvExtraArgs} from '../../utils/mpv-extra-args.ts';
 
 export type PlayOptions = {
 	volume?: number;
+	/** Playback speed (default 1). Overrides mpv.conf speed at spawn. */
+	speed?: number;
 	audioNormalization?: boolean;
 	proxy?: string;
 	cookiesFile?: string;
@@ -27,6 +30,8 @@ export type PlayOptions = {
 	equalizerPreset?: EqualizerPreset;
 	volumeFadeDuration?: number;
 	duration?: number;
+	/** Extra mpv CLI args from config (parsed + denylisted). */
+	mpvExtraArgs?: string;
 	/** Stable id for non-YouTube streams (internet radio). */
 	trackId?: string;
 };
@@ -36,6 +41,11 @@ export type MpvArgsOptions = PlayOptions & {
 	subtitlesEnabled?: boolean;
 };
 
+function clampPlaybackSpeed(speed: number | undefined): number {
+	const value = speed ?? 1;
+	return Math.max(0.25, Math.min(4.0, value));
+}
+
 export function buildMpvArgs(
 	ipcPath: string,
 	options: MpvArgsOptions,
@@ -44,6 +54,7 @@ export function buildMpvArgs(
 	const crossfadeDuration = Math.max(0, options.crossfadeDuration ?? 0);
 	const fadeDuration = Math.max(0, options.volumeFadeDuration ?? 0);
 	const eqPreset = options.equalizerPreset ?? 'flat';
+	const speed = clampPlaybackSpeed(options.speed);
 	const audioFilters: string[] = [];
 
 	if (options.audioNormalization) {
@@ -72,8 +83,10 @@ export function buildMpvArgs(
 	// handshake interferes with mpv's yt-dlp URL resolution.
 	const mpvArgs = [
 		'--no-video',
+		'--force-window=no',
 		'--no-terminal',
 		`--volume=${options.volume}`,
+		`--speed=${speed}`,
 		'--no-audio-display',
 		'--really-quiet',
 		'--msg-level=all=error',
@@ -104,6 +117,20 @@ export function buildMpvArgs(
 
 	if (options.subtitlesEnabled) {
 		mpvArgs.push('--slang=en', '--sub-scale=1.3');
+	}
+
+	const {args: extraArgs, stripped} = sanitizeMpvExtraArgs(
+		options.mpvExtraArgs,
+	);
+	if (stripped.length > 0) {
+		logger.warn(
+			'PlayerService',
+			'Stripped denied mpvExtraArgs that would break IPC',
+			{stripped},
+		);
+	}
+	if (extraArgs.length > 0) {
+		mpvArgs.push(...extraArgs);
 	}
 
 	return mpvArgs;
@@ -188,6 +215,7 @@ class PlayerService {
 	private ipcPath: string | null = null;
 	private currentUrl: string | null = null;
 	private currentVolume = 70;
+	private currentSpeed = 1;
 	private isPlaying = false;
 	private eventCallback: PlayerEventCallback | null = null;
 	private ipcConnectRetries = 0;
@@ -713,6 +741,9 @@ class PlayerService {
 		if (options?.volume !== undefined) {
 			this.currentVolume = options.volume;
 		}
+		if (options?.speed !== undefined) {
+			this.currentSpeed = clampPlaybackSpeed(options.speed);
+		}
 
 		// Pass absolute/file paths through; build YouTube URL from videoId otherwise
 		const playUrl = classifyPlayMedia(url);
@@ -729,12 +760,14 @@ class PlayerService {
 				logger.debug('PlayerService', 'Spawning mpv process with IPC', {
 					url: playUrl,
 					volume: this.currentVolume,
+					speed: this.currentSpeed,
 					ipcPath: this.ipcPath,
 				});
 
 				const config = getConfigService();
 				const mpvArgs = buildMpvArgs(this.ipcPath!, {
 					volume: this.currentVolume,
+					speed: options?.speed ?? this.currentSpeed,
 					audioNormalization: options?.audioNormalization,
 					proxy: options?.proxy ?? config.get('proxy'),
 					cookiesFile: options?.cookiesFile ?? config.get('cookiesFile'),
@@ -749,6 +782,7 @@ class PlayerService {
 						options?.volumeFadeDuration ?? config.get('volumeFadeDuration'),
 					duration: options?.duration,
 					subtitlesEnabled: config.get('subtitlesEnabled'),
+					mpvExtraArgs: options?.mpvExtraArgs ?? config.get('mpvExtraArgs'),
 				});
 
 				// Log the exact mpv command for debugging platform-specific issues
@@ -1023,7 +1057,10 @@ class PlayerService {
 		if (this.currentUrl) {
 			logger.info('PlayerService', 'Resume fallback: restarting track');
 			this.isPlaying = true;
-			void this.play(this.currentUrl, {volume: this.currentVolume});
+			void this.play(this.currentUrl, {
+				volume: this.currentVolume,
+				speed: this.currentSpeed,
+			});
 			return;
 		}
 
@@ -1235,7 +1272,8 @@ class PlayerService {
 	}
 
 	setSpeed(speed: number): void {
-		const clamped = Math.max(0.25, Math.min(4.0, speed));
+		const clamped = clampPlaybackSpeed(speed);
+		this.currentSpeed = clamped;
 		logger.debug('PlayerService', 'setSpeed() called', {speed: clamped});
 		if (this.ipcSocket && !this.ipcSocket.destroyed) {
 			this.sendIpcCommand(['set_property', 'speed', clamped]);

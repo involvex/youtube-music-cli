@@ -124,6 +124,66 @@ test('player-service-mpv-args: buildMpvArgs includes --idle=yes to keep mpv aliv
 	expect(args.some(arg => arg.startsWith('--input-ipc-server'))).toBe(true);
 });
 
+test('player-service-mpv-args: buildMpvArgs forces no window and default speed 1', async () => {
+	const {buildMpvArgs} =
+		await import('../source/services/player/player.service.ts');
+	const args = buildMpvArgs(IPC_PATH, {
+		volume: 55,
+	});
+
+	expect(args.includes('--force-window=no')).toBe(true);
+	expect(args.includes('--speed=1')).toBe(true);
+});
+
+test('player-service-mpv-args: buildMpvArgs honors custom speed', async () => {
+	const {buildMpvArgs} =
+		await import('../source/services/player/player.service.ts');
+	const args = buildMpvArgs(IPC_PATH, {
+		volume: 55,
+		speed: 1.5,
+	});
+
+	expect(args.includes('--speed=1.5')).toBe(true);
+});
+
+test('player-service-mpv-args: buildMpvArgs appends mpvExtraArgs and strips denylist', async () => {
+	const {buildMpvArgs} =
+		await import('../source/services/player/player.service.ts');
+	const args = buildMpvArgs(IPC_PATH, {
+		volume: 55,
+		mpvExtraArgs:
+			'--no-config --audio-device="wasapi/Speakers" --input-ipc-server=/tmp/evil --idle=no',
+	});
+
+	expect(args.includes('--no-config')).toBe(true);
+	expect(args.includes('--audio-device=wasapi/Speakers')).toBe(true);
+	expect(args.includes('--input-ipc-server=/tmp/evil')).toBe(false);
+	expect(args.includes('--idle=no')).toBe(false);
+	expect(args.includes('--idle=yes')).toBe(true);
+	expect(args.includes(`--input-ipc-server=${IPC_PATH}`)).toBe(true);
+});
+
+test('mpv-extra-args: parseMpvExtraArgs handles quotes and spaces', async () => {
+	const {parseMpvExtraArgs, sanitizeMpvExtraArgs} =
+		await import('../source/utils/mpv-extra-args.ts');
+
+	expect(parseMpvExtraArgs(`--ao=pulse --file='/path with spaces'`)).toEqual([
+		'--ao=pulse',
+		'--file=/path with spaces',
+	]);
+
+	const sanitized = sanitizeMpvExtraArgs(
+		'--no-config --idle no --input-ipc-server /tmp/x',
+	);
+	expect(sanitized.args).toEqual(['--no-config']);
+	expect(sanitized.stripped).toEqual([
+		'--idle',
+		'no',
+		'--input-ipc-server',
+		'/tmp/x',
+	]);
+});
+
 test('player-service-mpv-args: connectToMpvIpc throws on invalid path instead of passing null', async () => {
 	const {connectToMpvIpc} =
 		await import('../source/services/player/player.service.ts');

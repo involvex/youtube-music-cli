@@ -114,6 +114,16 @@ Selects a preconfigured mpv equalizer stack (`flat`, `bass_boost`, `vocal`, `bri
 
 **Default:** `flat`
 
+### mpvExtraArgs
+
+Optional space-separated mpv CLI flags appended on spawn (quotes supported). Use this when your `mpv.conf` interferes or you need flags like `--no-config`. YMC already sets `--no-video`, `--force-window=no`, and `--speed`.
+
+**Default:** unset
+
+**Example:** `"--no-config"`
+
+Flags that would break IPC (`--input-ipc-server`, disabling idle) are stripped. Changes apply on the next track spawn. Not available via the web companion.
+
 ## Search Filters (TUI)
 
 Use the Search view's filter shortcuts to narrow down results:

@@ -67,6 +67,11 @@ export interface Config {
 	downloadFormat?: DownloadFormat;
 	/** Prefer on-disk downloads over YouTube when a local file exists (default true). */
 	preferLocalPlayback?: boolean;
+	/**
+	 * Extra mpv CLI args (space-separated, quotes supported).
+	 * Applied on next spawn. Advanced — conflicting flags can break playback.
+	 */
+	mpvExtraArgs?: string;
 	/** Show network status indicator in UI (default true). */
 	showNetworkStatus?: boolean;
 	subtitlesEnabled?: boolean;
