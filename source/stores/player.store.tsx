@@ -20,8 +20,10 @@ import {
 } from '../services/player-state/player-state.service.ts';
 import {logger} from '../services/logger/logger.service.ts';
 import {
+	ADVANCE_GRACE_MS,
 	PLAYBACK_STALL_MS,
 	shouldApplyMpvPauseSync,
+	shouldDebounceAdvance,
 } from '../services/player/mpv-event-policy.ts';
 import {
 	buildAutoplaySeedPlan,
@@ -540,10 +542,35 @@ function PlayerManager() {
 	const lastProgressAtRef = useRef(0);
 	const ipcReconnectAttemptRef = useRef(0);
 	const loadingStartedAtRef = useRef(0);
+	const isAdvancingRef = useRef(false);
+	const advanceGraceUntilRef = useRef(0);
+	const waitingForAutoplayAtQueueEndRef = useRef(false);
+	const isFetchingAutoplayRef = useRef(false);
+	const autoplayEnabledRef = useRef(state.autoplay);
+	const queueLengthRef = useRef(state.queue.length);
+	const queuePositionRef = useRef(state.queuePosition);
+
+	const beginAdvanceGrace = (): void => {
+		advanceGraceUntilRef.current = Date.now() + ADVANCE_GRACE_MS;
+	};
+
+	const clearAdvanceGrace = (): void => {
+		advanceGraceUntilRef.current = 0;
+		isAdvancingRef.current = false;
+	};
 
 	useEffect(() => {
 		playbackModeRef.current = state.playbackMode;
 	}, [state.playbackMode]);
+
+	useEffect(() => {
+		autoplayEnabledRef.current = state.autoplay;
+	}, [state.autoplay]);
+
+	useEffect(() => {
+		queueLengthRef.current = state.queue.length;
+		queuePositionRef.current = state.queuePosition;
+	}, [state.queue.length, state.queuePosition]);
 
 	useEffect(() => {
 		isPlayingRef.current = state.isPlaying;
@@ -613,6 +640,14 @@ function PlayerManager() {
 			if (event.timePos !== undefined) {
 				hasProgress = true;
 				lastProgressAtRef.current = Date.now();
+				if (event.timePos > 0) {
+					if (loadingStartedAtRef.current > 0) {
+						loadingStartedAtRef.current = 0;
+					}
+					if (advanceGraceUntilRef.current > 0) {
+						clearAdvanceGrace();
+					}
+				}
 				// Throttle progress updates to reduce re-renders
 				const now = Date.now();
 				if (now - lastProgressUpdate >= PROGRESS_THROTTLE_MS) {
@@ -630,12 +665,26 @@ function PlayerManager() {
 				eofTimestampRef.current = now;
 
 				if (hasProgress) {
-					// Track ended normally — advance to next track
+					if (shouldDebounceAdvance(lastAutoNextRef.current, now)) {
+						return;
+					}
+
+					const atQueueEnd =
+						queueLengthRef.current > 0 &&
+						queuePositionRef.current >= queueLengthRef.current - 1;
+
+					if (atQueueEnd && autoplayEnabledRef.current) {
+						waitingForAutoplayAtQueueEndRef.current = true;
+						beginAdvanceGrace();
+					} else {
+						waitingForAutoplayAtQueueEndRef.current = false;
+						isAdvancingRef.current = true;
+						beginAdvanceGrace();
+					}
+
 					next();
 					lastAutoNextRef.current = now;
 				} else {
-					// No progress received — track was unavailable or failed to play.
-					// Set error instead of looping infinitely.
 					logger.warn(
 						'PlayerManager',
 						'EOF without progress — track may be unavailable',
@@ -653,10 +702,19 @@ function PlayerManager() {
 			}
 
 			if (event.paused !== undefined) {
+				if (waitingForAutoplayAtQueueEndRef.current && event.paused) {
+					return;
+				}
+
 				if (
 					!shouldApplyMpvPauseSync({
 						paused: event.paused,
+						isAdvancing: isAdvancingRef.current,
 						eofTimestamp: eofTimestampRef.current,
+						advanceGraceUntil: advanceGraceUntilRef.current,
+						isFetchingAutoplay: isFetchingAutoplayRef.current,
+						waitingForAutoplayAtQueueEnd:
+							waitingForAutoplayAtQueueEndRef.current,
 						loadingStartedAt: loadingStartedAtRef.current,
 					})
 				) {
@@ -843,6 +901,8 @@ function PlayerManager() {
 
 			dispatch({category: 'SET_LOADING', loading: true});
 			loadingStartedAtRef.current = Date.now();
+			isAdvancingRef.current = true;
+			beginAdvanceGrace();
 
 			const MAX_RETRIES = 3;
 			const RETRY_DELAY_MS = 1500;
@@ -917,7 +977,8 @@ function PlayerManager() {
 						source: resolved.source,
 					});
 					dispatch({category: 'SET_LOADING', loading: false});
-					loadingStartedAtRef.current = 0;
+					// Keep loadingStartedAt until first timePos > 0 so buffering
+					// pause=true events after play() resolves are still suppressed.
 					return; // Success
 				} catch (error) {
 					logger.error('PlayerManager', 'Failed to load track', {
@@ -1221,13 +1282,15 @@ function PlayerManager() {
 		}
 
 		const now = Date.now();
-		if (now - lastAutoNextRef.current < 1500) {
+		if (shouldDebounceAdvance(lastAutoNextRef.current, now)) {
 			return;
 		}
 
 		if (!autoAdvanceRef.current) {
 			autoAdvanceRef.current = true;
 			lastAutoNextRef.current = now;
+			isAdvancingRef.current = true;
+			beginAdvanceGrace();
 			dispatch({category: 'NEXT'});
 		}
 	}, [
@@ -1243,7 +1306,6 @@ function PlayerManager() {
 
 	// Smart autoplay: fetch suggestions when near end of queue
 	const fetchedForRef = useRef<string | null>(null);
-	const isFetchingAutoplayRef = useRef(false);
 	const lastAutoplayFetchRef = useRef<number>(0);
 	const AUTOPLAY_FETCH_COOLDOWN_MS = 2000;
 
@@ -1273,6 +1335,7 @@ function PlayerManager() {
 			!shouldPrefetchAutoplay(autoplayState, {
 				fetchedForVideoId: fetchedForRef.current,
 				isFetching: isFetchingAutoplayRef.current,
+				waitingAtQueueEnd: waitingForAutoplayAtQueueEndRef.current,
 			})
 		) {
 			return;
@@ -1327,6 +1390,7 @@ function PlayerManager() {
 			}
 
 			if (tracksToAdd.length > 0) {
+				waitingForAutoplayAtQueueEndRef.current = false;
 				logger.info(
 					state.radioIsActive ? 'Radio' : 'Autoplay',
 					state.radioIsActive
@@ -1354,6 +1418,8 @@ function PlayerManager() {
 							duration: durationBefore,
 						},
 					);
+					isAdvancingRef.current = true;
+					beginAdvanceGrace();
 					dispatch({category: 'NEXT'});
 				}
 			} else {

@@ -30,7 +30,7 @@ test('player-service-mpv-args: buildMpvArgs adds normalization filters and enabl
 	expect(filterArg?.includes('acrossfade')).toBe(false);
 	expect(filterArg?.includes('dynaudnorm')).toBe(true);
 	expect(filterArg?.includes('afade=t=in')).toBe(true);
-	expect(filterArg?.includes('afade=t=out')).toBe(true);
+	expect(filterArg?.includes('afade=t=out')).toBe(false);
 	expect(args.includes('--gapless-audio=yes')).toBe(true);
 });
 

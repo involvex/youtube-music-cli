@@ -61,12 +61,10 @@ export function buildMpvArgs(
 		audioFilters.push('dynaudnorm');
 	}
 
+	// Fade-in only at spawn. Catalog/API duration often differs from the real
+	// yt-dlp stream length, so afade-out here can silence audio early.
 	if (fadeDuration > 0) {
 		audioFilters.push(`afade=t=in:st=0:d=${fadeDuration}`);
-		if (options.duration !== undefined && options.duration > 0) {
-			const st = Math.max(0, options.duration - fadeDuration);
-			audioFilters.push(`afade=t=out:st=${st}:d=${fadeDuration}`);
-		}
 	}
 
 	// mpv's `acrossfade` filter needs two inputs and cannot be set globally on
@@ -808,6 +806,7 @@ class PlayerService {
 
 				this.isPlaying = true;
 				let isResolved = false;
+				let playbackStarted = false;
 				let mpvStderr = '';
 
 				const isStalePlay = () => playGeneration !== this.playGeneration;
@@ -815,6 +814,7 @@ class PlayerService {
 				const handleSuccess = () => {
 					if (!isResolved && !isStalePlay()) {
 						isResolved = true;
+						playbackStarted = true;
 						resolve();
 					}
 				};
@@ -916,8 +916,18 @@ class PlayerService {
 						this.mpvProcess = null;
 					}
 
+					// With --idle=yes, mpv should not exit after a track. An exit
+					// after IPC connect is unexpected — notify so UI can recover.
+					if (playbackStarted) {
+						logger.warn(
+							'PlayerService',
+							'mpv exited after playback started — notifying UI',
+							{code, signal},
+						);
+						this.eventCallback?.({ipcDisconnected: true});
+					}
+
 					if (code === 0) {
-						// Normal exit (track finished)
 						handleSuccess();
 					} else if (code !== null && code > 0) {
 						logger.error('PlayerService', 'mpv exited with non-zero code', {
@@ -928,7 +938,6 @@ class PlayerService {
 						const stderrHint = mpvStderr ? `: ${mpvStderr}` : '';
 						handleError(new Error(`mpv exited with code ${code}${stderrHint}`));
 					}
-					// If killed by signal, don't reject (user stopped it)
 				});
 
 				// Handle errors — same guard
@@ -989,11 +998,12 @@ class PlayerService {
 				return;
 			}
 
+			// Leave orphan mpv running — killing it turns a transient IPC blip
+			// into a hard stop. UI can show a soft error and retry.
 			logger.warn(
 				'PlayerService',
-				'pause() could not reach orphan mpv — stopping process',
+				'pause() could not reach orphan mpv — leaving process running',
 			);
-			this.stop();
 		}
 	}
 
@@ -1096,16 +1106,14 @@ class PlayerService {
 			return this.ipcReconnectInFlight;
 		}
 
-		// Carry current URL if exists
-		const urlToLoad = this.currentUrl;
-
 		this.ipcReconnectInFlight = (async () => {
 			try {
 				logger.info('PlayerService', 'Attempting IPC reconnect', {
 					ipcPath: this.ipcPath,
-					url: urlToLoad ? `${urlToLoad.substring(0, 100)}...` : null,
 				});
-				await this.connectIpc(urlToLoad ?? undefined);
+				// Observe properties only — never loadfile on reconnect (that
+				// restarts the track and feels like a random stop on Windows).
+				await this.connectIpc();
 				logger.info('PlayerService', 'IPC reconnect succeeded');
 				return true;
 			} catch (error) {

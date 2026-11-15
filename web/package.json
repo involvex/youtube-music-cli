@@ -10,15 +10,15 @@
 		"typecheck": "bun check"
 	},
 	"dependencies": {
-		"lucide-react": "^1.66.0",
+		"lucide-react": "^1.73.0",
 		"react": "19.3.1",
 		"react-dom": "19.3.1",
-		"zustand": "^5.0.16"
+		"zustand": "^5.1.0"
 	},
 	"devDependencies": {
 		"@types/react-dom": "^19.3.0",
-		"@vitejs/plugin-react": "^6.2.1",
+		"@vitejs/plugin-react": "^6.3.0",
 		"typescript": "^6.0.3",
-		"vite": "^8.3.5"
+		"vite": "^8.3.8"
 	}
 }

@@ -34,28 +34,48 @@ async function startFakeMpv() {
 		ipcPath = join(dir, 'mpv.sock');
 	}
 
+	const commands = [];
+	const sockets = [];
+	let resolveNextConnection;
+	let nextConnection = new Promise(resolve => {
+		resolveNextConnection = resolve;
+	});
+
 	const server = createServer(socket => {
-		socket.on('data', () => {});
+		sockets.push(socket);
+		socket.on('data', data => {
+			commands.push(String(data));
+		});
 		socket.on('error', () => {});
+		resolveNextConnection(socket);
+		nextConnection = new Promise(resolve => {
+			resolveNextConnection = resolve;
+		});
 	});
 	const connected = new Promise(resolve => server.once('connection', resolve));
 	await new Promise(resolve => server.listen(ipcPath, resolve));
 	teardowns.push(() => server.close());
 
-	return {ipcPath, connected};
+	return {
+		ipcPath,
+		connected,
+		commands,
+		sockets,
+		waitForNextConnection: () => nextConnection,
+	};
 }
 
-async function attachPlayer() {
+async function attachPlayer(options = {}) {
 	const {getPlayerService} =
 		await import('../source/services/player/player.service.ts');
 	const player = getPlayerService();
 	const fake = await startFakeMpv();
 	const events = [];
 	player.onEvent(event => events.push(event));
-	await player.reattach(fake.ipcPath);
+	await player.reattach(fake.ipcPath, options);
 	teardowns.push(() => player.stop());
 	const socket = await fake.connected;
-	return {socket, events};
+	return {socket, events, player, fake};
 }
 
 test('player IPC: end-file eof is reported even when split across chunks', async () => {
@@ -102,4 +122,51 @@ test('player IPC: multi-byte UTF-8 split across chunks is decoded intact', async
 	expect(events.find(event => event.subtitle !== undefined).subtitle).toBe(
 		text,
 	);
+});
+
+test('player IPC: tryReconnectIpc does not loadfile when a currentUrl is set', async () => {
+	const {socket, player, fake} = await attachPlayer({
+		currentUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+	});
+
+	const reconnectSocketPromise = fake.waitForNextConnection();
+	socket.destroy();
+	await delay(50);
+
+	const ok = await player.tryReconnectIpc();
+	expect(ok).toBe(true);
+
+	const reconnectSocket = await reconnectSocketPromise;
+	await delay(50);
+
+	const payload = fake.commands.join('');
+	expect(payload.includes('loadfile')).toBe(false);
+	expect(payload.includes('observe_property')).toBe(true);
+	expect(reconnectSocket.destroyed).toBe(false);
+});
+
+test('player IPC: pause() leaves orphan mpv running when reconnect fails', async () => {
+	const {getPlayerService} =
+		await import('../source/services/player/player.service.ts');
+	const player = getPlayerService();
+	teardowns.push(() => player.stop());
+
+	let stopCalls = 0;
+	const originalStop = player.stop.bind(player);
+	player.stop = (...args) => {
+		stopCalls++;
+		return originalStop(...args);
+	};
+
+	player.mpvProcess = {killed: false, pid: 1};
+	player.ipcPath =
+		process.platform === 'win32'
+			? `\\\\.\\pipe\\ymc-missing-${process.pid}-${Date.now()}`
+			: join(tmpdir(), `ymc-missing-${process.pid}-${Date.now()}.sock`);
+
+	await player.pause();
+
+	expect(stopCalls).toBe(0);
+	expect(player.hasMpvProcess()).toBe(true);
+	player.mpvProcess = null;
 });

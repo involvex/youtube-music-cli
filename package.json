@@ -89,14 +89,14 @@
 		"play-sound": "^1.1.6",
 		"react": "19.3.1",
 		"string-width": "^8.3.0",
-		"ws": "^8.22.1",
+		"ws": "^8.23.0",
 		"yaml": "^2.9.1",
 		"youtubei.js": "^18.3.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@sindresorhus/tsconfig": "^8.1.0",
-		"@tsconfig/bun": "^1.0.11",
+		"@tsconfig/bun": "^1.0.12",
 		"@types/bun": "^1.4.4",
 		"@types/node": "^26.2.0",
 		"@types/react": "^19.3.0",
@@ -105,13 +105,13 @@
 		"bun-types": "^1.4.4",
 		"chalk": "^6.0.0",
 		"conventional-changelog-cli": "^5.0.0",
-		"eslint": "10.14.0",
+		"eslint": "^10.15.0",
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^7.1.1",
 		"globals": "^17.11.0",
 		"ink-testing-library": "^4.0.0",
 		"jiti": "^2.7.0",
-		"prettier": "^3.9.9",
+		"prettier": "^3.10.1",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-packagejson": "^3.1.0",
 		"prettier-plugin-sort-imports": "^1.8.11",
@@ -119,7 +119,7 @@
 		"rimraf": "^6.1.3",
 		"tsx": "^4.23.15",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "8.72.1"
+		"typescript-eslint": "^8.72.2"
 	},
 	"engines": {
 		"node": ">=18.0"
