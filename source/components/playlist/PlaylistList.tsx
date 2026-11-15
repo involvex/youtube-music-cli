@@ -4,18 +4,21 @@ import TextInput from 'ink-text-input';
 import {useCallback, useState} from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
+import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {usePlayer} from '../../hooks/usePlayer.ts';
 import {usePlaylist} from '../../hooks/usePlaylist.ts';
+import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
-import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
 import {getDownloadService} from '../../services/download/download.service.ts';
 import {formatDownloadProgress} from '../../utils/download-progress.ts';
+import {truncate} from '../../utils/format.ts';
+import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 
 export default function PlaylistList() {
 	const {theme} = useTheme();
 	const {play, setQueue, startRadio} = usePlayer();
 	const {dispatch} = useNavigation();
+	const {columns, rows} = useTerminalSize();
 	const downloadService = getDownloadService();
 	const {playlists, createPlaylist, renamePlaylist, deletePlaylist} =
 		usePlaylist();
@@ -179,46 +182,60 @@ export default function PlaylistList() {
 		void handleDownload();
 	});
 
+	const maxVisible = Math.max(5, rows - 14);
+	const start = Math.max(
+		0,
+		Math.min(
+			selectedIndex - Math.floor(maxVisible / 2),
+			Math.max(0, playlists.length - maxVisible),
+		),
+	);
+	const indexWidth = String(playlists.length).length;
+	const nameWidth = Math.max(12, columns - indexWidth - 18);
+
 	return (
-		<Box flexDirection="column" gap={1}>
-			{/* Header */}
-			<Box
-				borderStyle="double"
-				borderColor={theme.colors.secondary}
-				paddingX={1}
-				marginBottom={1}
-			>
+		<Box flexDirection="column" flexGrow={1} paddingX={1}>
+			<Box marginBottom={1}>
 				<Text bold color={theme.colors.primary}>
-					Playlists
+					Playlists ({playlists.length})
 				</Text>
 			</Box>
 
-			{/* Playlist entries */}
 			{playlists.length === 0 ? (
 				<Text color={theme.colors.dim}>No playlists yet</Text>
 			) : (
-				playlists.map((playlist, index) => {
-					const isSelected = index === selectedIndex;
-					const isRenaming =
-						renamingPlaylistId === playlist.playlistId && isSelected;
-					const rowBackground = isSelected ? theme.colors.secondary : undefined;
+				<Box
+					flexDirection="column"
+					height={maxVisible}
+					overflow="hidden"
+					contentOffsetY={start}
+					flexShrink={0}
+				>
+					{playlists.map((playlist, index) => {
+						const isSelected = index === selectedIndex;
+						const isRenaming =
+							renamingPlaylistId === playlist.playlistId && isSelected;
+						const rowBackground = isSelected
+							? theme.colors.secondary
+							: undefined;
+						const trackLabel = `(${playlist.tracks.length} tracks)`;
 
-					return (
-						<Box
-							key={playlist.playlistId}
-							paddingX={1}
-							backgroundColor={rowBackground}
-						>
-							<Text
-								color={
-									isSelected ? theme.colors.background : theme.colors.primary
-								}
-								bold={isSelected}
+						return (
+							<Box
+								key={playlist.playlistId}
+								paddingX={1}
+								backgroundColor={rowBackground}
+								flexShrink={0}
 							>
-								{index + 1}.
-							</Text>
-							<Text> </Text>
-							<Box flexDirection="column">
+								<Text
+									color={
+										isSelected ? theme.colors.background : theme.colors.primary
+									}
+									bold={isSelected}
+								>
+									{String(index + 1).padStart(indexWidth)}.
+								</Text>
+								<Text> </Text>
 								{isRenaming ? (
 									<TextInput
 										value={renameValue}
@@ -234,20 +251,24 @@ export default function PlaylistList() {
 										}
 										bold={isSelected}
 									>
-										{playlist.name}
+										{truncate(playlist.name, nameWidth)}
 									</Text>
 								)}
-								<Text color={theme.colors.dim}>
-									{` (${playlist.tracks.length} tracks)`}
+								<Text
+									color={
+										isSelected ? theme.colors.background : theme.colors.dim
+									}
+								>
+									{' '}
+									{trackLabel}
 								</Text>
 							</Box>
-						</Box>
-					);
-				})
+						);
+					})}
+				</Box>
 			)}
 
-			{/* Instructions */}
-			<Box marginTop={1}>
+			<Box marginTop={1} flexDirection="column">
 				<Text color={theme.colors.dim}>
 					<Text color={theme.colors.text}>Enter</Text> to play |{' '}
 					<Text color={theme.colors.text}>m</Text> radio |{' '}
@@ -258,12 +279,12 @@ export default function PlaylistList() {
 					<Text color={theme.colors.text}>Esc</Text> back
 				</Text>
 				{lastCreated && (
-					<Text color={theme.colors.accent}> Created {lastCreated}</Text>
+					<Text color={theme.colors.accent}>Created {lastCreated}</Text>
 				)}
 				{downloadStatus && (
 					<Text color={theme.colors.accent}>{downloadStatus}</Text>
 				)}
-				{radioStatus && <Text color={theme.colors.accent}> {radioStatus}</Text>}
+				{radioStatus && <Text color={theme.colors.accent}>{radioStatus}</Text>}
 			</Box>
 		</Box>
 	);
