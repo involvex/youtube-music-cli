@@ -1,3 +1,11 @@
+## [0.3.8](https://github.com/involvex/youtube-music-cli/compare/v0.3.7...v0.3.8) (2026-11-15)
+
+### Bug Fixes
+
+- **ci:** prefer scoop workflow_dispatch tag over ref_name ([e9bbe9a](https://github.com/involvex/youtube-music-cli/commit/e9bbe9adbdc4abaec89b1c49809f550a90925905))
+- **ci:** wait for both scoop release assets before publishing ([4bee833](https://github.com/involvex/youtube-music-cli/commit/4bee83316f1c5041d3a73d3b60d66b22a8a1b1ab))
+- prevent random playback stops on IPC reconnect ([8159b17](https://github.com/involvex/youtube-music-cli/commit/8159b17636ca6463e23456eb7b23496ed1d374ec))
+
 ## [0.3.7](https://github.com/involvex/youtube-music-cli/compare/v0.3.6...v0.3.7) (2026-11-02)
 
 ### Bug Fixes
