@@ -1,3 +1,9 @@
+## [0.3.9](https://github.com/involvex/youtube-music-cli/compare/v0.3.8...v0.3.9) (2026-11-16)
+
+### Features
+
+- add history-based Smart Playlists for Ink, immersive, and CLI ([#83](https://github.com/involvex/youtube-music-cli/issues/83)) ([1b22de6](https://github.com/involvex/youtube-music-cli/commit/1b22de63c86a1d6eb00648fe28bddb875d2da6a6))
+
 ## [0.3.8](https://github.com/involvex/youtube-music-cli/compare/v0.3.7...v0.3.8) (2026-11-15)
 
 ### Bug Fixes
