@@ -1617,22 +1617,29 @@ function renderNowPlaying(
 	y += 1;
 
 	const statusText = state.isPlaying ? '▶  PLAYING' : '⏸  PAUSED';
+	fb.setText(innerX, y, truncateText(statusText, maxTextW), accent, null, {
+		bold: true,
+	});
 	const modeTags: string[] = [];
 	if (state.shuffle) {
-		modeTags.push('SHF');
+		modeTags.push('⇄• SHF');
 	}
 	if (state.repeat !== 'off') {
-		modeTags.push(state.repeat === 'all' ? 'RPT ALL' : 'RPT ONE');
+		modeTags.push(state.repeat === 'all' ? '↻• RPT ALL' : '↺• RPT ONE');
 	}
-	const statusSuffix = modeTags.length > 0 ? `  ${modeTags.join(' ')}` : '';
-	fb.setText(
-		innerX,
-		y,
-		truncateText(`${statusText}${statusSuffix}`, maxTextW),
-		accent,
-		null,
-		{bold: true},
-	);
+	if (state.autoplay) {
+		modeTags.push('∞• AP');
+	}
+	if (modeTags.length > 0) {
+		const tagStart = innerX + statusText.length + 2;
+		const tagBudget = Math.max(0, maxTextW - statusText.length - 2);
+		const tagsText = truncateText(modeTags.join('  '), tagBudget);
+		if (tagsText.length > 0 && tagBudget > 0) {
+			// Bright accent on dark chip — Spotify-style “active” contrast.
+			const chipBg: RGB = [0, 0, 0];
+			fb.setText(tagStart, y, tagsText, accent, chipBg, {bold: true});
+		}
+	}
 	y += 1;
 
 	if (showProgress) {

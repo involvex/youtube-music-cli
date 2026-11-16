@@ -70,7 +70,7 @@ export const BUILTIN_THEMES: Record<string, Theme> = {
 			background: 'black',
 			text: 'white',
 			accent: 'greenBright',
-			dim: 'green',
+			dim: 'gray',
 			error: 'red',
 			success: 'greenBright',
 			warning: 'yellow',

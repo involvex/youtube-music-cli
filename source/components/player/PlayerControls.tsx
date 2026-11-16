@@ -196,10 +196,14 @@ export default function PlayerControls() {
 
 				{/* Shuffle indicator */}
 				<Text
-					color={playerState.shuffle ? theme.colors.primary : theme.colors.dim}
+					color={playerState.shuffle ? theme.colors.accent : theme.colors.dim}
+					bold={playerState.shuffle}
+					dimColor={!playerState.shuffle}
 				>
 					[<Text color={theme.colors.dim}>Shift+S</Text>]{' '}
-					{playerState.shuffle ? `${ICONS.SHUFFLE} ON` : `${ICONS.SHUFFLE} OFF`}
+					{playerState.shuffle
+						? `${ICONS.SHUFFLE}• ON`
+						: `${ICONS.SHUFFLE} OFF`}
 				</Text>
 
 				{/* Speed indicator (only shown when not 1.0x) */}

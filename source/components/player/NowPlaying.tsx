@@ -161,7 +161,23 @@ export default function NowPlaying() {
 					<Text color={theme.colors.dim}> {ICONS.PAUSE}</Text>
 				)}
 				{playerState.shuffle && (
-					<Text color={theme.colors.primary}> {ICONS.SHUFFLE}</Text>
+					<Text color={theme.colors.accent} bold>
+						{' '}
+						{ICONS.SHUFFLE}•
+					</Text>
+				)}
+				{playerState.repeat !== 'off' && (
+					<Text color={theme.colors.accent} bold>
+						{' '}
+						{playerState.repeat === 'one' ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL}
+						•
+					</Text>
+				)}
+				{playerState.autoplay && (
+					<Text color={theme.colors.accent} bold>
+						{' '}
+						{ICONS.AUTOPLAY}•
+					</Text>
 				)}
 				{sleepRemaining !== null && (
 					<Text color={theme.colors.warning}>

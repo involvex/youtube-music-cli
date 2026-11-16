@@ -49,6 +49,8 @@ export interface PlayerState {
 	duration: number;
 	queue: Track[];
 	queuePosition: number;
+	/** Shuffled play order (queue indices); null when shuffle is off. */
+	playbackOrder: number[] | null;
 	repeat: 'off' | 'all' | 'one';
 	shuffle: boolean;
 	autoplay: boolean;

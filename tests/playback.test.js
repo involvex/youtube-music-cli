@@ -30,10 +30,14 @@ function makeState(overrides = {}) {
 		duration: 0,
 		queue: [],
 		queuePosition: 0,
+		playbackOrder: null,
 		repeat: 'off',
 		shuffle: false,
+		autoplay: false,
 		isLoading: false,
 		error: null,
+		playRequestId: 0,
+		explicitQueueLength: 0,
 		...overrides,
 	};
 }
@@ -45,16 +49,29 @@ function makeTrack(id) {
 
 test('TOGGLE_SHUFFLE flips shuffle from false to true', async () => {
 	const {playerReducer} = await import('../source/stores/player.store.tsx');
-	const state = makeState({shuffle: false});
+	const tracks = ['a', 'b', 'c'].map(makeTrack);
+	const state = makeState({
+		shuffle: false,
+		queue: tracks,
+		queuePosition: 1,
+		currentTrack: tracks[1],
+	});
 	const next = playerReducer(state, {category: 'TOGGLE_SHUFFLE'});
 	expect(next.shuffle).toBe(true);
+	expect(next.playbackOrder).toBeTruthy();
+	expect(next.playbackOrder?.[0]).toBe(1);
 });
 
 test('TOGGLE_SHUFFLE flips shuffle from true to false', async () => {
 	const {playerReducer} = await import('../source/stores/player.store.tsx');
-	const state = makeState({shuffle: true});
+	const state = makeState({
+		shuffle: true,
+		playbackOrder: [0, 2, 1],
+		queue: ['a', 'b', 'c'].map(makeTrack),
+	});
 	const next = playerReducer(state, {category: 'TOGGLE_SHUFFLE'});
 	expect(next.shuffle).toBe(false);
+	expect(next.playbackOrder).toBe(null);
 });
 
 test('PLAY_NEXT inserts track after current queue position', async () => {
@@ -103,26 +120,30 @@ test('NEXT with shuffle=true and single-track queue falls through sequentially (
 	expect(next.queuePosition).toBe(0); // position unchanged
 });
 
-test('NEXT with shuffle=true and multi-track queue returns a different position', async () => {
+test('NEXT with shuffle follows playbackOrder and stops at end', async () => {
 	const {playerReducer} = await import('../source/stores/player.store.tsx');
-	const tracks = ['a', 'b', 'c', 'd', 'e'].map(makeTrack);
+	const tracks = ['a', 'b', 'c'].map(makeTrack);
 	const state = makeState({
 		shuffle: true,
+		autoplay: false,
+		repeat: 'off',
 		queue: tracks,
-		queuePosition: 2,
-		currentTrack: tracks[2],
+		queuePosition: 1,
+		currentTrack: tracks[1],
+		playbackOrder: [1, 0, 2],
 	});
 
-	// Run many times to verify we never stay at position 2
-	for (let i = 0; i < 20; i++) {
-		const next = playerReducer(state, {category: 'NEXT'});
-		expect(next.queuePosition).not.toBe(2);
-		expect(
-			next.queuePosition >= 0 && next.queuePosition < tracks.length,
-			'new position must be in valid range',
-		).toBe(true);
-		expect(next.progress).toBe(0);
-	}
+	const mid = playerReducer(state, {category: 'NEXT'});
+	expect(mid.queuePosition).toBe(0);
+	expect(mid.currentTrack?.videoId).toBe('a');
+
+	const last = playerReducer(mid, {category: 'NEXT'});
+	expect(last.queuePosition).toBe(2);
+	expect(last.currentTrack?.videoId).toBe('c');
+
+	const stopped = playerReducer(last, {category: 'NEXT'});
+	expect(stopped.queuePosition).toBe(2);
+	expect(stopped.playRequestId).toBe(last.playRequestId);
 });
 
 test('NEXT with shuffle=false uses sequential order', async () => {
@@ -139,7 +160,7 @@ test('NEXT with shuffle=false uses sequential order', async () => {
 	expect(next.currentTrack?.videoId).toBe('c');
 });
 
-test('PREVIOUS is unaffected by shuffle state', async () => {
+test('PREVIOUS follows playbackOrder when shuffle is on', async () => {
 	const {playerReducer} = await import('../source/stores/player.store.tsx');
 	const tracks = ['a', 'b', 'c'].map(makeTrack);
 	const state = makeState({
@@ -148,27 +169,44 @@ test('PREVIOUS is unaffected by shuffle state', async () => {
 		queuePosition: 2,
 		currentTrack: tracks[2],
 		progress: 0,
+		playbackOrder: [0, 2, 1],
 	});
 	const next = playerReducer(state, {category: 'PREVIOUS'});
-	expect(next.queuePosition).toBe(1); // always goes to sequential previous
-	expect(next.currentTrack?.videoId).toBe('b');
+	expect(next.queuePosition).toBe(0);
+	expect(next.currentTrack?.videoId).toBe('a');
 });
 
-test('NEXT with shuffle=true wraps with repeat=all using random pick', async () => {
+test('NEXT with shuffle + repeat=all wraps playbackOrder', async () => {
 	const {playerReducer} = await import('../source/stores/player.store.tsx');
 	const tracks = ['a', 'b', 'c'].map(makeTrack);
 	const state = makeState({
 		shuffle: true,
+		autoplay: false,
 		queue: tracks,
-		queuePosition: 0,
-		currentTrack: tracks[0],
+		queuePosition: 1,
+		currentTrack: tracks[1],
 		repeat: 'all',
+		playbackOrder: [0, 2, 1],
 	});
-	// Shuffle is active and queue has 3 tracks — should always return a position != 0
-	for (let i = 0; i < 10; i++) {
-		const next = playerReducer(state, {category: 'NEXT'});
-		expect(next.queuePosition).not.toBe(0);
-	}
+	const next = playerReducer(state, {category: 'NEXT'});
+	expect(next.queuePosition).toBe(0);
+	expect(next.currentTrack?.videoId).toBe('a');
+});
+
+test('NEXT with repeat=all and shuffle off loops to start', async () => {
+	const {playerReducer} = await import('../source/stores/player.store.tsx');
+	const tracks = ['a', 'b', 'c'].map(makeTrack);
+	const state = makeState({
+		shuffle: false,
+		autoplay: false,
+		repeat: 'all',
+		queue: tracks,
+		queuePosition: 2,
+		currentTrack: tracks[2],
+	});
+	const next = playerReducer(state, {category: 'NEXT'});
+	expect(next.queuePosition).toBe(0);
+	expect(next.currentTrack?.videoId).toBe('a');
 });
 
 // ── RESTORE_STATE / --continue tests ──────────────────────────────────────────

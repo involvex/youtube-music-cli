@@ -10,6 +10,7 @@ import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 import {ICONS} from '../../utils/icons.ts';
 import {logger} from '../../services/logger/logger.service.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
+import PlaybackModeIcon from './PlaybackModeIcon.tsx';
 
 const FLASH_DURATION_MS = 300;
 
@@ -117,33 +118,18 @@ export default function ShortcutsBar() {
 	});
 	// Note: SETTINGS keybinding handled by MainLayout to avoid double-dispatch
 
-	const shuffleColor = flashState['shuffle']
-		? theme.colors.success
-		: playerState.shuffle
-			? theme.colors.primary
-			: theme.colors.dim;
-
-	const repeatColor = flashState['repeat']
-		? theme.colors.success
-		: playerState.repeat !== 'off'
-			? theme.colors.secondary
-			: theme.colors.dim;
-
 	const volumeColor = flashState['volume']
 		? theme.colors.success
 		: theme.colors.primary;
 
-	const autoplayColor = flashState['autoplay']
-		? theme.colors.success
-		: playerState.autoplay
-			? theme.colors.primary
-			: theme.colors.dim;
-
 	const radioColor = flashState['radio']
 		? theme.colors.success
 		: playerState.radioIsActive
-			? theme.colors.primary
+			? theme.colors.accent
 			: theme.colors.dim;
+
+	const repeatIcon =
+		playerState.repeat === 'one' ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL;
 
 	const llmEnabled = getConfigService().getLLMEnabled();
 
@@ -161,14 +147,35 @@ export default function ShortcutsBar() {
 				</Text>{' '}
 				• <Text color={shortcutColor('prev')}>{ICONS.PREV} [B]</Text> •{' '}
 				<Text color={shortcutColor('next')}>{ICONS.NEXT} [N]</Text> •{' '}
-				<Text color={shuffleColor}>{ICONS.SHUFFLE} [Sft+S]</Text> •{' '}
-				<Text color={repeatColor}>
-					{playerState.repeat === 'one' ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL}{' '}
-					[R]
+				<PlaybackModeIcon
+					icon={ICONS.SHUFFLE}
+					active={playerState.shuffle}
+					flash={Boolean(flashState['shuffle'])}
+					label="[Sft+S]"
+				/>{' '}
+				•{' '}
+				<PlaybackModeIcon
+					icon={repeatIcon}
+					active={playerState.repeat !== 'off'}
+					flash={Boolean(flashState['repeat'])}
+					label="[R]"
+				/>{' '}
+				•{' '}
+				<PlaybackModeIcon
+					icon={ICONS.AUTOPLAY}
+					active={playerState.autoplay}
+					flash={Boolean(flashState['autoplay'])}
+					label="[Sft+A]"
+				/>{' '}
+				•{' '}
+				<Text
+					color={radioColor}
+					bold={playerState.radioIsActive || Boolean(flashState['radio'])}
+					dimColor={!playerState.radioIsActive && !flashState['radio']}
+				>
+					📡{playerState.radioIsActive ? '•' : ''} [Shift+X]
 				</Text>{' '}
-				• <Text color={autoplayColor}>{ICONS.AUTOPLAY} [Sft+A]</Text> •{' '}
-				<Text color={shortcutColor('radio')}>📡 [Shift+X]</Text> •{' '}
-				<Text color={theme.colors.text}>Releases [Sft+N]</Text> •{' '}
+				• <Text color={theme.colors.text}>Releases [Sft+N]</Text> •{' '}
 				<Text color={theme.colors.text}>Genres [Sft+M]</Text> •{' '}
 				<Text color={theme.colors.text}>{ICONS.SEARCH} [/]</Text> •{' '}
 				<Text color={theme.colors.text}>{ICONS.HELP} [?]</Text>
@@ -181,14 +188,28 @@ export default function ShortcutsBar() {
 				)}
 			</Text>
 
-			{/* Right: Playback mode + volume indicator */}
+			{/* Right: Active playback modes + volume */}
 			<Text color={theme.colors.text}>
-				<Text color={shuffleColor}>{ICONS.SHUFFLE}</Text>{' '}
-				<Text color={repeatColor}>
-					{playerState.repeat === 'one' ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL}
-				</Text>{' '}
-				<Text color={autoplayColor}>{ICONS.AUTOPLAY}</Text>{' '}
-				{playerState.radioIsActive && <Text color={radioColor}>📡</Text>}{' '}
+				{playerState.shuffle && (
+					<>
+						<PlaybackModeIcon icon={ICONS.SHUFFLE} active />{' '}
+					</>
+				)}
+				{playerState.repeat !== 'off' && (
+					<>
+						<PlaybackModeIcon icon={repeatIcon} active />{' '}
+					</>
+				)}
+				{playerState.autoplay && (
+					<>
+						<PlaybackModeIcon icon={ICONS.AUTOPLAY} active />{' '}
+					</>
+				)}
+				{playerState.radioIsActive && (
+					<Text color={theme.colors.accent} bold>
+						📡•{' '}
+					</Text>
+				)}
 				<Text color={theme.colors.dim}>{ICONS.VOLUME} [+/-]</Text>{' '}
 				<Text color={volumeColor}>{playerState.volume}%</Text>
 			</Text>

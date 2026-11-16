@@ -1,4 +1,11 @@
 import {shouldLoopExplicitQueue} from '../../services/player/autoplay-coordinator.ts';
+import {
+	advanceInPlaybackOrder,
+	appendIndexToPlaybackOrder,
+	buildShuffledOrder,
+	previousInPlaybackOrder,
+	resolvePlaybackOrder,
+} from '../../services/player/playback-order.ts';
 import {getConfigService} from '../../services/config/config.service.ts';
 import {resolveTrackPlayUrl} from '../../utils/local-track.ts';
 import type {RadioSeed} from '../../types/radio.types.ts';
@@ -59,40 +66,13 @@ export function createInitialImmersiveState(
 	};
 }
 
-function fisherYatesShuffle(length: number): number[] {
-	const order = Array.from({length}, (_, index) => index);
-	for (let i = order.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[order[i], order[j]] = [order[j]!, order[i]!];
-	}
-	return order;
-}
-
-/** Shuffled queue indices with `startAt` rotated to the front of playback order. */
-export function buildShuffledOrder(length: number, startAt = 0): number[] {
-	if (length <= 1) {
-		return length === 1 ? [0] : [];
-	}
-
-	const order = fisherYatesShuffle(length);
-	const startPos = order.indexOf(startAt);
-	if (startPos <= 0) {
-		return order;
-	}
-
-	return [...order.slice(startPos), ...order.slice(0, startPos)];
-}
+export {buildShuffledOrder};
 
 export function shuffleQueueOrder(
 	state: ImmersivePlayerState,
 	startAt = state.queueIndex,
 ): void {
-	if (state.queue.length <= 1) {
-		state.playbackOrder = null;
-		return;
-	}
-
-	state.playbackOrder = buildShuffledOrder(state.queue.length, startAt);
+	state.playbackOrder = resolvePlaybackOrder(true, state.queue.length, startAt);
 }
 
 export function setQueue(
@@ -108,12 +88,11 @@ export function setQueue(
 	state.queueIndex = safeStart;
 	state.currentTrack = tracks[safeStart] ?? tracks[0] ?? null;
 	state.explicitQueueLength = tracks.length;
-
-	if (state.shuffle && tracks.length > 1) {
-		shuffleQueueOrder(state, safeStart);
-	} else {
-		state.playbackOrder = null;
-	}
+	state.playbackOrder = resolvePlaybackOrder(
+		state.shuffle,
+		tracks.length,
+		safeStart,
+	);
 }
 
 export function addToQueue(state: ImmersivePlayerState, track: Track): void {
@@ -124,6 +103,8 @@ export function addToQueue(state: ImmersivePlayerState, track: Track): void {
 	}
 	if (state.shuffle && state.queue.length > 1) {
 		shuffleQueueOrder(state, state.queueIndex);
+	} else {
+		state.playbackOrder = null;
 	}
 }
 
@@ -145,19 +126,14 @@ export function appendTracksForAutoplay(
 		existingIds.add(track.videoId);
 		state.queue.push(track);
 		const newIndex = state.queue.length - 1;
-		if (state.shuffle && state.playbackOrder) {
-			state.playbackOrder.push(newIndex);
-		}
+		state.playbackOrder = appendIndexToPlaybackOrder(
+			state.playbackOrder,
+			newIndex,
+			state.shuffle,
+			state.queue.length,
+			state.queueIndex,
+		);
 		added++;
-	}
-
-	if (
-		added > 0 &&
-		state.shuffle &&
-		state.queue.length > 1 &&
-		!state.playbackOrder
-	) {
-		shuffleQueueOrder(state, state.queueIndex);
 	}
 
 	return added;
@@ -170,11 +146,11 @@ export function toggleAutoplay(state: ImmersivePlayerState): boolean {
 
 export function toggleShuffle(state: ImmersivePlayerState): boolean {
 	state.shuffle = !state.shuffle;
-	if (state.shuffle && state.queue.length > 1) {
-		shuffleQueueOrder(state, state.queueIndex);
-	} else {
-		state.playbackOrder = null;
-	}
+	state.playbackOrder = resolvePlaybackOrder(
+		state.shuffle,
+		state.queue.length,
+		state.queueIndex,
+	);
 	return state.shuffle;
 }
 
@@ -185,74 +161,28 @@ export function cycleRepeat(state: ImmersivePlayerState): RepeatMode {
 	return state.repeat;
 }
 
-function advanceShuffleQueue(state: ImmersivePlayerState): Track | null {
-	if (!state.playbackOrder || state.playbackOrder.length <= 1) {
-		if (state.queue.length <= 1) {
-			return null;
-		}
-
-		let randomIndex = state.queueIndex;
-		while (randomIndex === state.queueIndex) {
-			randomIndex = Math.floor(Math.random() * state.queue.length);
-		}
-		state.queueIndex = randomIndex;
-		state.currentTrack = state.queue[randomIndex] ?? null;
-		state.currentTime = 0;
-		return state.currentTrack;
-	}
-
-	let orderPos = state.playbackOrder.indexOf(state.queueIndex);
-	if (orderPos === -1) {
-		shuffleQueueOrder(state, state.queueIndex);
-		orderPos = 0;
-	}
-
-	let nextOrderPos = orderPos + 1;
-	if (nextOrderPos >= state.playbackOrder.length) {
-		if (shouldLoopExplicitQueue(state)) {
-			nextOrderPos = 0;
-		} else {
-			state.isPlaying = false;
-			return null;
-		}
-	}
-
-	const nextIndex = state.playbackOrder[nextOrderPos];
-	if (nextIndex === undefined) {
-		state.isPlaying = false;
-		return null;
-	}
-
-	state.queueIndex = nextIndex;
-	state.currentTrack = state.queue[nextIndex] ?? null;
-	state.currentTime = 0;
-	return state.currentTrack;
-}
-
 export function advanceQueue(state: ImmersivePlayerState): Track | null {
 	if (state.queue.length === 0) {
 		state.currentTrack = null;
 		return null;
 	}
 
-	if (state.shuffle && state.queue.length > 1) {
-		return advanceShuffleQueue(state);
-	}
+	const result = advanceInPlaybackOrder({
+		queueLength: state.queue.length,
+		queueIndex: state.queueIndex,
+		playbackOrder: state.playbackOrder,
+		shuffle: state.shuffle,
+		shouldLoop: shouldLoopExplicitQueue(state),
+	});
+	state.playbackOrder = result.playbackOrder;
 
-	const nextIndex = state.queueIndex + 1;
-	if (nextIndex >= state.queue.length) {
-		if (shouldLoopExplicitQueue(state)) {
-			state.queueIndex = 0;
-			state.currentTrack = state.queue[0] ?? null;
-			state.currentTime = 0;
-			return state.currentTrack;
-		}
+	if (!result.advanced) {
 		state.isPlaying = false;
 		return null;
 	}
 
-	state.queueIndex = nextIndex;
-	state.currentTrack = state.queue[nextIndex] ?? null;
+	state.queueIndex = result.queueIndex;
+	state.currentTrack = state.queue[result.queueIndex] ?? null;
 	state.currentTime = 0;
 	return state.currentTrack;
 }
@@ -267,19 +197,15 @@ export function previousQueue(state: ImmersivePlayerState): Track | null {
 		return state.currentTrack;
 	}
 
-	if (state.shuffle && state.playbackOrder && state.playbackOrder.length > 1) {
-		const orderPos = state.playbackOrder.indexOf(state.queueIndex);
-		const prevOrderPos = orderPos <= 0 ? 0 : orderPos - 1;
-		const prevIndex = state.playbackOrder[prevOrderPos] ?? 0;
-		state.queueIndex = prevIndex;
-		state.currentTrack = state.queue[prevIndex] ?? null;
-		state.currentTime = 0;
-		return state.currentTrack;
-	}
-
-	const prevIndex = Math.max(0, state.queueIndex - 1);
-	state.queueIndex = prevIndex;
-	state.currentTrack = state.queue[prevIndex] ?? null;
+	const result = previousInPlaybackOrder({
+		queueLength: state.queue.length,
+		queueIndex: state.queueIndex,
+		playbackOrder: state.playbackOrder,
+		shuffle: state.shuffle,
+	});
+	state.playbackOrder = result.playbackOrder;
+	state.queueIndex = result.queueIndex;
+	state.currentTrack = state.queue[result.queueIndex] ?? null;
 	state.currentTime = 0;
 	return state.currentTrack;
 }

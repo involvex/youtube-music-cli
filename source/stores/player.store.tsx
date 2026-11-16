@@ -33,6 +33,14 @@ import {
 	shouldPrefetchAutoplay,
 	shouldResumeAfterPrefetch,
 } from '../services/player/autoplay-coordinator.ts';
+import {
+	advanceInPlaybackOrder,
+	appendIndexToPlaybackOrder,
+	hasNextInPlaybackOrder,
+	previousInPlaybackOrder,
+	removeIndexFromPlaybackOrder,
+	resolvePlaybackOrder,
+} from '../services/player/playback-order.ts';
 import {getNotificationService} from '../services/notification/notification.service.ts';
 import {getScrobblingService} from '../services/scrobbling/scrobbling.service.ts';
 import {getDiscordRpcService} from '../services/discord/discord-rpc.service.ts';
@@ -51,6 +59,7 @@ const initialState: PlayerState = {
 	duration: 0,
 	queue: [],
 	queuePosition: 0,
+	playbackOrder: null,
 	repeat: 'off',
 	shuffle: false,
 	autoplay: true,
@@ -129,46 +138,25 @@ export function playerReducer(
 		case 'NEXT': {
 			if (state.queue.length === 0) return state;
 
-			// Shuffle mode: pick a random track excluding the current position
-			if (state.shuffle && state.queue.length > 1) {
-				let randomIndex: number;
-				do {
-					randomIndex = Math.floor(Math.random() * state.queue.length);
-				} while (randomIndex === state.queuePosition);
-				return {
-					...state,
-					queuePosition: randomIndex,
-					currentTrack: state.queue[randomIndex] ?? null,
-					isPlaying: true,
-					progress: 0,
-					playRequestId: state.playRequestId + 1,
-				};
-			}
-
-			// Sequential mode
-			const nextPosition = state.queuePosition + 1;
-			if (nextPosition >= state.queue.length) {
-				if (
-					shouldLoopExplicitQueue({
-						autoplay: state.autoplay,
-						repeat: state.repeat,
-					})
-				) {
-					return {
-						...state,
-						queuePosition: 0,
-						currentTrack: state.queue[0] ?? null,
-						isPlaying: true,
-						progress: 0,
-						playRequestId: state.playRequestId + 1,
-					};
-				}
+			const shouldLoop = shouldLoopExplicitQueue({
+				autoplay: state.autoplay,
+				repeat: state.repeat,
+			});
+			const advanced = advanceInPlaybackOrder({
+				queueLength: state.queue.length,
+				queueIndex: state.queuePosition,
+				playbackOrder: state.playbackOrder,
+				shuffle: state.shuffle,
+				shouldLoop,
+			});
+			if (!advanced.advanced) {
 				return state;
 			}
 			return {
 				...state,
-				queuePosition: nextPosition,
-				currentTrack: state.queue[nextPosition] ?? null,
+				queuePosition: advanced.queueIndex,
+				playbackOrder: advanced.playbackOrder,
+				currentTrack: state.queue[advanced.queueIndex] ?? null,
 				isPlaying: true,
 				progress: 0,
 				playRequestId: state.playRequestId + 1,
@@ -176,29 +164,31 @@ export function playerReducer(
 		}
 
 		case 'PREVIOUS': {
-			const prevPosition = state.queuePosition - 1;
-			if (prevPosition < 0) {
-				if (state.progress > 3) {
-					playerService.seek(0);
-					return {
-						...state,
-						progress: 0,
-						playRequestId: state.playRequestId + 1,
-					};
-				}
-				return state;
-			}
 			if (state.progress > 3) {
+				playerService.seek(0);
 				return {
 					...state,
 					progress: 0,
 					playRequestId: state.playRequestId + 1,
 				};
 			}
+			if (state.queue.length === 0) {
+				return state;
+			}
+			const previous = previousInPlaybackOrder({
+				queueLength: state.queue.length,
+				queueIndex: state.queuePosition,
+				playbackOrder: state.playbackOrder,
+				shuffle: state.shuffle,
+			});
+			if (!previous.advanced && previous.queueIndex === state.queuePosition) {
+				return state;
+			}
 			return {
 				...state,
-				queuePosition: prevPosition,
-				currentTrack: state.queue[prevPosition] ?? null,
+				queuePosition: previous.queueIndex,
+				playbackOrder: previous.playbackOrder,
+				currentTrack: state.queue[previous.queueIndex] ?? null,
 				progress: 0,
 				playRequestId: state.playRequestId + 1,
 			};
@@ -254,8 +244,18 @@ export function playerReducer(
 			return {...state, volume: newVolume};
 		}
 
-		case 'TOGGLE_SHUFFLE':
-			return {...state, shuffle: !state.shuffle};
+		case 'TOGGLE_SHUFFLE': {
+			const shuffle = !state.shuffle;
+			return {
+				...state,
+				shuffle,
+				playbackOrder: resolvePlaybackOrder(
+					shuffle,
+					state.queue.length,
+					state.queuePosition,
+				),
+			};
+		}
 
 		case 'TOGGLE_AUTOPLAY':
 			return {...state, autoplay: !state.autoplay};
@@ -274,15 +274,30 @@ export function playerReducer(
 				queue: action.queue,
 				queuePosition: 0,
 				explicitQueueLength: action.queue.length,
+				playbackOrder: resolvePlaybackOrder(
+					state.shuffle,
+					action.queue.length,
+					0,
+				),
 			};
 
-		case 'ADD_TO_QUEUE':
+		case 'ADD_TO_QUEUE': {
+			const newQueue = [...state.queue, action.track];
+			const newIndex = newQueue.length - 1;
 			return {
 				...state,
-				queue: [...state.queue, action.track],
+				queue: newQueue,
 				explicitQueueLength:
 					(state.explicitQueueLength ?? state.queue.length) + 1,
+				playbackOrder: appendIndexToPlaybackOrder(
+					state.playbackOrder,
+					newIndex,
+					state.shuffle,
+					newQueue.length,
+					state.queuePosition,
+				),
 			};
+		}
 
 		case 'PLAY_NEXT': {
 			const insertAt = Math.min(state.queuePosition + 1, state.queue.length);
@@ -291,10 +306,22 @@ export function playerReducer(
 			const explicitBase = state.explicitQueueLength ?? state.queue.length;
 			const explicitQueueLength =
 				insertAt <= explicitBase ? explicitBase + 1 : explicitBase;
+			let playbackOrder = state.playbackOrder;
+			if (state.shuffle && newQueue.length > 1) {
+				// Rebuild so inserted track sits after the current position in order.
+				playbackOrder = resolvePlaybackOrder(
+					true,
+					newQueue.length,
+					state.queuePosition,
+				);
+			} else {
+				playbackOrder = null;
+			}
 			return {
 				...state,
 				queue: newQueue,
 				explicitQueueLength,
+				playbackOrder,
 			};
 		}
 
@@ -311,11 +338,15 @@ export function playerReducer(
 				}
 			}
 			const currentTrack = newQueue[queuePosition] ?? null;
+			const playbackOrder = state.shuffle
+				? removeIndexFromPlaybackOrder(state.playbackOrder, action.index)
+				: null;
 			return {
 				...state,
 				queue: newQueue,
 				queuePosition,
 				currentTrack,
+				playbackOrder,
 				playRequestId:
 					action.index === state.queuePosition
 						? state.playRequestId + 1
@@ -328,6 +359,7 @@ export function playerReducer(
 				...state,
 				queue: [],
 				queuePosition: 0,
+				playbackOrder: null,
 				isPlaying: false,
 			};
 
@@ -461,6 +493,11 @@ export function playerReducer(
 				repeat: action.repeat,
 				autoplay: action.autoplay ?? true,
 				explicitQueueLength: action.explicitQueueLength ?? action.queue.length,
+				playbackOrder: resolvePlaybackOrder(
+					action.shuffle,
+					action.queue.length,
+					action.queuePosition,
+				),
 				isPlaying: shouldStartPlayback,
 				abLoop: {a: null, b: null},
 				playbackMode: action.playbackMode ?? 'youtube',
@@ -1271,11 +1308,16 @@ function PlayerManager() {
 			return;
 		}
 
-		const hasNextTrack =
-			state.queue.length > 0 &&
-			(state.repeat === 'all' ||
-				state.queuePosition < state.queue.length - 1 ||
-				(state.shuffle && state.queue.length > 1));
+		const hasNextTrack = hasNextInPlaybackOrder({
+			queueLength: state.queue.length,
+			queueIndex: state.queuePosition,
+			playbackOrder: state.playbackOrder,
+			shuffle: state.shuffle,
+			shouldLoop: shouldLoopExplicitQueue({
+				autoplay: state.autoplay,
+				repeat: state.repeat,
+			}),
+		});
 
 		if (!hasNextTrack) {
 			return;
@@ -1298,9 +1340,11 @@ function PlayerManager() {
 		state.progress,
 		state.isPlaying,
 		state.repeat,
+		state.autoplay,
 		state.queue.length,
 		state.queuePosition,
 		state.shuffle,
+		state.playbackOrder,
 		dispatch,
 	]);
 

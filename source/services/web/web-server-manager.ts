@@ -44,6 +44,7 @@ class WebServerManager {
 		duration: 0,
 		queue: [],
 		queuePosition: 0,
+		playbackOrder: null,
 		repeat: 'off',
 		shuffle: false,
 		autoplay: true,
