@@ -378,7 +378,7 @@ test(
 		const overlay = createSettingsOverlayState();
 		openSettingsOverlay(overlay);
 		expect(overlay.active).toBe(true);
-		expect(SETTINGS_ROW_COUNT).toBe(31);
+		expect(SETTINGS_ROW_COUNT).toBe(32);
 
 		expect(handleSettingsInput(overlay, 'down', SETTINGS_ROW_COUNT)).toBe(
 			'none',
@@ -424,7 +424,7 @@ test(
 		const sleepTimer = createSleepTimerState();
 		const rows = buildImmersiveSettingsRows(config);
 
-		expect(rows.length).toBe(31);
+		expect(rows.length).toBe(32);
 		expect(rows[1]?.label.includes('Theme')).toBe(true);
 		expect(rows[2]?.label.includes('Stream Quality')).toBe(true);
 		expect(rows[20]?.label.includes('Prefer Local')).toBe(true);

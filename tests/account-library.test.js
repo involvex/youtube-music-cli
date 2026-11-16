@@ -246,6 +246,7 @@ test('fetchAccountLibrary uses filters, liked playlist, and continuation', async
 test('immersive library menu includes YouTube Music library first', () => {
 	expect(LIBRARY_MENU_ITEMS[0]).toBe('YouTube Music Library...');
 	expect(LIBRARY_MENU_ITEMS).toContain('Saved Playlists...');
+	expect(LIBRARY_MENU_ITEMS).toContain('Smart Playlists...');
 
 	const overlay = createLibraryOverlayState();
 	openLibraryMenu(overlay);

@@ -79,6 +79,14 @@ function Initializer({flags}: {flags?: Flags}) {
 	}, []);
 
 	useEffect(() => {
+		void import('./services/smart-playlist/smart-playlist-boot.ts').then(
+			({maybeRefreshSmartPlaylistsOnLaunch}) => {
+				maybeRefreshSmartPlaylistsOnLaunch();
+			},
+		);
+	}, []);
+
+	useEffect(() => {
 		// Check for background playback state on startup
 		const config = getConfigService();
 		const backgroundState = config.getBackgroundPlaybackState();

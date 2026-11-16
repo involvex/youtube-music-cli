@@ -70,6 +70,7 @@ class ConfigService {
 			downloadFormat: 'mp3',
 			preferLocalPlayback: true,
 			showNetworkStatus: true,
+			smartPlaylistsRefreshOnLaunch: false,
 			subtitlesEnabled: false,
 			webServer: {
 				enabled: false,

@@ -111,6 +111,11 @@ const cli = meow(
 	  $ youtube-music-cli stats --share           Print + copy share card
 	  $ youtube-music-cli stats --export [path]   Write share card to file
 
+	🎯 Smart Playlist Commands
+	  $ youtube-music-cli smart-playlist list              List smart playlist definitions
+	  $ youtube-music-cli smart-playlist refresh [id]      Refresh one (or --all)
+	  $ youtube-music-cli smart-playlist refresh --all     Refresh all smart playlists
+
 	🔧 Config Commands
 	  $ youtube-music-cli config doctor           Check config for issues
 	  $ youtube-music-cli config doctor --fix     Auto-fix config issues
@@ -359,6 +364,84 @@ if (command === 'stats') {
 	}
 
 	process.exit(0);
+}
+
+// Handle smart-playlist command
+if (command === 'smart-playlist') {
+	const {listDefinitions, refreshAll, refreshOne} =
+		await import('./services/smart-playlist/smart-playlist.service.ts');
+
+	const subcommand = args[0];
+	if (!subcommand || subcommand === 'help') {
+		console.log(`youtube-music-cli smart-playlist
+
+Usage:
+  ymc smart-playlist list                 List smart playlist definitions
+  ymc smart-playlist refresh [id]         Refresh one smart playlist
+  ymc smart-playlist refresh --all        Refresh all smart playlists
+
+Built-in ids:
+  top_tracks_7d, top_tracks_all, rediscover, top_artist_deep_dive
+`);
+		process.exit(0);
+	}
+
+	if (subcommand === 'list') {
+		const definitions = await listDefinitions();
+		if (definitions.length === 0) {
+			console.log('No smart playlists found.');
+			process.exit(0);
+		}
+		console.log('Smart playlists:\n');
+		for (const definition of definitions) {
+			const generated = definition.lastGeneratedAt
+				? definition.lastGeneratedAt
+				: '(never)';
+			console.log(
+				`  ${definition.id.padEnd(24)} ${definition.name}  last: ${generated}`,
+			);
+		}
+		process.exit(0);
+	}
+
+	if (subcommand === 'refresh') {
+		const wantsAll = args.includes('--all');
+		const targetId = args.find(arg => arg !== '--all');
+
+		if (wantsAll) {
+			const results = await refreshAll();
+			for (const result of results) {
+				console.log(
+					`✓ ${result.definition.name}: ${result.trackCount} tracks (${result.playlistId})`,
+				);
+			}
+			process.exit(0);
+		}
+
+		if (!targetId) {
+			console.error(
+				'Specify a smart playlist id or pass --all.\n' +
+					'Example: ymc smart-playlist refresh top_tracks_7d',
+			);
+			process.exit(1);
+		}
+
+		try {
+			const result = await refreshOne(targetId);
+			console.log(
+				`✓ ${result.definition.name}: ${result.trackCount} tracks (${result.playlistId})`,
+			);
+			process.exit(0);
+		} catch (error) {
+			console.error(
+				`✗ ${error instanceof Error ? error.message : String(error)}`,
+			);
+			process.exit(1);
+		}
+	}
+
+	console.error(`Unknown smart-playlist subcommand: ${subcommand}`);
+	process.exit(1);
 }
 
 // Handle config doctor command

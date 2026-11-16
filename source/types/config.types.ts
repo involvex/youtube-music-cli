@@ -74,6 +74,8 @@ export interface Config {
 	mpvExtraArgs?: string;
 	/** Show network status indicator in UI (default true). */
 	showNetworkStatus?: boolean;
+	/** Refresh smart playlists from history on app launch (default false). */
+	smartPlaylistsRefreshOnLaunch?: boolean;
 	subtitlesEnabled?: boolean;
 	webServer?: WebServerConfig;
 	backgroundPlayback?: {

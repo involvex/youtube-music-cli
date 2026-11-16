@@ -50,11 +50,15 @@ How ideas in `SUGGESTIONS.md` become concrete work, and what to pick up next.
 - **Web v1.1** — Media Session API for lock-screen/media keys, mini-player route (`/mini`), WebSocket sync improvements
 - **Lyrics Integration** — Native Musixmatch richsync + LRCLIB fallback with karaoke mode
 
-## Active focus (post-0.1.0)
+## Shipped (through 0.3.9)
 
-1. **Web v1.1** — Media Session API for system media controls; mini-player route for low-footprint browser control.
-2. **Discovery** — Smart recommendations beyond YouTube's built-in related tracks; playlist radio mode.
-3. **Downloads Enhancement** — Batch download optimization, download resumption, and improved UX.
+- **Smart Playlists** — History-based builtins (top week / all-time / rediscover / top artist), Ink + immersive + `ymc smart-playlist`, optional refresh-on-launch
+
+## Active focus (post-0.3.9)
+
+1. **Downloads Enhancement** — Batch download optimization, download resumption, and improved UX.
+2. **Discovery Queue** — Personalized continuous queue beyond saved smart playlists.
+3. **Playlist Sync depth** — Stronger two-way sync with YouTube Music account playlists.
 
 ## Toward 1.0.0
 

@@ -29,7 +29,7 @@ import {
 
 type ConfigService = ReturnType<typeof getConfigService>;
 
-export const IMMERSIVE_SETTINGS_COUNT = 31;
+export const IMMERSIVE_SETTINGS_COUNT = 32;
 
 const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a'];
@@ -185,6 +185,7 @@ export function buildImmersiveSettingsRows(
 	const downloadDirectory = config.get('downloadDirectory') ?? '';
 	const downloadFormat = config.get('downloadFormat') ?? 'mp3';
 	const preferLocal = config.get('preferLocalPlayback') ?? true;
+	const smartRefresh = config.get('smartPlaylistsRefreshOnLaunch') ?? false;
 
 	const timerService = getSleepTimerService();
 	const remainingSeconds = timerService.getRemainingSeconds();
@@ -270,6 +271,10 @@ export function buildImmersiveSettingsRows(
 		{
 			label: 'Cache Entries',
 			value: String(config.get('cacheMaxEntries') ?? 100),
+		},
+		{
+			label: 'Smart Playlists Refresh On Launch',
+			value: formatOnOff(smartRefresh),
 		},
 	];
 }
@@ -545,6 +550,11 @@ export async function cycleImmersiveSetting(
 				] ?? 100;
 			config.set('cacheMaxEntries', next);
 			return `Cache entries: ${next}`;
+		}
+		case 31: {
+			const next = !(config.get('smartPlaylistsRefreshOnLaunch') ?? false);
+			config.set('smartPlaylistsRefreshOnLaunch', next);
+			return `Smart playlists refresh on launch: ${formatOnOff(next)}`;
 		}
 		default:
 			return null;

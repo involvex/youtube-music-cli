@@ -18,12 +18,14 @@ export const COMMANDS = [
 	'config',
 	'update',
 	'stats',
+	'smart-playlist',
 	'login',
 	'logout',
 	'whoami',
 ] as const;
 
 const SYNC_SUBCOMMANDS = ['list', 'search'];
+const SMART_PLAYLIST_SUBCOMMANDS = ['list', 'refresh'];
 
 const PLUGINS_SUBCOMMANDS = [
 	'list',
@@ -92,6 +94,7 @@ function generateBashCompletion(): string {
 	const pluginsSubs = PLUGINS_SUBCOMMANDS.join(' ');
 	const importSubs = IMPORT_SUBCOMMANDS.join(' ');
 	const syncSubs = SYNC_SUBCOMMANDS.join(' ');
+	const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.join(' ');
 	const completionsSubs = COMPLETIONS_SUBCOMMANDS.join(' ');
 	const logsSubs = LOGS_SUBCOMMANDS.join(' ');
 	const configSubs = CONFIG_SUBCOMMANDS.join(' ');
@@ -119,6 +122,9 @@ _ymc_completions() {
             return ;;
         sync)
             COMPREPLY=($(compgen -W "${syncSubs}" -- "$cur"))
+            return ;;
+        smart-playlist)
+            COMPREPLY=($(compgen -W "${smartPlaylistSubs}" -- "$cur"))
             return ;;
         completions)
             COMPREPLY=($(compgen -W "${completionsSubs}" -- "$cur"))
@@ -230,6 +236,14 @@ ${commandEntries}
             )
             _describe 'sync commands' sync_cmds
             return ;;
+        smart-playlist)
+            local -a smart_playlist_cmds
+            smart_playlist_cmds=(
+                'list:List smart playlist definitions'
+                'refresh:Refresh one or all smart playlists'
+            )
+            _describe 'smart playlist commands' smart_playlist_cmds
+            return ;;
         completions)
             local -a shells
             shells=('bash:Bash completion' 'zsh:Zsh completion' 'powershell:PowerShell completion' 'fish:Fish completion')
@@ -284,6 +298,9 @@ function generatePowerShellCompletion(): string {
 	const pluginsSubs = PLUGINS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const importSubs = IMPORT_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const syncSubs = SYNC_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
+	const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.map(c => `'${c}'`).join(
+		', ',
+	);
 	const completionsSubs = COMPLETIONS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const logsSubs = LOGS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
 	const configSubs = CONFIG_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
@@ -300,6 +317,7 @@ $ymcCompleterBlock = {
     $pluginsSubCommands = @(${pluginsSubs})
     $importSubCommands = @(${importSubs})
     $syncSubCommands = @(${syncSubs})
+    $smartPlaylistSubCommands = @(${smartPlaylistSubs})
     $completionsSubCommands = @(${completionsSubs})
     $logsSubCommands = @(${logsSubs})
     $configSubCommands = @(${configSubs})
@@ -325,6 +343,11 @@ $ymcCompleterBlock = {
         }
         'sync' {
             $syncSubCommands | Where-Object { $_ -like "$wordToComplete*" } |
+                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
+            return
+        }
+        'smart-playlist' {
+            $smartPlaylistSubCommands | Where-Object { $_ -like "$wordToComplete*" } |
                 ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
             return
         }
@@ -413,6 +436,11 @@ function generateFishCompletion(): string {
 			`complete -c ymc -n '__fish_seen_subcommand_from sync' -f -a '${sub}'`,
 	).join('\n');
 
+	const smartPlaylistCompletions = SMART_PLAYLIST_SUBCOMMANDS.map(
+		sub =>
+			`complete -c ymc -n '__fish_seen_subcommand_from smart-playlist' -f -a '${sub}'`,
+	).join('\n');
+
 	const completionsCompletions = COMPLETIONS_SUBCOMMANDS.map(
 		sub =>
 			`complete -c ymc -n '__fish_seen_subcommand_from completions' -f -a '${sub}'`,
@@ -446,6 +474,9 @@ ${importCompletions}
 
 # Sync subcommands
 ${syncCompletions}
+
+# Smart playlist subcommands
+${smartPlaylistCompletions}
 
 # Completions subcommands
 ${completionsCompletions}
@@ -504,6 +535,7 @@ function getCommandDescription(cmd: string): string {
 		config: 'Manage configuration',
 		update: 'Check for updates and auto-update',
 		stats: 'Print listening statistics',
+		'smart-playlist': 'List or refresh history-based smart playlists',
 		login: 'Sign in to YouTube Music',
 		logout: 'Sign out and remove credentials',
 		whoami: 'Show current account status',
