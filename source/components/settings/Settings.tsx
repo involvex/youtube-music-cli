@@ -80,6 +80,7 @@ const SETTINGS_ITEMS = [
 	'Manage Plugins',
 	'Cache TTL',
 	'Cache Max Entries',
+	'Smart Playlists Refresh On Launch',
 ] as const;
 
 export default function Settings() {
@@ -127,6 +128,8 @@ export default function Settings() {
 	const [showNetworkStatus, setShowNetworkStatus] = useState(
 		config.get('showNetworkStatus') ?? true,
 	);
+	const [smartPlaylistsRefreshOnLaunch, setSmartPlaylistsRefreshOnLaunch] =
+		useState(config.get('smartPlaylistsRefreshOnLaunch') ?? false);
 	const [cookiesFromBrowser, setCookiesFromBrowser] = useState<
 		CookiesFromBrowser | undefined
 	>(config.get('cookiesFromBrowser'));
@@ -301,6 +304,12 @@ export default function Settings() {
 		const next = !showNetworkStatus;
 		setShowNetworkStatus(next);
 		config.set('showNetworkStatus', next);
+	};
+
+	const toggleSmartPlaylistsRefreshOnLaunch = () => {
+		const next = !smartPlaylistsRefreshOnLaunch;
+		setSmartPlaylistsRefreshOnLaunch(next);
+		config.set('smartPlaylistsRefreshOnLaunch', next);
 	};
 
 	const cycleCookiesFromBrowser = () => {
@@ -489,6 +498,8 @@ export default function Settings() {
 			cycleCacheTtl();
 		} else if (selectedIndex === 32) {
 			cycleCacheEntries();
+		} else if (selectedIndex === 33) {
+			toggleSmartPlaylistsRefreshOnLaunch();
 		}
 	};
 
@@ -1145,6 +1156,22 @@ export default function Settings() {
 					bold={selectedIndex === 32}
 				>
 					Cache Max Entries: {cacheMaxEntries}
+				</Text>
+			</Box>
+
+			{/* Smart Playlists Refresh On Launch */}
+			<Box paddingX={1}>
+				<Text
+					backgroundColor={
+						selectedIndex === 33 ? theme.colors.primary : undefined
+					}
+					color={
+						selectedIndex === 33 ? theme.colors.background : theme.colors.text
+					}
+					bold={selectedIndex === 33}
+				>
+					Smart Playlists Refresh On Launch:{' '}
+					{smartPlaylistsRefreshOnLaunch ? 'ON' : 'OFF'}
 				</Text>
 			</Box>
 

@@ -1,11 +1,13 @@
 import type {Playlist, Track} from '../../types/youtube-music.types.ts';
 import type {AccountLibraryPlaylist} from '../../services/youtube-music/account-library.ts';
+import type {SmartPlaylistDefinition} from '../../types/smart-playlist.types.ts';
 import {trackArtists} from '../state/queue-state.ts';
 import {truncate} from '../../utils/format.ts';
 
 export type LibraryView =
 	| 'menu'
 	| 'playlists'
+	| 'smart_playlists'
 	| 'favorites'
 	| 'playlist_edit'
 	| 'add_to_playlist'
@@ -25,11 +27,13 @@ export interface LibraryOverlayState {
 	accountSignedIn: boolean;
 	accountLiked: Track[];
 	accountPlaylists: AccountLibraryPlaylist[];
+	smartDefinitions: SmartPlaylistDefinition[];
 }
 
 export const LIBRARY_MENU_ITEMS = [
 	'YouTube Music Library...',
 	'Saved Playlists...',
+	'Smart Playlists...',
 	'Favorites...',
 	'Play All Favorites',
 	'Random Favorite',
@@ -50,6 +54,7 @@ export function createLibraryOverlayState(): LibraryOverlayState {
 		accountSignedIn: false,
 		accountLiked: [],
 		accountPlaylists: [],
+		smartDefinitions: [],
 	};
 }
 
@@ -180,7 +185,10 @@ export type LibraryInputAction =
 	| 'open_account_liked'
 	| 'play_account_playlist'
 	| 'play_account_liked'
-	| 'back_to_account';
+	| 'back_to_account'
+	| 'play_smart_playlist'
+	| 'refresh_smart_playlist'
+	| 'refresh_all_smart_playlists';
 
 export function handleLibraryMenuInput(
 	state: LibraryOverlayState,
@@ -317,6 +325,58 @@ export function handleLibraryPlaylistInput(
 
 	if (key === 'enter') {
 		return 'play_playlist';
+	}
+
+	return 'none';
+}
+
+export function openSmartPlaylists(state: LibraryOverlayState): void {
+	state.active = true;
+	state.view = 'smart_playlists';
+	state.selectedIndex = 0;
+	state.status = null;
+	resetLibraryTransientState(state);
+}
+
+export function handleLibrarySmartPlaylistInput(
+	state: LibraryOverlayState,
+	key: string,
+	definitionCount: number,
+): LibraryInputAction {
+	if (key === 'escape') {
+		state.view = 'menu';
+		state.selectedIndex = 0;
+		state.status = null;
+		return 'back_to_menu';
+	}
+
+	if (key === 'R' || key === 'shift+r') {
+		return 'refresh_all_smart_playlists';
+	}
+
+	if (definitionCount === 0) {
+		return 'none';
+	}
+
+	if (key === 'up') {
+		state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+		return 'none';
+	}
+
+	if (key === 'down') {
+		state.selectedIndex = Math.min(
+			definitionCount - 1,
+			state.selectedIndex + 1,
+		);
+		return 'none';
+	}
+
+	if (key === 'r') {
+		return 'refresh_smart_playlist';
+	}
+
+	if (key === 'enter') {
+		return 'play_smart_playlist';
 	}
 
 	return 'none';

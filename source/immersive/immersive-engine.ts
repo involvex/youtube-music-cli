@@ -57,6 +57,7 @@ import {
 	handleLibraryMenuInput,
 	handleLibraryPlaylistEditInput,
 	handleLibraryPlaylistInput,
+	handleLibrarySmartPlaylistInput,
 	handleLibraryAddToPlaylistInput,
 	LIBRARY_MENU_ITEMS,
 	openAccountLibrary,
@@ -66,12 +67,19 @@ import {
 	openLibraryMenu,
 	openPlaylistEdit,
 	openPlaylistPicker,
+	openSmartPlaylists,
 	closeAddToPlaylistPicker,
 	closePlaylistEdit,
 	formatPlaylistTrackLine,
 	type LibraryOverlayState,
 } from './ui/library-overlay.ts';
 import {SIGNED_OUT_LIBRARY_MESSAGE} from '../services/youtube-music/account-library.ts';
+import {
+	findMaterializedPlaylist,
+	listDefinitions,
+	refreshAll,
+	refreshOne,
+} from '../services/smart-playlist/smart-playlist.service.ts';
 import {
 	createSettingsOverlayState,
 	handleSettingsInput,
@@ -801,6 +809,10 @@ export class ImmersiveEngine {
 					this.libraryOverlay.selectedIndex = 0;
 					this.libraryOverlay.status = null;
 					break;
+				case 'Smart Playlists...':
+					openSmartPlaylists(this.libraryOverlay);
+					void this.loadSmartPlaylists();
+					break;
 				case 'Favorites...':
 					openFavoritesPicker(this.libraryOverlay);
 					break;
@@ -828,6 +840,11 @@ export class ImmersiveEngine {
 
 		if (this.libraryOverlay.view === 'account_liked') {
 			await this.handleAccountLikedKey(key);
+			return;
+		}
+
+		if (this.libraryOverlay.view === 'smart_playlists') {
+			await this.handleSmartPlaylistsKey(key);
 			return;
 		}
 
@@ -1033,6 +1050,96 @@ export class ImmersiveEngine {
 		} catch (error) {
 			this.libraryOverlay.status =
 				error instanceof Error ? error.message : 'Failed to play playlist';
+		}
+	}
+
+	private async loadSmartPlaylists(): Promise<void> {
+		try {
+			this.libraryOverlay.smartDefinitions = await listDefinitions();
+			this.libraryOverlay.status = null;
+		} catch (error) {
+			this.libraryOverlay.status =
+				error instanceof Error
+					? error.message
+					: 'Failed to load smart playlists';
+		}
+	}
+
+	private async handleSmartPlaylistsKey(key: string): Promise<void> {
+		const definitions = this.libraryOverlay.smartDefinitions;
+		const action = handleLibrarySmartPlaylistInput(
+			this.libraryOverlay,
+			key,
+			definitions.length,
+		);
+
+		if (action === 'back_to_menu') {
+			return;
+		}
+
+		if (action === 'refresh_all_smart_playlists') {
+			this.libraryOverlay.status = 'Refreshing all smart playlists...';
+			try {
+				await refreshAll();
+				await this.loadSmartPlaylists();
+				this.libraryOverlay.status = 'Refreshed all smart playlists';
+			} catch (error) {
+				this.libraryOverlay.status =
+					error instanceof Error ? error.message : 'Refresh failed';
+			}
+			return;
+		}
+
+		const definition = definitions[this.libraryOverlay.selectedIndex];
+		if (!definition) {
+			this.libraryOverlay.status = 'No smart playlists';
+			return;
+		}
+
+		if (action === 'refresh_smart_playlist') {
+			this.libraryOverlay.status = `Refreshing "${definition.name}"...`;
+			try {
+				const result = await refreshOne(definition.id);
+				await this.loadSmartPlaylists();
+				this.libraryOverlay.status = `Updated "${result.definition.name}" (${result.trackCount} tracks)`;
+			} catch (error) {
+				this.libraryOverlay.status =
+					error instanceof Error ? error.message : 'Refresh failed';
+			}
+			return;
+		}
+
+		if (action !== 'play_smart_playlist') {
+			return;
+		}
+
+		let playlist = findMaterializedPlaylist(definition.id);
+		if (!playlist || playlist.tracks.length === 0) {
+			try {
+				await refreshOne(definition.id);
+				await this.loadSmartPlaylists();
+				playlist = findMaterializedPlaylist(definition.id);
+			} catch (error) {
+				this.libraryOverlay.status =
+					error instanceof Error ? error.message : 'Refresh failed';
+				return;
+			}
+		}
+
+		if (!playlist || playlist.tracks.length === 0) {
+			this.libraryOverlay.status =
+				'No tracks yet — listening history is empty.';
+			return;
+		}
+
+		try {
+			await this.options.onPlaySavedPlaylist?.(playlist);
+			closeLibraryOverlay(this.libraryOverlay);
+		} catch (error) {
+			this.libraryOverlay.status =
+				error instanceof Error
+					? error.message
+					: 'Failed to play smart playlist';
 		}
 	}
 
@@ -1806,6 +1913,9 @@ function renderControls(
 				'[↑↓] Select track   [A] Add current   [D] Remove   [Esc] Back';
 		} else if (libraryOverlay.view === 'add_to_playlist') {
 			controls = '[↑↓] Select playlist   [Enter] Add   [Esc] Cancel';
+		} else if (libraryOverlay.view === 'smart_playlists') {
+			controls =
+				'[↑↓] Select   [Enter] Play   [R] Refresh   [Shift+R] All   [Esc] Back';
 		} else {
 			controls = '[↑↓] Select   [Enter] Play   [E] Edit   [Esc] Back';
 		}
@@ -2194,6 +2304,44 @@ function renderLibraryOverlay(
 				fb.setText(
 					boxX + 2,
 					boxY + 3 + i,
+					line,
+					null,
+					null,
+					index === overlay.selectedIndex ? {bold: true} : {dim: true},
+				);
+			}
+		}
+	} else if (overlay.view === 'smart_playlists') {
+		fb.setText(boxX + 2, boxY, ' SMART PLAYLISTS ', null, null, {bold: true});
+		const definitions = overlay.smartDefinitions;
+		if (definitions.length === 0) {
+			fb.setText(boxX + 2, boxY + 2, 'Loading smart playlists...', null, null, {
+				dim: true,
+			});
+		} else {
+			const maxLines = boxH - 4;
+			const start = Math.max(
+				0,
+				Math.min(
+					overlay.selectedIndex - Math.floor(maxLines / 2),
+					Math.max(0, definitions.length - maxLines),
+				),
+			);
+			const visible = definitions.slice(start, start + maxLines);
+			for (let i = 0; i < visible.length; i++) {
+				const definition = visible[i];
+				if (!definition) continue;
+				const index = start + i;
+				const marker = index === overlay.selectedIndex ? '>' : ' ';
+				const materialized = findMaterializedPlaylist(definition.id);
+				const trackCount = materialized?.tracks.length ?? 0;
+				const line = truncateText(
+					`${marker} ${definition.name} (${trackCount})`,
+					boxW - 4,
+				);
+				fb.setText(
+					boxX + 2,
+					boxY + 2 + i,
 					line,
 					null,
 					null,

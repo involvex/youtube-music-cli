@@ -47,6 +47,9 @@ export default function Help() {
 						<Text> | </Text>
 						<Text color={theme.colors.text}>Shift+P</Text> - Playlists
 						<Text> | </Text>
+						<Text color={theme.colors.text}>Ctrl+Shift+M</Text> - Smart
+						Playlists
+						<Text> | </Text>
 						<Text color={theme.colors.text}>Shift+L</Text> - Account Library
 						<Text> | </Text>
 						<Text color={theme.colors.text}>p</Text> - Plugins

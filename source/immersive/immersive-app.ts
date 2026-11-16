@@ -233,6 +233,9 @@ export async function startImmersiveApp(
 	}
 
 	const config = getConfigService();
+	const {maybeRefreshSmartPlaylistsOnLaunch} =
+		await import('../services/smart-playlist/smart-playlist-boot.ts');
+	maybeRefreshSmartPlaylistsOnLaunch();
 	const playerService = getPlayerService();
 	const musicService = getMusicService();
 	const favoritesManager = getFavoritesManager();

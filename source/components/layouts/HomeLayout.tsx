@@ -85,6 +85,10 @@ export default function HomeLayout() {
 	const quickLinks: QuickLink[] = [
 		{label: quickLinkLabel(ICONS.MAGNIFY, 'Search'), view: VIEW.SEARCH},
 		{label: quickLinkLabel(ICONS.PLAYLIST, 'Playlists'), view: VIEW.PLAYLISTS},
+		{
+			label: quickLinkLabel(ICONS.PLAYLIST, 'Smart Playlists'),
+			view: VIEW.SMART_PLAYLISTS,
+		},
 		{label: quickLinkLabel(ICONS.TRENDING, 'Trending'), view: VIEW.TRENDING},
 		{label: quickLinkLabel(ICONS.NEW, 'New Releases'), view: VIEW.NEW_RELEASES},
 		{label: quickLinkLabel(ICONS.HEART, 'Favorites'), view: VIEW.FAVORITES},

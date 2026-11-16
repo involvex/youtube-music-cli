@@ -33,6 +33,7 @@ import NewReleasesLayout from './NewReleasesLayout.tsx';
 import GenresLayout from './GenresLayout.tsx';
 import AIChatView from '../ai/AIChatView.tsx';
 import AIPlaylistLayout from './AIPlaylistLayout.tsx';
+import SmartPlaylistList from '../playlist/SmartPlaylistList.tsx';
 import StatsDashboard from '../stats/StatsDashboard.tsx';
 import RadioStreamsLayout from './RadioStreamsLayout.tsx';
 import LiveStreamsLayout from './LiveStreamsLayout.tsx';
@@ -160,6 +161,10 @@ function MainLayout() {
 		dispatch({category: 'NAVIGATE', view: VIEW.AI_PLAYLIST});
 	}, [dispatch]);
 
+	const goToSmartPlaylists = useCallback(() => {
+		dispatch({category: 'NAVIGATE', view: VIEW.SMART_PLAYLISTS});
+	}, [dispatch]);
+
 	const goToOffline = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.OFFLINE});
 	}, [dispatch]);
@@ -257,6 +262,7 @@ function MainLayout() {
 	useKeyBinding(resolveKeybinding('LIVE_STREAMS'), goToLiveStreams);
 	useKeyBinding(resolveKeybinding('MOOD_RADIO'), goToMoodRadio);
 	useKeyBinding(resolveKeybinding('AI_PLAYLIST'), goToAIPlaylist);
+	useKeyBinding(resolveKeybinding('SMART_PLAYLISTS'), goToSmartPlaylists);
 	useKeyBinding(resolveKeybinding('OFFLINE_QUEUE'), goToOffline);
 	useKeyBinding(resolveKeybinding('ACCOUNT_LIBRARY'), goToAccountLibrary);
 	useKeyBinding(resolveKeybinding('DETACH'), handleDetach);
@@ -307,6 +313,9 @@ function MainLayout() {
 
 			case 'playlists':
 				return <PlaylistList key="playlists" />;
+
+			case 'smart_playlists':
+				return <SmartPlaylistList key="smart_playlists" />;
 
 			case 'suggestions':
 				return <Suggestions key="suggestions" />;

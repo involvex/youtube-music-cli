@@ -72,7 +72,7 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Playlist Import** - Import playlists from Spotify and YouTube
 - Implemented **Playlist Export** - Export playlists to JSON and M3U8 formats
 - Planned **Playlist Sync** - Two-way sync with YouTube Music account playlists
-- Planned **Smart Playlists** - Auto-generated playlists based on listening history and habits
+- Implemented **Smart Playlists** - History-based auto-playlists (top week/all-time, rediscover, top artist deep dive) with refresh in Ink/immersive/CLI
 
 ### Medium Priority
 
@@ -369,7 +369,8 @@ Want to work on any of these? Check our [Contributing Guide](CONTRIBUTING.md) an
 - **[Stable] Playlist radio mode** - Done. m on a saved playlist (playlists view) starts shuffled radio; autoplay extends endlessly with related tracks.
 - **[Stable] Quick wins batch** - Done. TUI terminal title, configurable cache TTL (cacheTtlMinutes/cacheMaxEntries), sleep-timer fade-out.
 - **[Stable] Web v1.1 (Media Session + mini-player)** - Done. `useMediaSession` hook for lock-screen / media keys, `MiniPlayerView` + `/mini` route with compact controls.
-- **[Next] Auto-update command** - `ymc update` self-update across install channels (standalone/npm/brew/scoop).
+- **[Stable] Auto-update command** - `ymc update` self-update across install channels (standalone/npm/brew/scoop).
 - **[Stable] Smart recommendations** - History & stats scoring with artist diversity capping powering the TUI Suggestions view.
-- **[Next] Offline mode** - Cache downloaded tracks for playback without network.
-- **[Next] YouTube Music login** - OAuth login for library access and premium features.
+- **[Stable] Offline mode** - Cache downloaded tracks for playback without network.
+- **[Stable] Smart Playlists** - Deterministic history rules materialize into local `config.playlists` (`ymc smart-playlist`, Ctrl+Shift+M, immersive Library).
+- **[Next] YouTube Music login polish** - Cookie login + account library shipped; deepen two-way playlist sync and token refresh.
