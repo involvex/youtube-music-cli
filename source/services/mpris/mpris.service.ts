@@ -60,9 +60,10 @@ export class MprisService {
 			// @jellybrick/mpris-service is ESM and default-exports the Player
 			// class; the original package used a createPlayer factory (v1) or
 			// the class (v2). Accept every shape.
-			const imported = (await import(
-				'@jellybrick/mpris-service'
-			)) as unknown as {default?: MprisModule} & MprisModule;
+			const imported =
+				(await import('@jellybrick/mpris-service')) as unknown as {
+					default?: MprisModule;
+				} & MprisModule;
 			const mpris = imported.default ?? imported;
 			const options: MprisOptions = {
 				name: 'youtube-music-cli',

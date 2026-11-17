@@ -16,6 +16,10 @@ export interface ResumeAction {
 	readonly category: 'RESUME';
 }
 
+export interface TogglePlayPauseAction {
+	readonly category: 'TOGGLE_PLAY_PAUSE';
+}
+
 export interface StopAction {
 	readonly category: 'STOP';
 }

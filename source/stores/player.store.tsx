@@ -120,6 +120,9 @@ export function playerReducer(
 			return {...state, isPlaying: true};
 		}
 
+		case 'TOGGLE_PLAY_PAUSE':
+			return {...state, isPlaying: !state.isPlaying};
+
 		case 'STOP':
 			logger.debug('PlayerReducer', 'STOP action received', {
 				stack: new Error().stack,
@@ -569,8 +572,7 @@ function PlayerManager() {
 		void getMprisService().initialize({
 			onPlay: () => dispatch({category: 'RESUME'}),
 			onPause: () => dispatch({category: 'PAUSE'}),
-			onPlayPause: () =>
-				dispatch({category: isPlayingRef.current ? 'PAUSE' : 'RESUME'}),
+			onPlayPause: () => dispatch({category: 'TOGGLE_PLAY_PAUSE'}),
 			onNext: () => dispatch({category: 'NEXT'}),
 			onPrevious: () => dispatch({category: 'PREVIOUS'}),
 		});

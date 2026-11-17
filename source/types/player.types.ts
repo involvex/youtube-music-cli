@@ -10,6 +10,7 @@ import type {
 	PlayAction,
 	PauseAction,
 	ResumeAction,
+	TogglePlayPauseAction,
 	StopAction,
 	NextAction,
 	PreviousAction,
@@ -73,6 +74,7 @@ export type PlayerAction =
 	| PlayAction
 	| PauseAction
 	| ResumeAction
+	| TogglePlayPauseAction
 	| StopAction
 	| NextAction
 	| PreviousAction
