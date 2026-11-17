@@ -9,6 +9,7 @@ import {getPlayerService} from '../player/player.service.ts';
 import {getSearchService} from '../youtube-music/search.service.ts';
 import {logger} from '../logger/logger.service.ts';
 import {resolveTrackPlayUrl} from '../../utils/local-track.ts';
+import {getYtDlpStreamUrl} from '../youtube-music/ytdlp-stream-url.ts';
 import type {Track} from '../../types/youtube-music.types.ts';
 import type {RadioStation} from '../../types/radio-station.types.ts';
 import {
@@ -203,11 +204,29 @@ class WebServerManager {
 			downloadFormat: config.get('downloadFormat') ?? 'mp3',
 		});
 		this.internalState.mediaSource = resolved.source;
-		void getPlayerService().play(resolved.url, {
-			volume: this.internalState.volume,
-			volumeFadeDuration: config.get('volumeFadeDuration'),
-			trackId: track.videoId,
-		});
+		void (async (): Promise<void> => {
+			let trackUrl = resolved.url;
+			if (resolved.source === 'youtube') {
+				try {
+					trackUrl = await getYtDlpStreamUrl(track.videoId);
+				} catch (error) {
+					logger.warn(
+						'WebServerManager',
+						'Direct stream resolution failed, using watch URL',
+						{
+							videoId: track.videoId,
+							error: error instanceof Error ? error.message : String(error),
+						},
+					);
+				}
+			}
+			await getPlayerService().play(trackUrl, {
+				volume: this.internalState.volume,
+				volumeFadeDuration: config.get('volumeFadeDuration'),
+				trackId: track.videoId,
+				proxy: config.get('proxy'),
+			});
+		})();
 	}
 
 	private handleCommand(action: PlayerAction): void {

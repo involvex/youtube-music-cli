@@ -550,6 +550,10 @@ type PlayerContextValue = {
 import {getConfigService} from '../services/config/config.service.ts';
 import {getMusicService} from '../services/youtube-music/api.ts';
 import {resolveTrackPlayUrl} from '../utils/local-track.ts';
+import {
+	getYtDlpStreamUrl,
+	invalidateCachedStreamUrl,
+} from '../services/youtube-music/ytdlp-stream-url.ts';
 import {useMemo} from 'react';
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -604,10 +608,23 @@ function PlayerManager() {
 		autoplayEnabledRef.current = state.autoplay;
 	}, [state.autoplay]);
 
+	const queueRef = useRef(state.queue);
+	const currentTrackRef = useRef(state.currentTrack);
+	const mediaSourceRef = useRef(state.mediaSource);
+	const selfHealedVideoIdsRef = useRef(new Set<string>());
 	useEffect(() => {
+		queueRef.current = state.queue;
 		queueLengthRef.current = state.queue.length;
 		queuePositionRef.current = state.queuePosition;
-	}, [state.queue.length, state.queuePosition]);
+	}, [state.queue, state.queuePosition]);
+
+	useEffect(() => {
+		currentTrackRef.current = state.currentTrack;
+	}, [state.currentTrack]);
+
+	useEffect(() => {
+		mediaSourceRef.current = state.mediaSource;
+	}, [state.mediaSource]);
 
 	useEffect(() => {
 		isPlayingRef.current = state.isPlaying;
@@ -677,6 +694,11 @@ function PlayerManager() {
 			if (event.timePos !== undefined) {
 				hasProgress = true;
 				lastProgressAtRef.current = Date.now();
+				const playingId = currentVideoIdForEventsRef.current;
+				if (playingId && event.timePos > 0) {
+					// Playback works, so allow a future failure to heal again.
+					selfHealedVideoIdsRef.current.delete(playingId);
+				}
 				if (event.timePos > 0) {
 					if (loadingStartedAtRef.current > 0) {
 						loadingStartedAtRef.current = 0;
@@ -695,6 +717,24 @@ function PlayerManager() {
 
 			if (event.eof) {
 				if (playbackModeRef.current === 'stream') {
+					return;
+				}
+
+				// An advance is already in flight (autoplay preload or a previous
+				// EOF): the current mpv still holds the old file, so this event
+				// must not advance the queue a second time. Allow no-progress EOF
+				// through when a load is active so self-heal can refresh a dead URL.
+				if (
+					isAdvancingRef.current &&
+					(hasProgress || loadingStartedAtRef.current === 0)
+				) {
+					logger.debug(
+						'PlayerManager',
+						'Ignoring EOF while advance is in flight',
+						{videoId: currentVideoIdForEventsRef.current},
+					);
+					eofTimestampRef.current = Date.now();
+					hasProgress = false;
 					return;
 				}
 
@@ -729,6 +769,32 @@ function PlayerManager() {
 							videoId: currentVideoIdForEventsRef.current,
 						},
 					);
+
+					const failedId = currentVideoIdForEventsRef.current;
+					const failedTrack = currentTrackRef.current;
+					if (failedId) {
+						// The signed URL may have expired or been revoked before its
+						// nominal expiry; never reuse it for the next attempt.
+						invalidateCachedStreamUrl(failedId);
+					}
+					const canSelfHeal =
+						Boolean(failedId) &&
+						failedTrack?.videoId === failedId &&
+						mediaSourceRef.current !== 'local' &&
+						!selfHealedVideoIdsRef.current.has(failedId!);
+
+					if (canSelfHeal) {
+						selfHealedVideoIdsRef.current.add(failedId!);
+						logger.warn(
+							'PlayerManager',
+							'Retrying track with a fresh stream URL',
+							{videoId: failedId},
+						);
+						dispatch({category: 'PLAY', track: failedTrack!});
+						hasProgress = false;
+						return;
+					}
+
 					dispatch({
 						category: 'SET_ERROR',
 						error: 'Track unavailable or failed to play',
@@ -888,6 +954,7 @@ function PlayerManager() {
 		}
 
 		lastPlayedRequestId.current = state.playRequestId;
+		const myRequestId = state.playRequestId;
 
 		logger.info('PlayerManager', 'Loading track', {
 			title: track.title,
@@ -904,7 +971,47 @@ function PlayerManager() {
 				downloadDirectory: config.get('downloadDirectory'),
 				downloadFormat: config.get('downloadFormat') ?? 'mp3',
 			});
-			const trackUrl = resolved.url;
+			isAdvancingRef.current = true;
+			beginAdvanceGrace();
+			let trackUrl = resolved.url;
+			if (resolved.source === 'youtube') {
+				// mpv's ytdl_hook asks yt-dlp for metadata only, which leaves the
+				// YouTube `n` challenge unsolved and makes googlevideo reply 403.
+				// Resolve a signed direct URL here instead.
+				try {
+					trackUrl = await getYtDlpStreamUrl(track.videoId);
+				} catch (error) {
+					logger.warn(
+						'PlayerManager',
+						'Direct stream resolution failed, falling back to mpv',
+						{
+							videoId: track.videoId,
+							error: error instanceof Error ? error.message : String(error),
+						},
+					);
+				}
+			}
+			// Streaming URL resolution takes seconds; the queue may have moved on
+			// meanwhile (EOF from the previous file advancing twice). Never start
+			// playback for a request that is no longer current.
+			if (lastPlayedRequestId.current !== myRequestId) {
+				logger.debug('PlayerManager', 'Skipping stale playback start', {
+					videoId: track.videoId,
+					requestId: myRequestId,
+					latestRequestId: lastPlayedRequestId.current,
+				});
+				isAdvancingRef.current = false;
+				return;
+			}
+			if (!isPlayingRef.current) {
+				logger.debug(
+					'PlayerManager',
+					'Skipping playback start after pause/stop during resolve',
+					{videoId: track.videoId},
+				);
+				isAdvancingRef.current = false;
+				return;
+			}
 			dispatch({
 				category: 'SET_MEDIA_SOURCE',
 				mediaSource: resolved.source,
@@ -938,8 +1045,6 @@ function PlayerManager() {
 
 			dispatch({category: 'SET_LOADING', loading: true});
 			loadingStartedAtRef.current = Date.now();
-			isAdvancingRef.current = true;
-			beginAdvanceGrace();
 
 			const MAX_RETRIES = 3;
 			const RETRY_DELAY_MS = 1500;
@@ -1013,6 +1118,12 @@ function PlayerManager() {
 						attempt,
 						source: resolved.source,
 					});
+					// Resolving a stream URL costs seconds (yt-dlp JS challenge).
+					// Warm the next queue entry so advancing starts instantly.
+					const upcoming = queueRef.current[queuePositionRef.current + 1];
+					if (upcoming?.videoId) {
+						void getYtDlpStreamUrl(upcoming.videoId).catch(() => {});
+					}
 					dispatch({category: 'SET_LOADING', loading: false});
 					// Keep loadingStartedAt until first timePos > 0 so buffering
 					// pause=true events after play() resolves are still suppressed.
@@ -1079,6 +1190,18 @@ function PlayerManager() {
 						}
 					}
 
+					if (resolved.source === 'youtube' && attempt < MAX_RETRIES) {
+						invalidateCachedStreamUrl(track.videoId);
+						try {
+							trackUrl = await getYtDlpStreamUrl(track.videoId);
+						} catch {
+							// Keep the previous URL; the retry will surface the error.
+						}
+						if (lastPlayedRequestId.current !== myRequestId) {
+							return;
+						}
+					}
+
 					if (attempt < MAX_RETRIES) {
 						logger.info('PlayerManager', 'Retrying playback', {
 							attempt,
@@ -1086,6 +1209,9 @@ function PlayerManager() {
 							delayMs: RETRY_DELAY_MS,
 						});
 						await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+						if (lastPlayedRequestId.current !== myRequestId) {
+							return;
+						}
 					} else {
 						loadingStartedAtRef.current = 0;
 						dispatch({
