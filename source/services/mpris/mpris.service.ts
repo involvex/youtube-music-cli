@@ -43,6 +43,8 @@ type PlaybackCallbacks = {
 
 export class MprisService {
 	private player: MprisPlayer | null = null;
+	private pendingTrack: TrackInfo | null = null;
+	private pendingPlaying: boolean | null = null;
 
 	get isSupported(): boolean {
 		return process.platform === 'linux';
@@ -90,6 +92,12 @@ export class MprisService {
 			this.player.canGoPrevious = true;
 			this.player.canSeek = false;
 
+			if (this.pendingTrack) {
+				this.updateTrack(this.pendingTrack, this.pendingPlaying ?? false);
+			} else if (this.pendingPlaying !== null) {
+				this.setPlaying(this.pendingPlaying);
+			}
+
 			logger.info('MprisService', 'MPRIS player initialized');
 		} catch (error) {
 			logger.warn('MprisService', 'Could not initialize MPRIS', {
@@ -99,6 +107,8 @@ export class MprisService {
 	}
 
 	updateTrack(track: TrackInfo, isPlaying: boolean): void {
+		this.pendingTrack = track;
+		this.pendingPlaying = isPlaying;
 		if (!this.player) return;
 		try {
 			this.player.metadata = {
@@ -113,6 +123,7 @@ export class MprisService {
 	}
 
 	setPlaying(playing: boolean): void {
+		this.pendingPlaying = playing;
 		if (!this.player) return;
 		try {
 			this.player.playbackStatus = playing ? 'Playing' : 'Paused';

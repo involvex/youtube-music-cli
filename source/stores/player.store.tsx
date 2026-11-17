@@ -572,7 +572,9 @@ function PlayerManager() {
 		void getMprisService().initialize({
 			onPlay: () => dispatch({category: 'RESUME'}),
 			onPause: () => dispatch({category: 'PAUSE'}),
-			onPlayPause: () => dispatch({category: 'TOGGLE_PLAY_PAUSE'}),
+			onPlayPause: (): void => {
+				dispatch({category: 'TOGGLE_PLAY_PAUSE'});
+			},
 			onNext: () => dispatch({category: 'NEXT'}),
 			onPrevious: () => dispatch({category: 'PREVIOUS'}),
 		});
