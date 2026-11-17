@@ -1,7 +1,7 @@
 // Playlist list component
 import {Box, Text} from 'ink';
 import TextInput from 'ink-text-input';
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
@@ -31,24 +31,30 @@ export default function PlaylistList() {
 	const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [radioStatus, setRadioStatus] = useState<string | null>(null);
-	const [viewingTracks, setViewingTracks] = useState(false);
+	const [viewingPlaylistId, setViewingPlaylistId] = useState<string | null>(
+		null,
+	);
 	const [trackIndex, setTrackIndex] = useState(0);
 	useKeyboardBlocker(renamingPlaylistId !== null);
 
 	const selectedPlaylist = playlists[selectedIndex];
-	const selectedTracks = selectedPlaylist?.tracks ?? [];
-
-	useEffect(() => {
-		setViewingTracks(false);
-		setTrackIndex(0);
-	}, [selectedIndex]);
+	const selectedTracks = useMemo(
+		() => selectedPlaylist?.tracks ?? [],
+		[selectedPlaylist],
+	);
+	// Derive the view state from the selection so changing playlists closes it
+	// without a state-syncing effect.
+	const viewingTracks =
+		viewingPlaylistId !== null &&
+		viewingPlaylistId === selectedPlaylist?.playlistId;
 
 	const handleCreate = useCallback(() => {
+		if (viewingTracks) return;
 		const name = `Playlist ${playlists.length + 1}`;
 		const playlist = createPlaylist(name);
 		setLastCreated(playlist.name);
 		setSelectedIndex(playlists.length);
-	}, [createPlaylist, playlists.length]);
+	}, [createPlaylist, playlists.length, viewingTracks]);
 
 	const navigateUp = useCallback(() => {
 		if (viewingTracks) {
@@ -61,7 +67,10 @@ export default function PlaylistList() {
 	const navigateDown = useCallback(() => {
 		if (viewingTracks) {
 			setTrackIndex(prev =>
-				Math.min(selectedTracks.length === 0 ? 0 : selectedTracks.length - 1, prev + 1),
+				Math.min(
+					selectedTracks.length === 0 ? 0 : selectedTracks.length - 1,
+					prev + 1,
+				),
 			);
 			return;
 		}
@@ -78,7 +87,14 @@ export default function PlaylistList() {
 		const firstTrack = playlist.tracks[0];
 		if (!firstTrack) return;
 		play(firstTrack);
-	}, [play, playlists, selectedIndex, renamingPlaylistId, setQueue]);
+	}, [
+		play,
+		playlists,
+		selectedIndex,
+		renamingPlaylistId,
+		setQueue,
+		viewingTracks,
+	]);
 
 	const playSelectedTrack = useCallback(() => {
 		const track = selectedTracks[trackIndex];
@@ -102,11 +118,16 @@ export default function PlaylistList() {
 	const toggleTrackList = useCallback(() => {
 		const playlist = playlists[selectedIndex];
 		if (!playlist || renamingPlaylistId) return;
-		if (!viewingTracks && playlist.tracks.length === 0) {
+		if (viewingTracks) {
+			setViewingPlaylistId(null);
+			setTrackIndex(0);
+			return;
+		}
+		if (playlist.tracks.length === 0) {
 			setRadioStatus(`"${playlist.name}" has no tracks.`);
 			return;
 		}
-		setViewingTracks(prev => !prev);
+		setViewingPlaylistId(playlist.playlistId);
 		setTrackIndex(0);
 	}, [playlists, renamingPlaylistId, selectedIndex, viewingTracks]);
 
@@ -140,7 +161,7 @@ export default function PlaylistList() {
 					: `Could not start radio from "${playlist.name}".`,
 			);
 		});
-	}, [playlists, selectedIndex, renamingPlaylistId, startRadio]);
+	}, [playlists, selectedIndex, renamingPlaylistId, startRadio, viewingTracks]);
 
 	const handleRename = useCallback(() => {
 		if (viewingTracks) return;
@@ -148,7 +169,7 @@ export default function PlaylistList() {
 		if (!playlist) return;
 		setRenamingPlaylistId(playlist.playlistId);
 		setRenameValue(playlist.name);
-	}, [playlists, selectedIndex]);
+	}, [playlists, selectedIndex, viewingTracks]);
 
 	const handleRenameSubmit = useCallback(
 		(value: string) => {
@@ -168,7 +189,7 @@ export default function PlaylistList() {
 			return;
 		}
 		if (viewingTracks) {
-			setViewingTracks(false);
+			setViewingPlaylistId(null);
 			setTrackIndex(0);
 			return;
 		}
@@ -181,7 +202,13 @@ export default function PlaylistList() {
 		if (!playlist) return;
 		deletePlaylist(playlist.playlistId);
 		setSelectedIndex(prev => Math.max(0, prev - 1));
-	}, [deletePlaylist, playlists, renamingPlaylistId, selectedIndex]);
+	}, [
+		deletePlaylist,
+		playlists,
+		renamingPlaylistId,
+		selectedIndex,
+		viewingTracks,
+	]);
 
 	const handleDownload = useCallback(async () => {
 		if (renamingPlaylistId || viewingTracks) return;
@@ -232,6 +259,7 @@ export default function PlaylistList() {
 		playlists,
 		renamingPlaylistId,
 		selectedIndex,
+		viewingTracks,
 	]);
 
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
@@ -312,9 +340,7 @@ export default function PlaylistList() {
 								>
 									<Text
 										color={
-											isSelected
-												? theme.colors.background
-												: theme.colors.text
+											isSelected ? theme.colors.background : theme.colors.text
 										}
 										bold={isSelected}
 									>
