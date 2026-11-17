@@ -20,12 +20,17 @@ type MprisPlayer = {
 	objectPath: string;
 };
 
+type MprisOptions = {
+	name: string;
+	identity: string;
+	supportedInterfaces: string[];
+};
+
 type MprisModule = {
-	createPlayer: (opts: {
-		name: string;
-		identity: string;
-		supportedInterfaces: string[];
-	}) => MprisPlayer;
+	/** Original package (v1) exposure. */
+	createPlayer?: (opts: MprisOptions) => MprisPlayer;
+	/** Original package (v2) and the maintained fork expose the class. */
+	new (opts: MprisOptions): MprisPlayer;
 };
 
 type PlaybackCallbacks = {
@@ -51,14 +56,22 @@ export class MprisService {
 		}
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
-			const mpris = (await import('mpris-service')) as unknown as MprisModule;
-			this.player = mpris.createPlayer({
+			// @jellybrick/mpris-service is ESM and default-exports the Player
+			// class; the original package used a createPlayer factory (v1) or
+			// the class (v2). Accept every shape.
+			const imported = (await import(
+				'@jellybrick/mpris-service'
+			)) as unknown as {default?: MprisModule} & MprisModule;
+			const mpris = imported.default ?? imported;
+			const options: MprisOptions = {
 				name: 'youtube-music-cli',
 				identity: 'YouTube Music CLI',
 				supportedInterfaces: ['player'],
-			});
+			};
+			this.player =
+				typeof mpris.createPlayer === 'function'
+					? mpris.createPlayer(options)
+					: new mpris(options);
 
 			// Wire up MPRIS events to player callbacks
 			if (callbacks.onPlay) this.player.on('play', callbacks.onPlay);
