@@ -1,3 +1,10 @@
+## [0.3.10](https://github.com/involvex/youtube-music-cli/compare/v0.3.9...v0.3.10) (2026-11-17)
+
+### Bug Fixes
+
+- **mpris:** make the existing MPRIS player initialize and control playback ([31ecab7](https://github.com/involvex/youtube-music-cli/commit/31ecab73c19f7a11db67404db79dbcd4b8237053))
+- **player:** resolve signed stream URLs and ignore stale playback events ([a79d88c](https://github.com/involvex/youtube-music-cli/commit/a79d88c51671953756f0e6776bf652b43e83e1f6))
+
 ## [0.3.9](https://github.com/involvex/youtube-music-cli/compare/v0.3.8...v0.3.9) (2026-11-16)
 
 ### Features
