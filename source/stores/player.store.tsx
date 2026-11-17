@@ -569,6 +569,8 @@ function PlayerManager() {
 		void getMprisService().initialize({
 			onPlay: () => dispatch({category: 'RESUME'}),
 			onPause: () => dispatch({category: 'PAUSE'}),
+			onPlayPause: () =>
+				dispatch({category: isPlayingRef.current ? 'PAUSE' : 'RESUME'}),
 			onNext: () => dispatch({category: 'NEXT'}),
 			onPrevious: () => dispatch({category: 'PREVIOUS'}),
 		});
@@ -1369,6 +1371,10 @@ function PlayerManager() {
 
 	// Handle play/pause state
 	useEffect(() => {
+		// Keep the MPRIS PlaybackStatus in sync, otherwise MPRIS clients keep
+		// showing "Playing" after a pause and the toggle looks broken.
+		getMprisService().setPlaying(state.isPlaying);
+
 		// Identify the currently active media (track or live/radio stream) so
 		// pause/resume works regardless of playback mode.
 		const activeId =

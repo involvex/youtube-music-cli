@@ -36,6 +36,7 @@ type MprisModule = {
 type PlaybackCallbacks = {
 	onPlay?: () => void;
 	onPause?: () => void;
+	onPlayPause?: () => void;
 	onNext?: () => void;
 	onPrevious?: () => void;
 };
@@ -76,6 +77,8 @@ export class MprisService {
 			// Wire up MPRIS events to player callbacks
 			if (callbacks.onPlay) this.player.on('play', callbacks.onPlay);
 			if (callbacks.onPause) this.player.on('pause', callbacks.onPause);
+			if (callbacks.onPlayPause)
+				this.player.on('playpause', callbacks.onPlayPause);
 			if (callbacks.onNext) this.player.on('next', callbacks.onNext);
 			if (callbacks.onPrevious)
 				this.player.on('previous', callbacks.onPrevious);
