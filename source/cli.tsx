@@ -34,6 +34,7 @@ import {ensurePlaybackDependencies} from './services/player/dependency-check.ser
 import {getMusicService} from './services/youtube-music/api.ts';
 import type {Track} from './types/youtube-music.types.ts';
 import {logger} from './services/logger/logger.service.ts';
+import {getYtDlpStreamUrl} from './services/youtube-music/ytdlp-stream-url.ts';
 import {resolveTrackPlayUrl} from './utils/local-track.ts';
 
 // Global error handlers to prevent crashes from unhandled rejections/exceptions
@@ -743,6 +744,16 @@ async function runDirectPlaybackCommand(flags: Flags): Promise<void> {
 			downloadDirectory: getConfigService().get('downloadDirectory'),
 			downloadFormat: getConfigService().get('downloadFormat') ?? 'mp3',
 		});
+		if (resolved.source === 'youtube') {
+			try {
+				resolved.url = await getYtDlpStreamUrl(track.videoId);
+			} catch (error) {
+				logger.warn('Cli', 'Direct stream resolution failed, using watch URL', {
+					videoId: track.videoId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 		if (resolved.source === 'local') {
 			console.log(`Source: local file (${resolved.url})`);
 		}
