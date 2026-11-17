@@ -101,7 +101,10 @@ export default function AccountLibraryLayout() {
 	const navigateDown = useCallback(() => {
 		if (viewingTracks) {
 			setTrackIndex(prev =>
-				Math.min(expandedTracks.length === 0 ? 0 : expandedTracks.length - 1, prev + 1),
+				Math.min(
+					expandedTracks.length === 0 ? 0 : expandedTracks.length - 1,
+					prev + 1,
+				),
 			);
 			return;
 		}
@@ -113,6 +116,8 @@ export default function AccountLibraryLayout() {
 	const switchPane = useCallback((next: LibraryPane) => {
 		setPane(next);
 		setSelectedIndex(0);
+		setViewingTracks(false);
+		setTrackIndex(0);
 		setStatus(null);
 	}, []);
 
@@ -235,9 +240,7 @@ export default function AccountLibraryLayout() {
 				setTrackIndex(0);
 				setViewingTracks(true);
 				setStatus(
-					loaded.tracks.length === 0
-						? `No tracks in "${playlist.name}"`
-						: null,
+					loaded.tracks.length === 0 ? `No tracks in "${playlist.name}"` : null,
 				);
 			})
 			.catch((err: unknown) => {
@@ -250,13 +253,7 @@ export default function AccountLibraryLayout() {
 			.finally(() => {
 				setLoadingTracks(false);
 			});
-	}, [
-		pane,
-		playlists,
-		selectedIndex,
-		signedOut,
-		viewingTracks,
-	]);
+	}, [pane, playlists, selectedIndex, signedOut, viewingTracks]);
 
 	const goToLogin = useCallback(() => {
 		dispatch({category: 'NAVIGATE', view: VIEW.LOGIN});
