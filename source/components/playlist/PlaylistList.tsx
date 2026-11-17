@@ -1,7 +1,7 @@
 // Playlist list component
 import {Box, Text} from 'ink';
 import TextInput from 'ink-text-input';
-import {useCallback, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {useNavigation} from '../../hooks/useNavigation.ts';
 import {useKeyBinding} from '../../hooks/useKeyboard.ts';
 import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
@@ -11,12 +11,12 @@ import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
 import {useTheme} from '../../hooks/useTheme.ts';
 import {getDownloadService} from '../../services/download/download.service.ts';
 import {formatDownloadProgress} from '../../utils/download-progress.ts';
-import {truncate} from '../../utils/format.ts';
+import {formatTime, truncate} from '../../utils/format.ts';
 import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
 
 export default function PlaylistList() {
 	const {theme} = useTheme();
-	const {play, setQueue, startRadio} = usePlayer();
+	const {play, setQueue, startRadio, addToQueue, playNext} = usePlayer();
 	const {dispatch} = useNavigation();
 	const {columns, rows} = useTerminalSize();
 	const downloadService = getDownloadService();
@@ -31,7 +31,17 @@ export default function PlaylistList() {
 	const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [radioStatus, setRadioStatus] = useState<string | null>(null);
+	const [viewingTracks, setViewingTracks] = useState(false);
+	const [trackIndex, setTrackIndex] = useState(0);
 	useKeyboardBlocker(renamingPlaylistId !== null);
+
+	const selectedPlaylist = playlists[selectedIndex];
+	const selectedTracks = selectedPlaylist?.tracks ?? [];
+
+	useEffect(() => {
+		setViewingTracks(false);
+		setTrackIndex(0);
+	}, [selectedIndex]);
 
 	const handleCreate = useCallback(() => {
 		const name = `Playlist ${playlists.length + 1}`;
@@ -41,17 +51,27 @@ export default function PlaylistList() {
 	}, [createPlaylist, playlists.length]);
 
 	const navigateUp = useCallback(() => {
+		if (viewingTracks) {
+			setTrackIndex(prev => Math.max(0, prev - 1));
+			return;
+		}
 		setSelectedIndex(prev => Math.max(0, prev - 1));
-	}, []);
+	}, [viewingTracks]);
 
 	const navigateDown = useCallback(() => {
+		if (viewingTracks) {
+			setTrackIndex(prev =>
+				Math.min(selectedTracks.length === 0 ? 0 : selectedTracks.length - 1, prev + 1),
+			);
+			return;
+		}
 		setSelectedIndex(prev =>
 			Math.min(playlists.length === 0 ? 0 : playlists.length - 1, prev + 1),
 		);
-	}, [playlists.length]);
+	}, [playlists.length, viewingTracks, selectedTracks.length]);
 
 	const startPlaylist = useCallback(() => {
-		if (renamingPlaylistId) return;
+		if (renamingPlaylistId || viewingTracks) return;
 		const playlist = playlists[selectedIndex];
 		if (!playlist || playlist.tracks.length === 0) return;
 		setQueue([...playlist.tracks]);
@@ -60,10 +80,48 @@ export default function PlaylistList() {
 		play(firstTrack);
 	}, [play, playlists, selectedIndex, renamingPlaylistId, setQueue]);
 
+	const playSelectedTrack = useCallback(() => {
+		const track = selectedTracks[trackIndex];
+		if (!track || !selectedPlaylist) return;
+		setQueue([...selectedTracks]);
+		play(track);
+	}, [play, selectedPlaylist, selectedTracks, setQueue, trackIndex]);
+
+	const enqueueSelectedTrack = useCallback(() => {
+		const track = selectedTracks[trackIndex];
+		if (!track || !viewingTracks) return;
+		addToQueue(track);
+	}, [addToQueue, selectedTracks, trackIndex, viewingTracks]);
+
+	const playNextSelectedTrack = useCallback(() => {
+		const track = selectedTracks[trackIndex];
+		if (!track || !viewingTracks) return;
+		playNext(track);
+	}, [playNext, selectedTracks, trackIndex, viewingTracks]);
+
+	const toggleTrackList = useCallback(() => {
+		const playlist = playlists[selectedIndex];
+		if (!playlist || renamingPlaylistId) return;
+		if (!viewingTracks && playlist.tracks.length === 0) {
+			setRadioStatus(`"${playlist.name}" has no tracks.`);
+			return;
+		}
+		setViewingTracks(prev => !prev);
+		setTrackIndex(0);
+	}, [playlists, renamingPlaylistId, selectedIndex, viewingTracks]);
+
+	const selectCurrent = useCallback(() => {
+		if (viewingTracks) {
+			playSelectedTrack();
+			return;
+		}
+		startPlaylist();
+	}, [playSelectedTrack, startPlaylist, viewingTracks]);
+
 	// Endless radio-like playback seeded from the selected saved playlist:
 	// shuffled playlist queue first, then autoplay extends with related tracks.
 	const startPlaylistRadio = useCallback(() => {
-		if (renamingPlaylistId) return;
+		if (renamingPlaylistId || viewingTracks) return;
 		const playlist = playlists[selectedIndex];
 		if (!playlist) return;
 		if (playlist.tracks.length === 0) {
@@ -85,6 +143,7 @@ export default function PlaylistList() {
 	}, [playlists, selectedIndex, renamingPlaylistId, startRadio]);
 
 	const handleRename = useCallback(() => {
+		if (viewingTracks) return;
 		const playlist = playlists[selectedIndex];
 		if (!playlist) return;
 		setRenamingPlaylistId(playlist.playlistId);
@@ -108,11 +167,16 @@ export default function PlaylistList() {
 			setRenameValue('');
 			return;
 		}
+		if (viewingTracks) {
+			setViewingTracks(false);
+			setTrackIndex(0);
+			return;
+		}
 		dispatch({category: 'GO_BACK'});
-	}, [dispatch, renamingPlaylistId]);
+	}, [dispatch, renamingPlaylistId, viewingTracks]);
 
 	const handleDelete = useCallback(() => {
-		if (renamingPlaylistId) return;
+		if (renamingPlaylistId || viewingTracks) return;
 		const playlist = playlists[selectedIndex];
 		if (!playlist) return;
 		deletePlaylist(playlist.playlistId);
@@ -120,7 +184,7 @@ export default function PlaylistList() {
 	}, [deletePlaylist, playlists, renamingPlaylistId, selectedIndex]);
 
 	const handleDownload = useCallback(async () => {
-		if (renamingPlaylistId) return;
+		if (renamingPlaylistId || viewingTracks) return;
 		if (isDownloading) {
 			setDownloadStatus('Download already in progress. Please wait.');
 			return;
@@ -172,7 +236,10 @@ export default function PlaylistList() {
 
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
-	useKeyBinding(resolveKeybinding('SELECT'), startPlaylist);
+	useKeyBinding(resolveKeybinding('SELECT'), selectCurrent);
+	useKeyBinding(['t'], toggleTrackList);
+	useKeyBinding(resolveKeybinding('ADD_TO_QUEUE'), enqueueSelectedTrack);
+	useKeyBinding(resolveKeybinding('PLAY_NEXT'), playNextSelectedTrack);
 	useKeyBinding(['r'], handleRename);
 	useKeyBinding(resolveKeybinding('CREATE_MIX'), startPlaylistRadio);
 	useKeyBinding(resolveKeybinding('CREATE_PLAYLIST'), handleCreate);
@@ -192,6 +259,85 @@ export default function PlaylistList() {
 	);
 	const indexWidth = String(playlists.length).length;
 	const nameWidth = Math.max(12, columns - indexWidth - 18);
+
+	if (viewingTracks && selectedPlaylist) {
+		const trackVisible = Math.max(5, rows - 12);
+		const trackStart = Math.max(
+			0,
+			Math.min(
+				trackIndex - Math.floor(trackVisible / 2),
+				Math.max(0, selectedTracks.length - trackVisible),
+			),
+		);
+		const visibleTracks = selectedTracks.slice(
+			trackStart,
+			trackStart + trackVisible,
+		);
+
+		return (
+			<Box flexDirection="column" flexGrow={1} paddingX={1}>
+				<Box marginBottom={1}>
+					<Text bold color={theme.colors.primary}>
+						{truncate(selectedPlaylist.name, Math.max(12, columns - 14))}
+					</Text>
+					<Text color={theme.colors.dim}>
+						{' '}
+						({selectedTracks.length} tracks)
+					</Text>
+				</Box>
+
+				{selectedTracks.length === 0 ? (
+					<Text color={theme.colors.dim}>Playlist is empty</Text>
+				) : (
+					<Box flexDirection="column" height={trackVisible} flexShrink={0}>
+						{visibleTracks.map((track, offset) => {
+							const absoluteIndex = trackStart + offset;
+							const isSelected = absoluteIndex === trackIndex;
+							const rowBackground = isSelected
+								? theme.colors.secondary
+								: undefined;
+							const artist = track.artists?.[0]?.name ?? 'Unknown';
+							const duration = track.duration
+								? ` ${formatTime(track.duration)}`
+								: '';
+							const label = `${String(absoluteIndex + 1).padStart(
+								String(selectedTracks.length).length,
+							)}. ${track.title} — ${artist}${duration}`;
+							return (
+								<Box
+									key={`${track.videoId}-${absoluteIndex}`}
+									paddingX={1}
+									backgroundColor={rowBackground}
+									flexShrink={0}
+								>
+									<Text
+										color={
+											isSelected
+												? theme.colors.background
+												: theme.colors.text
+										}
+										bold={isSelected}
+									>
+										{truncate(label, Math.max(20, columns - 4))}
+									</Text>
+								</Box>
+							);
+						})}
+					</Box>
+				)}
+
+				<Box marginTop={1} flexDirection="column">
+					<Text color={theme.colors.dim}>
+						<Text color={theme.colors.text}>Enter</Text> play track |{' '}
+						<Text color={theme.colors.text}>w</Text> queue |{' '}
+						<Text color={theme.colors.text}>y</Text> play next |{' '}
+						<Text color={theme.colors.text}>t</Text> back to playlists |{' '}
+						<Text color={theme.colors.text}>Esc</Text> back
+					</Text>
+				</Box>
+			</Box>
+		);
+	}
 
 	return (
 		<Box flexDirection="column" flexGrow={1} paddingX={1}>
@@ -271,6 +417,7 @@ export default function PlaylistList() {
 			<Box marginTop={1} flexDirection="column">
 				<Text color={theme.colors.dim}>
 					<Text color={theme.colors.text}>Enter</Text> to play |{' '}
+					<Text color={theme.colors.text}>t</Text> tracks |{' '}
 					<Text color={theme.colors.text}>m</Text> radio |{' '}
 					<Text color={theme.colors.text}>r</Text> rename |{' '}
 					<Text color={theme.colors.text}>c</Text> create |{' '}
