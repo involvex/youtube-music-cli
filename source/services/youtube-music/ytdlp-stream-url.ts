@@ -71,6 +71,10 @@ export async function getYtDlpStreamUrl(videoId: string): Promise<string> {
 		'--no-playlist',
 		'--no-warnings',
 	];
+	const proxy = config.get('proxy');
+	if (proxy) {
+		args.push('--proxy', proxy);
+	}
 	appendYtDlpCookieArgs(args, {
 		cookiesFile: config.get('cookiesFile'),
 		cookiesFromBrowser: config.get('cookiesFromBrowser'),

@@ -722,8 +722,12 @@ function PlayerManager() {
 
 				// An advance is already in flight (autoplay preload or a previous
 				// EOF): the current mpv still holds the old file, so this event
-				// must not advance the queue a second time.
-				if (isAdvancingRef.current) {
+				// must not advance the queue a second time. Allow no-progress EOF
+				// through when a load is active so self-heal can refresh a dead URL.
+				if (
+					isAdvancingRef.current &&
+					(hasProgress || loadingStartedAtRef.current === 0)
+				) {
 					logger.debug(
 						'PlayerManager',
 						'Ignoring EOF while advance is in flight',
@@ -967,6 +971,8 @@ function PlayerManager() {
 				downloadDirectory: config.get('downloadDirectory'),
 				downloadFormat: config.get('downloadFormat') ?? 'mp3',
 			});
+			isAdvancingRef.current = true;
+			beginAdvanceGrace();
 			let trackUrl = resolved.url;
 			if (resolved.source === 'youtube') {
 				// mpv's ytdl_hook asks yt-dlp for metadata only, which leaves the
@@ -994,6 +1000,16 @@ function PlayerManager() {
 					requestId: myRequestId,
 					latestRequestId: lastPlayedRequestId.current,
 				});
+				isAdvancingRef.current = false;
+				return;
+			}
+			if (!isPlayingRef.current) {
+				logger.debug(
+					'PlayerManager',
+					'Skipping playback start after pause/stop during resolve',
+					{videoId: track.videoId},
+				);
+				isAdvancingRef.current = false;
 				return;
 			}
 			dispatch({
@@ -1029,8 +1045,6 @@ function PlayerManager() {
 
 			dispatch({category: 'SET_LOADING', loading: true});
 			loadingStartedAtRef.current = Date.now();
-			isAdvancingRef.current = true;
-			beginAdvanceGrace();
 
 			const MAX_RETRIES = 3;
 			const RETRY_DELAY_MS = 1500;
@@ -1106,8 +1120,7 @@ function PlayerManager() {
 					});
 					// Resolving a stream URL costs seconds (yt-dlp JS challenge).
 					// Warm the next queue entry so advancing starts instantly.
-					const upcoming =
-						queueRef.current[queuePositionRef.current + 1];
+					const upcoming = queueRef.current[queuePositionRef.current + 1];
 					if (upcoming?.videoId) {
 						void getYtDlpStreamUrl(upcoming.videoId).catch(() => {});
 					}
@@ -1196,6 +1209,9 @@ function PlayerManager() {
 							delayMs: RETRY_DELAY_MS,
 						});
 						await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+						if (lastPlayedRequestId.current !== myRequestId) {
+							return;
+						}
 					} else {
 						loadingStartedAtRef.current = 0;
 						dispatch({

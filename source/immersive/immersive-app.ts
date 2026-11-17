@@ -17,6 +17,7 @@ import {getFavoritesManager} from '../services/favorites/favorites.service.ts';
 import {recordListeningHistoryPlay} from '../services/history/history.service.ts';
 import {ensurePlaybackDependencies} from '../services/player/dependency-check.service.ts';
 import {formatPlaybackErrorMessage} from '../services/player/ytdl-cookies.ts';
+import {getYtDlpStreamUrl} from '../services/youtube-music/ytdlp-stream-url.ts';
 import {
 	loadPlayerState,
 	savePlayerState,
@@ -368,7 +369,7 @@ export async function startImmersiveApp(
 		sessionHistory = recordSessionTrack(sessionHistory, track.videoId);
 
 		const resolved = resolveImmersiveTrackPlayUrl(track);
-		const trackUrl = resolved.url;
+		let trackUrl = resolved.url;
 		const notificationsEnabled = config.get('notifications') ?? false;
 
 		isAdvancing = true;
@@ -376,6 +377,13 @@ export async function startImmersiveApp(
 		state.currentTime = 0;
 
 		try {
+			if (resolved.source === 'youtube') {
+				try {
+					trackUrl = await getYtDlpStreamUrl(track.videoId);
+				} catch {
+					// Fall back to the watch URL; mpv/ytdl may still succeed.
+				}
+			}
 			const bgState = config.getBackgroundPlaybackState();
 			if (
 				bgState.enabled &&
