@@ -61,6 +61,15 @@ function isDeniedMpvExtraArg(arg: string): boolean {
 		return true;
 	}
 
+	// Keep system mpv-mpris from registering a competing player.
+	if (
+		lower === '--load-scripts' ||
+		lower === '--load-scripts=yes' ||
+		lower === '--load-scripts=all'
+	) {
+		return true;
+	}
+
 	return false;
 }
 

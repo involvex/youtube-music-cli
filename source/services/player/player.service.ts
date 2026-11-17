@@ -93,6 +93,7 @@ export function buildMpvArgs(
 		'--cache-secs=30',
 		'--network-timeout=10',
 		`--gapless-audio=${crossfadeDuration > 0 || gapless ? 'yes' : 'no'}`,
+		'--load-scripts=no',
 	];
 
 	// Keep mpv in idle mode so it holds the IPC socket open waiting for

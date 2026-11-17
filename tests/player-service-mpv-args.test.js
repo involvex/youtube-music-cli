@@ -152,7 +152,7 @@ test('player-service-mpv-args: buildMpvArgs appends mpvExtraArgs and strips deny
 	const args = buildMpvArgs(IPC_PATH, {
 		volume: 55,
 		mpvExtraArgs:
-			'--no-config --audio-device="wasapi/Speakers" --input-ipc-server=/tmp/evil --idle=no',
+			'--no-config --audio-device="wasapi/Speakers" --input-ipc-server=/tmp/evil --idle=no --load-scripts=yes',
 	});
 
 	expect(args.includes('--no-config')).toBe(true);
@@ -160,6 +160,8 @@ test('player-service-mpv-args: buildMpvArgs appends mpvExtraArgs and strips deny
 	expect(args.includes('--input-ipc-server=/tmp/evil')).toBe(false);
 	expect(args.includes('--idle=no')).toBe(false);
 	expect(args.includes('--idle=yes')).toBe(true);
+	expect(args.includes('--load-scripts=yes')).toBe(false);
+	expect(args.includes('--load-scripts=no')).toBe(true);
 	expect(args.includes(`--input-ipc-server=${IPC_PATH}`)).toBe(true);
 });
 

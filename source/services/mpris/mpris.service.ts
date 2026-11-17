@@ -20,23 +20,31 @@ type MprisPlayer = {
 	objectPath: string;
 };
 
+type MprisOptions = {
+	name: string;
+	identity: string;
+	supportedInterfaces: string[];
+};
+
 type MprisModule = {
-	createPlayer: (opts: {
-		name: string;
-		identity: string;
-		supportedInterfaces: string[];
-	}) => MprisPlayer;
+	/** Original package (v1) exposure. */
+	createPlayer?: (opts: MprisOptions) => MprisPlayer;
+	/** Original package (v2) and the maintained fork expose the class. */
+	new (opts: MprisOptions): MprisPlayer;
 };
 
 type PlaybackCallbacks = {
 	onPlay?: () => void;
 	onPause?: () => void;
+	onPlayPause?: () => void;
 	onNext?: () => void;
 	onPrevious?: () => void;
 };
 
 export class MprisService {
 	private player: MprisPlayer | null = null;
+	private pendingTrack: TrackInfo | null = null;
+	private pendingPlaying: boolean | null = null;
 
 	get isSupported(): boolean {
 		return process.platform === 'linux';
@@ -51,18 +59,29 @@ export class MprisService {
 		}
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
-			const mpris = (await import('mpris-service')) as unknown as MprisModule;
-			this.player = mpris.createPlayer({
+			// @jellybrick/mpris-service is ESM and default-exports the Player
+			// class; the original package used a createPlayer factory (v1) or
+			// the class (v2). Accept every shape.
+			const imported =
+				(await import('@jellybrick/mpris-service')) as unknown as {
+					default?: MprisModule;
+				} & MprisModule;
+			const mpris = imported.default ?? imported;
+			const options: MprisOptions = {
 				name: 'youtube-music-cli',
 				identity: 'YouTube Music CLI',
 				supportedInterfaces: ['player'],
-			});
+			};
+			this.player =
+				typeof mpris.createPlayer === 'function'
+					? mpris.createPlayer(options)
+					: new mpris(options);
 
 			// Wire up MPRIS events to player callbacks
 			if (callbacks.onPlay) this.player.on('play', callbacks.onPlay);
 			if (callbacks.onPause) this.player.on('pause', callbacks.onPause);
+			if (callbacks.onPlayPause)
+				this.player.on('playpause', callbacks.onPlayPause);
 			if (callbacks.onNext) this.player.on('next', callbacks.onNext);
 			if (callbacks.onPrevious)
 				this.player.on('previous', callbacks.onPrevious);
@@ -73,6 +92,12 @@ export class MprisService {
 			this.player.canGoPrevious = true;
 			this.player.canSeek = false;
 
+			if (this.pendingTrack) {
+				this.updateTrack(this.pendingTrack, this.pendingPlaying ?? false);
+			} else if (this.pendingPlaying !== null) {
+				this.setPlaying(this.pendingPlaying);
+			}
+
 			logger.info('MprisService', 'MPRIS player initialized');
 		} catch (error) {
 			logger.warn('MprisService', 'Could not initialize MPRIS', {
@@ -82,6 +107,8 @@ export class MprisService {
 	}
 
 	updateTrack(track: TrackInfo, isPlaying: boolean): void {
+		this.pendingTrack = track;
+		this.pendingPlaying = isPlaying;
 		if (!this.player) return;
 		try {
 			this.player.metadata = {
@@ -96,6 +123,7 @@ export class MprisService {
 	}
 
 	setPlaying(playing: boolean): void {
+		this.pendingPlaying = playing;
 		if (!this.player) return;
 		try {
 			this.player.playbackStatus = playing ? 'Playing' : 'Paused';

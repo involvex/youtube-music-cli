@@ -78,6 +78,7 @@
 	"dependencies": {
 		"@bun-win32/kernel32": "^3.0.0",
 		"@bun-win32/user32": "^5.0.0",
+		"@jellybrick/mpris-service": "^2.2.4",
 		"ansi-escapes": "^7.3.0",
 		"discord-rpc": "^4.0.1",
 		"ink": "8.0.0",
