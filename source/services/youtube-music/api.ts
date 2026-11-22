@@ -464,12 +464,51 @@ class MusicService {
 	}
 
 	async getAlbum(albumId: string): Promise<Album> {
-		return {
-			albumId,
-			name: 'Unknown Album',
-			artists: [],
-			tracks: [],
-		} as unknown as Album;
+		try {
+			const yt = await getClient();
+			// youtubei.js album shape varies; treat as loose record
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const album: any = await yt.music.getAlbum(albumId);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const items: any[] = album.contents || [];
+			const tracks = items
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				.map((item: any) => ({
+					videoId: item.video_id || item.id,
+					title: item.title || 'Unknown Title',
+					artists:
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						item.artists?.map((a: any) => ({
+							name: a.name,
+							artistId: a.channel_id,
+						})) || [],
+				}))
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				.filter((t: any) => t.videoId) as Track[];
+
+			return {
+				albumId,
+				name: album.title || album.name || 'Unknown Album',
+				artists:
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(album.artists ?? []).map((a: any) => ({
+						name: a.name,
+						artistId: a.channel_id || a.id,
+					})) || [],
+				tracks,
+			};
+		} catch (error) {
+			logger.error('MusicService', 'getAlbum failed', {
+				albumId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return {
+				albumId,
+				name: 'Unknown Album',
+				artists: [],
+				tracks: [],
+			};
+		}
 	}
 
 	async getArtist(artistId: string): Promise<Artist> {

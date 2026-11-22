@@ -52,8 +52,10 @@ import {
 	createMixFromResult,
 	loadPlaylists,
 	playSearchResult,
+	radioSeedFromSearchResult,
 	removeTrackFromSavedPlaylist,
 } from './actions/playback-actions.ts';
+import {DISCOVERY_RADIO_SEED} from '../services/radio/discovery-queue.service.ts';
 import {
 	advanceQueue,
 	appendTracksForAutoplay,
@@ -1013,6 +1015,20 @@ export async function startImmersiveApp(
 			await queueAndPlay(outcome.tracks);
 		},
 		onCreateMix: async (result: SearchResult) => {
+			const radioSeed = radioSeedFromSearchResult(result);
+			if (radioSeed) {
+				const radioService = getRadioService();
+				const tracks = await radioService.fetchTracksForSeed(radioSeed);
+				if (tracks.length === 0) {
+					return `No tracks found for ${radioSeed.name}`;
+				}
+				await queueAndPlay(tracks);
+				state.radioIsActive = true;
+				state.radioSeed = radioSeed;
+				radioPhaseNotified = false;
+				return `Started ${radioSeed.name} radio (${tracks.length} tracks)`;
+			}
+
 			const outcome = await createMixFromResult(result, musicService);
 			if (!outcome.ok) {
 				return outcome.message;
@@ -1102,6 +1118,23 @@ export async function startImmersiveApp(
 		},
 		onPlayRadioStation: async (station: RadioStation) => {
 			await playRadioStream(station);
+		},
+		onPlayDiscoveryRadio: async () => {
+			const radioService = getRadioService();
+			const seed: RadioSeed = DISCOVERY_RADIO_SEED;
+			const tracks = await radioService.fetchTracksForSeed(seed);
+			if (tracks.length === 0) {
+				return 'No discovery tracks found';
+			}
+			state.playbackMode = 'youtube';
+			state.currentStation = null;
+			state.streamNowPlaying = null;
+			state.radioIsActive = true;
+			state.radioSeed = seed;
+			state.autoplay = true;
+			await queueAndPlay(tracks);
+			updateTrayIcon('Discovery Queue');
+			return `Discovery Queue (${tracks.length} tracks)`;
 		},
 		onPlayMoodRadio: async (moodId: string) => {
 			const {BUILTIN_MOODS} = await import('../data/builtin-moods.ts');

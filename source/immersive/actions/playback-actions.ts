@@ -1,5 +1,6 @@
 import {getConfigService} from '../../services/config/config.service.ts';
 import {logger} from '../../services/logger/logger.service.ts';
+import type {RadioSeed} from '../../types/radio.types.ts';
 import type {
 	Album,
 	Artist,
@@ -201,6 +202,35 @@ export async function playSearchResult(
 	return {ok: false, message: 'Unsupported result type'};
 }
 
+/**
+ * Artist and album search results start endless radio; songs still use mix.
+ */
+export function radioSeedFromSearchResult(
+	result: SearchResult,
+): RadioSeed | null {
+	if (result.type === 'artist') {
+		const artist = result.data as Artist;
+		if (!artist.name?.trim()) {
+			return null;
+		}
+		return {type: 'artist', id: artist.name, name: artist.name};
+	}
+
+	if (result.type === 'album') {
+		const album = result.data as Album;
+		if (!album.albumId) {
+			return null;
+		}
+		return {
+			type: 'album',
+			id: album.albumId,
+			name: album.name || 'Album Radio',
+		};
+	}
+
+	return null;
+}
+
 export async function createMixFromResult(
 	result: SearchResult,
 	musicService: ImmersiveMusicService,
@@ -223,33 +253,15 @@ export async function createMixFromResult(
 				error,
 			});
 		}
-	} else if (result.type === 'artist') {
-		const artistName =
-			'name' in result.data ? (result.data as Artist).name : '';
-		if (!artistName) {
-			return {ok: false, message: 'Artist information is missing'};
-		}
-
-		playlistName = `${artistName} mix`;
-
-		try {
-			const response = await musicService.search(artistName, {
-				type: 'songs',
-				limit: 25,
-			});
-			const artistTracks = response.results
-				.filter(item => item.type === 'song')
-				.map(item => item.data as Track);
-			collectedTracks.push(...artistTracks);
-		} catch (error) {
-			logger.error('PlaybackActions', 'Failed to fetch artist songs for mix', {
-				error,
-			});
-		}
+	} else if (result.type === 'artist' || result.type === 'album') {
+		return {
+			ok: false,
+			message: 'Use radio for artists and albums',
+		};
 	} else {
 		return {
 			ok: false,
-			message: 'Mix is only supported for songs and artists',
+			message: 'Mix is only supported for songs',
 		};
 	}
 

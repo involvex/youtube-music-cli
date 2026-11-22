@@ -34,6 +34,7 @@ export const LIBRARY_MENU_ITEMS = [
 	'YouTube Music Library...',
 	'Saved Playlists...',
 	'Smart Playlists...',
+	'Discovery Queue',
 	'Favorites...',
 	'Play All Favorites',
 	'Random Favorite',

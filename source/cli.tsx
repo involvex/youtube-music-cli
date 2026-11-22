@@ -73,6 +73,7 @@ const cli = meow(
 	  $ youtube-music-cli sync <playlist-id|ytm-url>
 	  $ youtube-music-cli suggestions
 	  $ youtube-music-cli radio <track-id>
+	  $ youtube-music-cli discover
 	  $ youtube-music-cli pause
 	  $ youtube-music-cli resume
 	  $ youtube-music-cli skip
@@ -671,6 +672,8 @@ function shouldCheckPlaybackDependencies(
 	return (
 		commandName === undefined ||
 		commandName === 'suggestions' ||
+		commandName === 'radio' ||
+		commandName === 'discover' ||
 		Boolean(flags.web)
 	);
 }
@@ -968,6 +971,12 @@ if (command === 'plugins') {
 			type: 'track',
 			id: args[0],
 			name: args[0],
+		};
+	} else if (command === 'discover') {
+		(cli.flags as Flags).radioSeed = {
+			type: 'discovery',
+			id: 'discovery',
+			name: 'Discovery Queue',
 		};
 	} else if (command === 'pause') {
 		(cli.flags as Flags).action = 'pause';

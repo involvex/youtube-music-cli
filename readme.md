@@ -49,7 +49,7 @@ Your support helps keep this project alive and improving!
 
 ## Roadmap
 
-**0.1.0** is out — [celebratory notes](docs/releases/v0.1.0.md). Visit [`SUGGESTIONS.md`](SUGGESTIONS.md) for the backlog and [`docs/roadmap.md`](docs/roadmap.md) for post-0.1.0 focus (hardening, discovery, offline, web v1.1).
+Visit [`SUGGESTIONS.md`](SUGGESTIONS.md) for the backlog and [`docs/roadmap.md`](docs/roadmap.md) for current focus (downloads enhancement, playlist sync depth). Discovery Queue ships in the 0.4.0 batch.
 
 ## What's new in 0.1.0
 

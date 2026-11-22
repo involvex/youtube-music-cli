@@ -205,6 +205,7 @@ export interface ImmersiveOptions {
 	onPlayAccountPlaylist?: (playlistId: string) => Promise<void>;
 	onPlayRadioStation?: (station: RadioStation) => Promise<void>;
 	onPlayMoodRadio?: (moodId: string) => Promise<string | null>;
+	onPlayDiscoveryRadio?: () => Promise<string | null>;
 	onToggleShuffle?: () => void;
 	onToggleRepeat?: () => void;
 	onToggleAutoplay?: () => void;
@@ -812,6 +813,11 @@ export class ImmersiveEngine {
 				case 'Smart Playlists...':
 					openSmartPlaylists(this.libraryOverlay);
 					void this.loadSmartPlaylists();
+					break;
+				case 'Discovery Queue':
+					await this.runLibraryAction(() =>
+						this.options.onPlayDiscoveryRadio?.(),
+					);
 					break;
 				case 'Favorites...':
 					openFavoritesPicker(this.libraryOverlay);

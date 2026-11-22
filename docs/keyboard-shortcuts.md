@@ -11,22 +11,23 @@ Complete reference of all keyboard shortcuts in youtube-music-cli.
 
 These work from any screen.
 
-| Key            | Action                 |
-| -------------- | ---------------------- |
-| `?`            | Show help screen       |
-| `/`            | Open search            |
-| `p`            | Open plugins manager   |
-| `Shift+F`      | Open favorites view    |
-| `Shift+P`      | Open playlists         |
-| `Ctrl+Shift+M` | Open smart playlists   |
-| `g`            | Show suggestions       |
-| `,`            | Open settings          |
-| `q`            | Quit application       |
-| `Esc`          | Go back / Close menu   |
-| `Shift+I`      | Open Radio Streams     |
-| `Shift+V`      | Open Live Streams      |
-| `l`            | Open lyrics view       |
-| `Ctrl+R`       | Refresh network status |
+| Key            | Action                                   |
+| -------------- | ---------------------------------------- |
+| `?`            | Show help screen                         |
+| `/`            | Open search                              |
+| `p`            | Open plugins manager                     |
+| `Shift+F`      | Open favorites view                      |
+| `Shift+P`      | Open playlists                           |
+| `Ctrl+Shift+M` | Open smart playlists                     |
+| `g`            | Show suggestions                         |
+| `d`            | Start Discovery Queue (from Suggestions) |
+| `,`            | Open settings                            |
+| `q`            | Quit application                         |
+| `Esc`          | Go back / Close menu                     |
+| `Shift+I`      | Open Radio Streams                       |
+| `Shift+V`      | Open Live Streams                        |
+| `l`            | Open lyrics view                         |
+| `Ctrl+R`       | Refresh network status                   |
 
 ## Playback Controls
 
@@ -58,15 +59,16 @@ These work from any screen.
 
 ## Search
 
-| Key        | Action                          |
-| ---------- | ------------------------------- |
-| `/`        | Focus search input              |
-| `Enter`    | Execute search                  |
-| `Esc`      | Back (results → typing → leave) |
-| `]/` / `[` | More / fewer search results     |
-| `W`        | Add track to playback queue     |
-| `Y`        | Play track next in queue        |
-| `Shift+H`  | Queue & History view            |
+| Key        | Action                             |
+| ---------- | ---------------------------------- |
+| `/`        | Focus search input                 |
+| `Enter`    | Execute search                     |
+| `Esc`      | Back (results → typing → leave)    |
+| `]/` / `[` | More / fewer search results        |
+| `W`        | Add track to playback queue        |
+| `Y`        | Play track next in queue           |
+| `m`        | Mix (song) or radio (artist/album) |
+| `Shift+H`  | Queue & History view               |
 
 ## Playlist
 

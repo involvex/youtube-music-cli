@@ -1,9 +1,10 @@
-import {afterEach, beforeEach, expect, test} from 'bun:test';
+import {afterEach, beforeEach, expect, mock, spyOn, test} from 'bun:test';
 import {mkdtempSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {getConfigService} from '../source/services/config/config.service.ts';
 import {
+	enrichTopArtistDeepDive,
 	findMaterializedPlaylist,
 	getMaterializedPlaylistId,
 	listDefinitions,
@@ -13,6 +14,7 @@ import {
 	resetSmartPlaylistsStorageForTests,
 	setSmartPlaylistsFilePathForTests,
 } from '../source/services/smart-playlist/smart-playlist-storage.ts';
+import {getMusicService} from '../source/services/youtube-music/api.ts';
 
 let tempDir;
 let previousPlaylists;
@@ -98,4 +100,74 @@ test('refreshOne keeps custom playlist name on refresh', async () => {
 	const playlist = findMaterializedPlaylist('top_tracks_all');
 	expect(playlist?.name).toBe('My Custom Smart Mix');
 	expect(playlist?.tracks[0]?.videoId).toBe('c');
+});
+
+test('enrichTopArtistDeepDive appends unplayed artist search hits', async () => {
+	const historyTracks = [
+		{
+			videoId: 'known',
+			title: 'Known',
+			artists: [{name: 'Daft Punk', artistId: 'daft'}],
+			duration: 180,
+		},
+	];
+	spyOn(getMusicService(), 'search').mockResolvedValue({
+		results: [
+			{
+				type: 'song',
+				data: {
+					videoId: 'known',
+					title: 'Known',
+					artists: [{name: 'Daft Punk', artistId: 'daft'}],
+				},
+			},
+			{
+				type: 'song',
+				data: {
+					videoId: 'fresh',
+					title: 'Fresh',
+					artists: [{name: 'Daft Punk', artistId: 'daft'}],
+				},
+			},
+		],
+		hasMore: false,
+	});
+
+	const enriched = await enrichTopArtistDeepDive(historyTracks, {
+		id: 'top_artist_deep_dive',
+		name: 'Smart: Top Artist Deep Dive',
+		rule: 'top_artist_deep_dive',
+		params: {limit: 30},
+	});
+
+	expect(enriched.map(t => t.videoId)).toEqual(['known', 'fresh']);
+	mock.restore();
+});
+
+test('refreshOne deep dive enriches beyond history-only tracks', async () => {
+	spyOn(getMusicService(), 'search').mockResolvedValue({
+		results: [
+			{
+				type: 'song',
+				data: {
+					videoId: 'new-hit',
+					title: 'New Hit',
+					artists: [{name: 'X', artistId: 'x'}],
+				},
+			},
+		],
+		hasMore: false,
+	});
+
+	const entries = [
+		entry('a', 'A', 'X', '2026-11-15T00:00:00.000Z'),
+		entry('a', 'A', 'X', '2026-11-14T00:00:00.000Z'),
+		entry('b', 'B', 'X', '2026-11-13T00:00:00.000Z'),
+	];
+
+	const result = await refreshOne('top_artist_deep_dive', {entries});
+	expect(result.trackCount).toBeGreaterThanOrEqual(3);
+	const playlist = findMaterializedPlaylist('top_artist_deep_dive');
+	expect(playlist?.tracks.some(t => t.videoId === 'new-hit')).toBe(true);
+	mock.restore();
 });
