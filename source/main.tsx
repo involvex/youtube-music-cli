@@ -26,12 +26,14 @@ import {useKeyBinding} from './hooks/useKeyboard.ts';
 import {resolveKeybinding} from './utils/keybinding-resolver.ts';
 import {ChatProvider} from './stores/chat.store.tsx';
 import BootScreen from './components/common/BootScreen.tsx';
+import {hasCliPlaybackLaunchIntent} from './utils/cli-launch-intent.ts';
 
-function Initializer({flags}: {flags?: Flags}) {
+function Initializer({flags, isBooted}: {flags?: Flags; isBooted: boolean}) {
 	const {dispatch} = useNavigation();
 	const {play, dispatch: playerDispatch, startRadio} = usePlayer();
 	const {getTrack, getPlaylist} = useYouTubeMusic();
 	const didResumeRef = useRef(false);
+	const didLaunchRef = useRef(false);
 
 	useKeyBinding(resolveKeybinding('FAVORITES_VIEW'), () => {
 		dispatch({category: 'NAVIGATE', view: VIEW.FAVORITES});
@@ -87,11 +89,15 @@ function Initializer({flags}: {flags?: Flags}) {
 	}, []);
 
 	useEffect(() => {
+		if (!isBooted || didLaunchRef.current) {
+			return;
+		}
+
 		// Check for background playback state on startup
 		const config = getConfigService();
 		const backgroundState = config.getBackgroundPlaybackState();
 
-		if (backgroundState.enabled) {
+		if (backgroundState.enabled && !hasCliPlaybackLaunchIntent(flags)) {
 			const notification = getNotificationService();
 			notification.setEnabled(true);
 			void notification.notify(
@@ -101,17 +107,37 @@ function Initializer({flags}: {flags?: Flags}) {
 		}
 
 		if (flags?.showSuggestions) {
+			didLaunchRef.current = true;
 			dispatch({category: 'NAVIGATE', view: VIEW.SUGGESTIONS});
 		} else if (flags?.radioSeed) {
-			void startRadio(flags.radioSeed);
+			didLaunchRef.current = true;
+			const seed = flags.radioSeed;
+			void startRadio(seed).then(success => {
+				if (!success) {
+					getNotificationService().notify(
+						seed.name || 'Radio',
+						'No tracks found to start radio',
+					);
+				}
+			});
 		} else if (flags?.searchQuery) {
+			didLaunchRef.current = true;
 			dispatch({category: 'NAVIGATE', view: VIEW.SEARCH});
 			dispatch({category: 'SET_SEARCH_QUERY', query: flags.searchQuery});
 		} else if (flags?.playTrack) {
+			didLaunchRef.current = true;
 			void getTrack(flags.playTrack).then(track => {
-				if (track) play(track);
+				if (track) {
+					play(track);
+				} else {
+					getNotificationService().notify(
+						'Play failed',
+						`Track not found: ${flags.playTrack}`,
+					);
+				}
 			});
 		} else if (flags?.playPlaylist) {
+			didLaunchRef.current = true;
 			dispatch({category: 'NAVIGATE', view: VIEW.PLAYLISTS});
 			void getPlaylist(flags.playPlaylist).then(playlist => {
 				if (playlist) {
@@ -119,7 +145,7 @@ function Initializer({flags}: {flags?: Flags}) {
 				}
 			});
 		}
-	}, [flags, dispatch, play, getTrack, getPlaylist, startRadio]);
+	}, [isBooted, flags, dispatch, play, getTrack, getPlaylist, startRadio]);
 
 	useEffect(() => {
 		if (!flags?.continue || didResumeRef.current) {
@@ -170,13 +196,34 @@ function Initializer({flags}: {flags?: Flags}) {
 }
 
 function HeadlessLayout({flags}: {flags?: Flags}) {
-	const {play, pause, resume, next, previous, playStream, dispatch} =
-		usePlayer();
+	const {
+		play,
+		pause,
+		resume,
+		next,
+		previous,
+		playStream,
+		dispatch,
+		startRadio,
+	} = usePlayer();
 	const {getTrack, getPlaylist, search} = useYouTubeMusic();
 	const didResumeRef = useRef(false);
 
 	useEffect(() => {
 		void (async () => {
+			if (flags?.radioSeed) {
+				const success = await startRadio(flags.radioSeed);
+				if (!success) {
+					console.error(
+						`No tracks found for ${flags.radioSeed.name || 'radio'}`,
+					);
+					process.exitCode = 1;
+					return;
+				}
+				console.log(`Started ${flags.radioSeed.name || 'radio'}`);
+				return;
+			}
+
 			if (flags?.playTrack) {
 				const track = await getTrack(flags.playTrack);
 				if (!track) {
@@ -288,6 +335,7 @@ function HeadlessLayout({flags}: {flags?: Flags}) {
 		getTrack,
 		getPlaylist,
 		search,
+		startRadio,
 	]);
 
 	return (
@@ -299,11 +347,12 @@ function HeadlessLayout({flags}: {flags?: Flags}) {
 
 export default function Main({flags}: {flags?: Flags}) {
 	const [isBooted, setIsBooted] = useState(false);
+	const skipMediaRestore = hasCliPlaybackLaunchIntent(flags);
 
 	return (
 		<ErrorBoundary>
 			<ThemeProvider>
-				<PlayerProvider>
+				<PlayerProvider skipMediaRestore={skipMediaRestore}>
 					<FavoritesProvider>
 						<HistoryProvider>
 							<StatsProvider>
@@ -317,7 +366,7 @@ export default function Main({flags}: {flags?: Flags}) {
 														<HeadlessLayout flags={flags} />
 													) : (
 														<>
-															<Initializer flags={flags} />
+															<Initializer flags={flags} isBooted={isBooted} />
 															{isBooted ? (
 																<MainLayout />
 															) : (

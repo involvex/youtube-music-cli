@@ -1637,7 +1637,13 @@ function PlayerManager() {
 	return null;
 }
 
-export function PlayerProvider({children}: {children: ReactNode}) {
+export function PlayerProvider({
+	children,
+	skipMediaRestore = false,
+}: {
+	children: ReactNode;
+	skipMediaRestore?: boolean;
+}) {
 	const [state, dispatch] = useReducer(playerReducer, initialState);
 	const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const isInitializedRef = useRef(false);
@@ -1646,6 +1652,7 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 	useEffect(() => {
 		const config = getConfigService();
 		const defaultVolume = config.get('volume');
+		const shouldSkipMediaRestore = skipMediaRestore;
 		void loadPlayerState().then(persistedState => {
 			// Mark as initialized after attempting load (even if no saved state)
 			isInitializedRef.current = true;
@@ -1653,6 +1660,20 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 			if (persistedState) {
 				if (persistedState.sessionHistory) {
 					inkSessionHistory = persistedState.sessionHistory;
+				}
+
+				// CLI launch intents (discover/radio/play/playlist) own the session;
+				// restoring the previous track would race and wipe startRadio/play.
+				if (shouldSkipMediaRestore) {
+					logger.info(
+						'PlayerProvider',
+						'Skipping media restore for CLI launch intent',
+						{
+							hasTrack: !!persistedState.currentTrack,
+							queueLength: persistedState.queue.length,
+						},
+					);
+					return;
 				}
 
 				logger.info('PlayerProvider', 'Restoring persisted state', {
@@ -1683,7 +1704,7 @@ export function PlayerProvider({children}: {children: ReactNode}) {
 				});
 			}
 		});
-	}, [dispatch]); // Run only once on mount
+	}, [dispatch, skipMediaRestore]);
 
 	// Save state on changes (debounced for progress updates)
 	useEffect(() => {

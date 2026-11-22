@@ -117,8 +117,23 @@ export async function resolveInitialTrack(flags?: Flags): Promise<{
 	startPlaying: boolean;
 	savedProgress: number;
 	savedVolume?: number;
+	radioSeed?: RadioSeed | null;
 }> {
 	const musicService = getMusicService();
+
+	if (flags?.radioSeed) {
+		const tracks = await getRadioService().fetchTracksForSeed(flags.radioSeed);
+		if (tracks.length === 0) {
+			throw new Error(`No tracks found for ${flags.radioSeed.name}`);
+		}
+		return {
+			tracks,
+			queueIndex: 0,
+			startPlaying: true,
+			savedProgress: 0,
+			radioSeed: flags.radioSeed,
+		};
+	}
 
 	if (flags?.playTrack) {
 		const track = await musicService.getTrack(flags.playTrack);
@@ -253,17 +268,28 @@ export async function startImmersiveApp(
 
 	playerService.setVolume(initialVolume);
 
-	const {tracks, queueIndex, startPlaying, savedProgress, savedVolume} =
-		await resolveInitialTrack(options.flags);
+	const {
+		tracks,
+		queueIndex,
+		startPlaying,
+		savedProgress,
+		savedVolume,
+		radioSeed: launchRadioSeed,
+	} = await resolveInitialTrack(options.flags);
 	const persisted = await loadPlayerState();
-	if (persisted) {
+	if (persisted && !options.flags?.radioSeed) {
 		state.shuffle = persisted.shuffle;
 		state.repeat = persisted.repeat;
 		state.autoplay = persisted.autoplay ?? true;
 	}
+	if (launchRadioSeed) {
+		state.radioIsActive = true;
+		state.radioSeed = launchRadioSeed;
+		state.autoplay = true;
+	}
 	if (tracks.length > 0) {
 		setQueue(state, tracks, queueIndex);
-		if (persisted?.explicitQueueLength !== undefined) {
+		if (persisted?.explicitQueueLength !== undefined && !launchRadioSeed) {
 			state.explicitQueueLength = persisted.explicitQueueLength;
 		}
 		state.currentTime = savedProgress;
