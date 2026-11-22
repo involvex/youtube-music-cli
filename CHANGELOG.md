@@ -1,3 +1,14 @@
+## [0.3.11](https://github.com/involvex/youtube-music-cli/compare/v0.3.10...v0.3.11) (2026-11-22)
+
+### Bug Fixes
+
+- make ymc discover start radio instead of restoring old playback ([9c6e2e9](https://github.com/involvex/youtube-music-cli/commit/9c6e2e9c6af83d5a90766dc6a130f04791b9aa66))
+
+### Features
+
+- add Discovery Queue and suggestion-based radio continuation ([#88](https://github.com/involvex/youtube-music-cli/issues/88)) ([4133510](https://github.com/involvex/youtube-music-cli/commit/4133510d9afd14a73e763d818c73753ddaaa829e))
+- **ui:** expand playlist track lists in saved playlists and account … ([#87](https://github.com/involvex/youtube-music-cli/issues/87)) ([550d6e9](https://github.com/involvex/youtube-music-cli/commit/550d6e9fefcaf5bb72fa5774aa5b52409edd9389))
+
 ## [0.3.10](https://github.com/involvex/youtube-music-cli/compare/v0.3.9...v0.3.10) (2026-11-17)
 
 ### Bug Fixes
