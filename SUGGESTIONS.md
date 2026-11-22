@@ -59,8 +59,8 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Playlist Radio Mode** - Press m on any saved playlist for endless radio: shuffled playlist queue first, then autoplay extends with related tracks; immersive-style extension continues via fetchMoreTracks anchoring on playlist tracks
 - Implemented **Radio Browser** - Browse internet radio stations via radio-browser.service.ts
 - Implemented **Live Streams Catalog** - Curated yt-dlp/mpv live stream catalog (source/data/builtin-live-streams.ts)
-- Suggested **Discovery Queue** - Personalized queue of new tracks/artists based on listening habits
-- Suggested **Artist/Album Radio** - One-key radio from any artist or album page
+- Implemented **Discovery Queue** - History-seeded endless radio (`ymc discover`, Ink home / Suggestions `d`, immersive Library → Discovery Queue)
+- Implemented **Artist/Album Radio** - `m` on artist or album search results starts endless radio (song `m` still creates a mix)
 
 ## 📋 Playlist Management
 
@@ -71,8 +71,9 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Playlist Creation & Management** - Create, edit, and delete playlists within the TUI
 - Implemented **Playlist Import** - Import playlists from Spotify and YouTube
 - Implemented **Playlist Export** - Export playlists to JSON and M3U8 formats
-- Planned **Playlist Sync** - Two-way sync with YouTube Music account playlists
-- Implemented **Smart Playlists** - History-based auto-playlists (top week/all-time, rediscover, top artist deep dive) with refresh in Ink/immersive/CLI
+- Implemented **Playlist Sync (pull)** - `ymc sync` pulls a YouTube Music playlist into local config
+- Planned **Playlist Sync (two-way)** - Push local playlist changes back to YouTube Music with conflict handling
+- Implemented **Smart Playlists** - History-based auto-playlists (top week/all-time, rediscover, top artist deep dive with catalog enrichment) with refresh in Ink/immersive/CLI
 
 ### Medium Priority
 
@@ -373,4 +374,5 @@ Want to work on any of these? Check our [Contributing Guide](CONTRIBUTING.md) an
 - **[Stable] Smart recommendations** - History & stats scoring with artist diversity capping powering the TUI Suggestions view.
 - **[Stable] Offline mode** - Cache downloaded tracks for playback without network.
 - **[Stable] Smart Playlists** - Deterministic history rules materialize into local `config.playlists` (`ymc smart-playlist`, Ctrl+Shift+M, immersive Library).
-- **[Next] YouTube Music login polish** - Cookie login + account library shipped; deepen two-way playlist sync and token refresh.
+- **[Stable] Discovery Queue** - History-seeded endless radio with suggestion refill for artist/mood/genre/album seeds (`ymc discover`).
+- **[Next] Session reliability + playlist sync depth** - Background token refresh and pull diffs; two-way YouTube Music writes after that.

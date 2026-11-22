@@ -158,7 +158,13 @@ function SearchResults({
 }: Props) {
 	const {theme} = useTheme();
 	const {dispatch} = useNavigation();
-	const {play, dispatch: playerDispatch, addToQueue, playNext} = usePlayer();
+	const {
+		play,
+		dispatch: playerDispatch,
+		addToQueue,
+		playNext,
+		startRadio,
+	} = usePlayer();
 	const {isFavorite, toggleFavorite} = useFavorites();
 	const {columns, rows} = useTerminalSize();
 	const musicService = getMusicService();
@@ -295,6 +301,27 @@ function SearchResults({
 			return;
 		}
 
+		if (selected.type === 'artist' || selected.type === 'album') {
+			const {radioSeedFromSearchResult} =
+				await import('../../immersive/actions/playback-actions.ts');
+			const seed = radioSeedFromSearchResult(selected);
+			if (!seed) {
+				mixCreatedRef.current?.(
+					selected.type === 'artist'
+						? 'Artist information is missing, cannot start radio.'
+						: 'Album ID is missing, cannot start radio.',
+				);
+				return;
+			}
+			const success = await startRadio(seed);
+			mixCreatedRef.current?.(
+				success
+					? `Started ${seed.name} radio`
+					: `No tracks found for ${seed.name}`,
+			);
+			return;
+		}
+
 		let playlistName = 'Dynamic mix';
 		const collectedTracks: Track[] = [];
 
@@ -314,39 +341,12 @@ function SearchResults({
 					error,
 				});
 			}
-		} else if (selected.type === 'artist') {
-			const artistName =
-				'name' in selected.data ? (selected.data as {name: string}).name : '';
-			if (!artistName) {
-				logger.warn('SearchResults', 'Artist name missing for mix');
-				mixCreatedRef.current?.(
-					'Artist information is missing, cannot create mix.',
-				);
-				return;
-			}
-
-			playlistName = `${artistName} mix`;
-
-			try {
-				const response = await musicService.search(artistName, {
-					type: 'songs',
-					limit: 25,
-				});
-				const artistTracks = response.results
-					.filter(result => result.type === 'song')
-					.map(result => result.data as Track);
-				collectedTracks.push(...artistTracks);
-			} catch (error) {
-				logger.error('SearchResults', 'Failed to fetch artist songs for mix', {
-					error,
-				});
-			}
 		} else {
 			logger.warn('SearchResults', 'Mix creation unsupported result type', {
 				type: selected.type,
 			});
 			mixCreatedRef.current?.(
-				'Mix creation is only supported for songs and artists.',
+				'Mix creation is only supported for songs, artists, and albums.',
 			);
 			return;
 		}
@@ -387,6 +387,7 @@ function SearchResults({
 		playerDispatch,
 		results,
 		selectedIndex,
+		startRadio,
 	]);
 
 	const downloadSelected = useCallback(async () => {

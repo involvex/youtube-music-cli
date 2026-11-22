@@ -247,6 +247,7 @@ test('immersive library menu includes YouTube Music library first', () => {
 	expect(LIBRARY_MENU_ITEMS[0]).toBe('YouTube Music Library...');
 	expect(LIBRARY_MENU_ITEMS).toContain('Saved Playlists...');
 	expect(LIBRARY_MENU_ITEMS).toContain('Smart Playlists...');
+	expect(LIBRARY_MENU_ITEMS).toContain('Discovery Queue');
 
 	const overlay = createLibraryOverlayState();
 	openLibraryMenu(overlay);

@@ -23,7 +23,7 @@ export default function HomeLayout() {
 	const {dispatch} = useNavigation();
 	const {history} = useHistory();
 	const {favorites, toggleFavorite} = useFavorites();
-	const {state: playerState, play} = usePlayer();
+	const {state: playerState, play, startRadio} = usePlayer();
 	const {columns} = useTerminalSize();
 	const offlineState = getOfflineState();
 	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
@@ -74,6 +74,14 @@ export default function HomeLayout() {
 		}
 	};
 
+	const handleDiscoveryQueue = () => {
+		void import('../../services/radio/discovery-queue.service.ts').then(
+			({DISCOVERY_RADIO_SEED}) => {
+				void startRadio(DISCOVERY_RADIO_SEED);
+			},
+		);
+	};
+
 	type QuickLink =
 		| {label: string; view: (typeof VIEW)[keyof typeof VIEW]; action?: never}
 		| {label: string; view?: never; action: () => void};
@@ -103,6 +111,10 @@ export default function HomeLayout() {
 			view: VIEW.LIVE_STREAMS,
 		},
 		{label: quickLinkLabel(ICONS.MOOD, 'Mood Radio'), view: VIEW.MOOD_RADIO},
+		{
+			label: quickLinkLabel(ICONS.AUTOPLAY, 'Discovery Queue'),
+			action: handleDiscoveryQueue,
+		},
 		{
 			label: quickLinkLabel(ICONS.CLOCK, 'Queue & History'),
 			view: VIEW.HISTORY,

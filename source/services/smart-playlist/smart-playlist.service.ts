@@ -3,8 +3,13 @@ import type {Playlist, Track} from '../../types/youtube-music.types.ts';
 import type {SmartPlaylistDefinition} from '../../types/smart-playlist.types.ts';
 import {loadHistory} from '../history/history.service.ts';
 import {getConfigService} from '../config/config.service.ts';
+import {getMusicService} from '../youtube-music/api.ts';
 import {logger} from '../logger/logger.service.ts';
-import {materializeTracks} from './smart-playlist-rules.ts';
+import {formatError} from '../../utils/error.ts';
+import {
+	defaultLimitForRule,
+	materializeTracks,
+} from './smart-playlist-rules.ts';
 import {
 	loadSmartPlaylistsFile,
 	saveSmartPlaylistsFile,
@@ -13,6 +18,60 @@ import {
 export type RefreshOptions = {
 	entries?: HistoryEntry[];
 };
+
+/**
+ * Append unplayed artist search hits so deep dive goes beyond history-only tracks.
+ */
+export async function enrichTopArtistDeepDive(
+	historyTracks: Track[],
+	definition: SmartPlaylistDefinition,
+	historyEntries?: HistoryEntry[],
+): Promise<Track[]> {
+	const limit =
+		definition.params?.limit ?? defaultLimitForRule('top_artist_deep_dive');
+	let artistName = historyTracks[0]?.artists?.[0]?.name?.trim() ?? '';
+	if (!artistName && historyEntries && historyEntries.length > 0) {
+		const seeded = materializeTracks('top_artist_deep_dive', historyEntries, {
+			limit: 1,
+		});
+		artistName = seeded[0]?.artists?.[0]?.name?.trim() ?? '';
+	}
+	if (!artistName || historyTracks.length >= limit) {
+		return historyTracks.slice(0, limit);
+	}
+
+	try {
+		const response = await getMusicService().search(artistName, {
+			type: 'songs',
+			limit: 25,
+		});
+		const knownIds = new Set(
+			historyTracks.map(track => track.videoId).filter(Boolean),
+		);
+		const combined = [...historyTracks];
+		for (const result of response.results) {
+			if (combined.length >= limit) {
+				break;
+			}
+			if (result.type !== 'song') {
+				continue;
+			}
+			const track = result.data as Track;
+			if (!track.videoId || knownIds.has(track.videoId)) {
+				continue;
+			}
+			knownIds.add(track.videoId);
+			combined.push(track);
+		}
+		return combined.slice(0, limit);
+	} catch (error) {
+		logger.warn('SmartPlaylistService', 'Deep dive artist search failed', {
+			artistName,
+			error: formatError(error),
+		});
+		return historyTracks.slice(0, limit);
+	}
+}
 
 export function getMaterializedPlaylistId(definitionId: string): string {
 	return `smart-${definitionId}`;
@@ -72,7 +131,10 @@ export async function refreshOne(
 	}
 
 	const history = options?.entries ?? (await loadHistory());
-	const tracks = materializeTracks(definition.rule, history, definition.params);
+	let tracks = materializeTracks(definition.rule, history, definition.params);
+	if (definition.rule === 'top_artist_deep_dive') {
+		tracks = await enrichTopArtistDeepDive(tracks, definition, history);
+	}
 	const {playlist, created} = upsertMaterializedPlaylist(definition, tracks);
 
 	const lastGeneratedAt = new Date().toISOString();

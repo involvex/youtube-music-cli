@@ -8,12 +8,21 @@ import type {Track} from '../../types/youtube-music.types.ts';
 import type {RadioSeed, RadioSeedType} from '../../types/radio.types.ts';
 import {BUILTIN_MOODS} from '../../data/builtin-moods.ts';
 import {findLocalPlaylistTracks} from './local-playlist-seed.ts';
+import {buildDiscoveryTracks} from './discovery-queue.service.ts';
 
 class RadioService {
 	private playedVideoIds: Set<string> = new Set();
+	private refillAnchors: Track[] = [];
+	private refillAnchorIndex = 0;
+	private genrePlaylistIds: string[] = [];
+	private genrePlaylistIndex = 0;
 
 	reset(): void {
 		this.playedVideoIds.clear();
+		this.refillAnchors = [];
+		this.refillAnchorIndex = 0;
+		this.genrePlaylistIds = [];
+		this.genrePlaylistIndex = 0;
 	}
 
 	async fetchTracksForSeed(seed: RadioSeed): Promise<Track[]> {
@@ -22,26 +31,27 @@ class RadioService {
 			id: seed.id,
 			name: seed.name,
 		});
-		this.playedVideoIds.clear();
+		this.reset();
 		const tracks = await this.fetchBySeedType(seed.type, seed.id);
+		// Discovery sets history-based anchors inside fetchBySeedType; keep them.
+		if (seed.type !== 'discovery' || this.refillAnchors.length === 0) {
+			this.setRefillAnchors(tracks);
+		}
 		logger.debug('RadioService', 'fetchTracksForSeed result', {
 			type: seed.type,
 			id: seed.id,
 			trackCount: tracks.length,
+			anchorCount: this.refillAnchors.length,
 		});
 		return this.deduplicate(tracks);
 	}
 
 	async fetchMoreTracks(seed: RadioSeed): Promise<Track[]> {
 		let tracks: Track[];
+
 		if (seed.type === 'track') {
-			const musicService = getMusicService();
-			const suggestions = await musicService.getSuggestions(seed.id);
-			tracks = suggestions;
+			tracks = await getMusicService().getSuggestions(seed.id);
 		} else if (seed.type === 'local-playlist') {
-			// The playlist's own tracks are already queued/deduped by the time
-			// extension kicks in; continue endlessly with related tracks
-			// anchored on one of the playlist's songs.
 			const stored = findLocalPlaylistTracks(
 				getConfigService().get('playlists'),
 				seed.id,
@@ -50,11 +60,68 @@ class RadioService {
 			tracks = anchor?.videoId
 				? await getMusicService().getSuggestions(anchor.videoId)
 				: [];
+		} else if (seed.type === 'genre') {
+			tracks = await this.fetchMoreGenreTracks();
+		} else if (
+			seed.type === 'artist' ||
+			seed.type === 'mood' ||
+			seed.type === 'album' ||
+			seed.type === 'playlist' ||
+			seed.type === 'discovery'
+		) {
+			tracks = await this.fetchSuggestionsFromNextAnchor();
 		} else {
 			tracks = await this.fetchBySeedType(seed.type, seed.id);
 		}
 
 		return this.deduplicate(tracks);
+	}
+
+	private setRefillAnchors(tracks: Track[]): void {
+		this.refillAnchors = tracks.filter(track => Boolean(track.videoId));
+		this.refillAnchorIndex = 0;
+	}
+
+	private async fetchSuggestionsFromNextAnchor(): Promise<Track[]> {
+		if (this.refillAnchors.length === 0) {
+			return [];
+		}
+
+		const anchor =
+			this.refillAnchors[this.refillAnchorIndex % this.refillAnchors.length];
+		this.refillAnchorIndex =
+			(this.refillAnchorIndex + 1) % this.refillAnchors.length;
+
+		if (!anchor?.videoId) {
+			return [];
+		}
+
+		return getMusicService().getSuggestions(anchor.videoId);
+	}
+
+	private async fetchMoreGenreTracks(): Promise<Track[]> {
+		const nextIndex = this.genrePlaylistIndex + 1;
+		if (nextIndex < this.genrePlaylistIds.length) {
+			this.genrePlaylistIndex = nextIndex;
+			const browseId = this.genrePlaylistIds[nextIndex];
+			if (browseId) {
+				try {
+					const playlist = await getMusicService().getPlaylist(browseId);
+					const tracks = playlist.tracks ?? [];
+					if (tracks.length > 0) {
+						this.setRefillAnchors([...this.refillAnchors, ...tracks]);
+						return tracks;
+					}
+				} catch (error) {
+					logger.error('RadioService', 'Failed to load next genre playlist', {
+						browseId,
+						error: formatError(error),
+					});
+				}
+			}
+		}
+
+		return this.fetchSuggestionsFromNextAnchor();
 	}
 
 	private async fetchBySeedType(
@@ -75,20 +142,15 @@ class RadioService {
 						artistName: id,
 					});
 					const artistResults = await musicService.search(id, {type: 'songs'});
-					logger.debug('RadioService', 'Artist search raw results', {
-						artistName: id,
-						totalResults: artistResults.results.length,
-						resultTypes: artistResults.results.map(r => r.type),
-					});
 					const tracks = artistResults.results
 						.filter(r => r.type === 'song')
 						.map(r => r.data as Track);
-					logger.debug('RadioService', 'Artist search filtered tracks', {
-						artistName: id,
-						filteredCount: tracks.length,
-						firstTrackTitle: tracks[0]?.title,
-					});
 					return tracks.slice(0, 30);
+				}
+
+				case 'album': {
+					const tracks = await musicService.getReleaseTracks(id);
+					return tracks;
 				}
 
 				case 'playlist': {
@@ -97,9 +159,6 @@ class RadioService {
 				}
 
 				case 'local-playlist': {
-					// Saved playlists live in the config store; shuffle them so
-					// each radio start feels fresh. Endless continuation beyond
-					// the playlist tracks comes from autoplay suggestions.
 					const tracks = findLocalPlaylistTracks(
 						getConfigService().get('playlists'),
 						id,
@@ -113,13 +172,15 @@ class RadioService {
 
 				case 'genre': {
 					const genrePlaylists = await musicService.getGenrePlaylists(id);
-					if (genrePlaylists.length > 0 && genrePlaylists[0]) {
-						const playlist = await musicService.getPlaylist(
-							genrePlaylists[0].browseId,
-						);
+					this.genrePlaylistIds = genrePlaylists
+						.map(playlist => playlist.browseId)
+						.filter((browseId): browseId is string => Boolean(browseId));
+					this.genrePlaylistIndex = 0;
+					const firstId = this.genrePlaylistIds[0];
+					if (firstId) {
+						const playlist = await musicService.getPlaylist(firstId);
 						return playlist.tracks ?? [];
 					}
-
 					return [];
 				}
 
@@ -129,28 +190,22 @@ class RadioService {
 						logger.warn('RadioService', 'Mood not found', {id});
 						return [];
 					}
-					logger.debug('RadioService', 'Mood seeds', {
-						moodId: mood.id,
-						seedCount: mood.seeds.length,
-						seeds: mood.seeds.map(s => ({type: s.type, id: s.id})),
-					});
 					const allTracks: Track[] = [];
 					for (const seed of mood.seeds) {
 						const seedTracks = await this.fetchBySeedType(seed.type, seed.id);
-						logger.debug('RadioService', 'Mood seed result', {
-							seedType: seed.type,
-							seedId: seed.id,
-							trackCount: seedTracks.length,
-						});
 						allTracks.push(...seedTracks);
 					}
-					logger.debug('RadioService', 'Mood total tracks', {
-						total: allTracks.length,
-					});
-					// Don't deduplicate here — fetchTracksForSeed/fetchMoreTracks already
-					// call deduplicate on the returned array. Deduplicating here would
-					// populate playedVideoIds, causing the outer dedup to return 0 tracks.
 					return allTracks.slice(0, 50);
+				}
+
+				case 'discovery': {
+					const result = await buildDiscoveryTracks();
+					if (result.anchors.length > 0) {
+						this.refillAnchors = result.anchors.filter(track =>
+							Boolean(track.videoId),
+						);
+					}
+					return result.tracks;
 				}
 
 				default:

@@ -54,15 +54,18 @@ How ideas in `SUGGESTIONS.md` become concrete work, and what to pick up next.
 
 - **Smart Playlists** — History-based builtins (top week / all-time / rediscover / top artist), Ink + immersive + `ymc smart-playlist`, optional refresh-on-launch
 
-## Active focus (post-0.3.9)
+## Shipped (0.4.0)
 
-1. **Downloads Enhancement** — Batch download optimization, download resumption, and improved UX.
-2. **Discovery Queue** — Personalized continuous queue beyond saved smart playlists.
-3. **Playlist Sync depth** — Stronger two-way sync with YouTube Music account playlists.
+- **Discovery Queue** — History-seeded endless radio (`ymc discover`, Ink home / Suggestions `d`, immersive Library), suggestion-based refill for artist/mood/genre/album radio, and top-artist deep dive enrichment beyond played tracks
+
+## Active focus (post-0.4.0)
+
+1. **Downloads Enhancement** — Batch download optimization, download resumption, cancel/queue UX, and `ymc download`.
+2. **Playlist Sync depth** — Background token refresh and pull diffs first; two-way YouTube Music writes after the session is solid.
 
 ## Toward 1.0.0
 
-Reserve a major `1.0.0` for a documented support/install matrix and a stability signal—not for the next feature drop. Until then, ship `0.1.x` patches and `0.2.x` feature minors.
+Reserve a major `1.0.0` for a documented support/install matrix and a stability signal—not for the next feature drop. Until then, ship `0.3.x` patches and `0.4.x` feature minors.
 
 ## How to contribute
 

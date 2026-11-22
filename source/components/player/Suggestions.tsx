@@ -14,11 +14,12 @@ import {getSmartRecommendations} from '../../services/youtube-music/smart-recomm
 export default function Suggestions() {
 	const {theme} = useTheme();
 	const {dispatch} = useNavigation();
-	const {state: playerState, play} = usePlayer();
+	const {state: playerState, play, startRadio} = usePlayer();
 	const {isLoading: _isLoading} = useYouTubeMusic();
 	const [suggestions, setSuggestions] = useState<Track[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
+	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
 	useEffect(() => {
 		let active = true;
@@ -57,9 +58,25 @@ export default function Suggestions() {
 		}
 	}, [selectedIndex, suggestions, play]);
 
+	const startDiscovery = useCallback(() => {
+		void import('../../services/radio/discovery-queue.service.ts').then(
+			({DISCOVERY_RADIO_SEED}) => {
+				setStatusMessage('Starting Discovery Queue...');
+				void startRadio(DISCOVERY_RADIO_SEED).then(success => {
+					setStatusMessage(
+						success
+							? 'Discovery Queue started'
+							: 'No discovery tracks available',
+					);
+				});
+			},
+		);
+	}, [startRadio]);
+
 	useKeyBinding(resolveKeybinding('UP'), navigateUp);
 	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
 	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
+	useKeyBinding(['d'], startDiscovery);
 	useKeyBinding(resolveKeybinding('BACK'), () => {
 		dispatch({category: 'GO_BACK'});
 	});
@@ -69,7 +86,17 @@ export default function Suggestions() {
 	}
 
 	if (suggestions.length === 0) {
-		return <Text color={theme.colors.dim}>No suggestions available</Text>;
+		return (
+			<Box flexDirection="column" gap={1}>
+				<Text color={theme.colors.dim}>No suggestions available</Text>
+				<Text color={theme.colors.dim}>
+					Press d to start Discovery Queue, Esc to go back
+				</Text>
+				{statusMessage ? (
+					<Text color={theme.colors.accent}>{statusMessage}</Text>
+				) : null}
+			</Box>
+		);
 	}
 
 	return (
@@ -96,9 +123,12 @@ export default function Suggestions() {
 
 			<Box marginTop={1}>
 				<Text color={theme.colors.dim}>
-					Arrows to navigate, Enter to play, Esc to go back
+					Arrows to navigate, Enter to play, d Discovery Queue, Esc to go back
 				</Text>
 			</Box>
+			{statusMessage ? (
+				<Text color={theme.colors.accent}>{statusMessage}</Text>
+			) : null}
 		</Box>
 	);
 }
