@@ -1,6 +1,6 @@
 import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn, spawnSync, type ChildProcess} from 'node:child_process';
 import {getConfigService} from '../config/config.service.ts';
 import {logger} from '../logger/logger.service.ts';
 import {getMusicService} from '../youtube-music/api.ts';
@@ -17,10 +17,11 @@ import type {
 	Track,
 } from '../../types/youtube-music.types.ts';
 
-type DownloadResult = {
+export type DownloadResult = {
 	downloaded: number;
 	skipped: number;
 	failed: number;
+	cancelled: number;
 	errors: string[];
 };
 
@@ -29,7 +30,8 @@ type DownloadTarget = {
 	tracks: Track[];
 };
 
-export type DownloadProgressPhase = 'start' | 'done' | 'skip' | 'fail';
+export type DownloadProgressPhase =
+	'start' | 'done' | 'skip' | 'fail' | 'cancel';
 
 export type DownloadProgressInfo = {
 	current: number;
@@ -41,12 +43,66 @@ export type DownloadProgressInfo = {
 
 export type DownloadTracksOptions = {
 	onProgress?: (info: DownloadProgressInfo) => void;
+	signal?: AbortSignal;
 };
+
+export class DownloadCancelledError extends Error {
+	constructor(message = 'Download cancelled.') {
+		super(message);
+		this.name = 'DownloadCancelledError';
+	}
+}
+
+export function isDownloadCancelledError(error: unknown): boolean {
+	if (error instanceof DownloadCancelledError) {
+		return true;
+	}
+	if (error instanceof Error && error.name === 'AbortError') {
+		return true;
+	}
+	return false;
+}
+
+function killChildProcess(child: ChildProcess): void {
+	if (!child.pid) {
+		return;
+	}
+
+	try {
+		if (process.platform === 'win32') {
+			spawnSync('taskkill', ['/F', '/T', '/PID', String(child.pid)], {
+				stdio: 'ignore',
+				windowsHide: true,
+				timeout: 5000,
+			});
+			return;
+		}
+
+		child.kill('SIGTERM');
+	} catch (error) {
+		logger.warn('DownloadService', 'Failed to kill child process', {
+			pid: child.pid,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+function unlinkIfExists(filePath: string): void {
+	if (!existsSync(filePath)) {
+		return;
+	}
+	try {
+		unlinkSync(filePath);
+	} catch {
+		// Best-effort cleanup
+	}
+}
 
 class DownloadService {
 	private ffmpegChecked = false;
 	private ffmpegAvailable = false;
-	private activeDownload = false;
+	private activeController: AbortController | null = null;
+	private activeChild: ChildProcess | null = null;
 	private readonly config = getConfigService();
 	private readonly musicService = getMusicService();
 
@@ -56,6 +112,26 @@ class DownloadService {
 			directory: this.config.get('downloadDirectory') ?? '',
 			format: (this.config.get('downloadFormat') ?? 'mp3') as DownloadFormat,
 		};
+	}
+
+	isDownloading(): boolean {
+		return this.activeController !== null;
+	}
+
+	/**
+	 * Abort the in-flight batch. Returns true when a batch was running.
+	 */
+	cancel(): boolean {
+		if (!this.activeController) {
+			return false;
+		}
+
+		this.activeController.abort();
+		if (this.activeChild) {
+			killChildProcess(this.activeChild);
+			this.activeChild = null;
+		}
+		return true;
 	}
 
 	async resolveSearchTarget(result: SearchResult): Promise<DownloadTarget> {
@@ -109,13 +185,38 @@ class DownloadService {
 		};
 	}
 
+	/**
+	 * Resolve a CLI/input token as a video id, YouTube URL, or saved local playlist id.
+	 */
+	async resolveDownloadInput(input: string): Promise<DownloadTarget> {
+		const trimmed = input.trim();
+		if (!trimmed) {
+			throw new Error('Provide a video id, YouTube URL, or saved playlist id.');
+		}
+
+		const track = await this.musicService.getTrack(trimmed);
+		if (track) {
+			return {name: track.title, tracks: [track]};
+		}
+
+		const playlists = this.config.get('playlists') ?? [];
+		const playlist = playlists.find(row => row.playlistId === trimmed);
+		if (playlist) {
+			return this.resolvePlaylistTarget(playlist);
+		}
+
+		throw new Error(
+			`Could not resolve "${trimmed}" as a video id, YouTube URL, or saved playlist id.`,
+		);
+	}
+
 	async downloadTracks(
 		tracks: Track[],
 		options: DownloadTracksOptions = {},
 	): Promise<DownloadResult> {
-		if (this.activeDownload) {
+		if (this.activeController) {
 			throw new Error(
-				'A download is already in progress. Please wait for it to finish.',
+				'A download is already in progress. Press Shift+D again to cancel.',
 			);
 		}
 
@@ -126,24 +227,51 @@ class DownloadService {
 
 		const directory = ensureDownloadDirectory(configuredDirectory);
 		await this.ensureFfmpeg();
-		this.activeDownload = true;
+
+		const controller = new AbortController();
+		this.activeController = controller;
+		const externalSignal = options.signal;
+		const onExternalAbort = (): void => {
+			controller.abort();
+			if (this.activeChild) {
+				killChildProcess(this.activeChild);
+				this.activeChild = null;
+			}
+		};
+		if (externalSignal) {
+			if (externalSignal.aborted) {
+				controller.abort();
+			} else {
+				externalSignal.addEventListener('abort', onExternalAbort, {
+					once: true,
+				});
+			}
+		}
 
 		const result: DownloadResult = {
 			downloaded: 0,
 			skipped: 0,
 			failed: 0,
+			cancelled: 0,
 			errors: [],
 		};
 		const total = tracks.length;
 		const {onProgress} = options;
+		const signal = controller.signal;
 
 		try {
 			for (let index = 0; index < tracks.length; index++) {
+				if (signal.aborted) {
+					result.cancelled += tracks.length - index;
+					break;
+				}
+
 				const track = tracks[index]!;
 				const current = index + 1;
 				const destination = getTrackDestinationPath(track, directory, format);
 				const tempSource = `${destination}.source`;
 				const tempCover = `${destination}.cover.jpg`;
+				let removeSource = false;
 				try {
 					logger.info('DownloadService', 'Starting track download', {
 						videoId: track.videoId,
@@ -161,27 +289,49 @@ class DownloadService {
 						continue;
 					}
 
-					await this.acquireAudioSource(track.videoId, tempSource);
+					await this.acquireAudioSource(track.videoId, tempSource, signal);
+					this.throwIfAborted(signal);
 
 					const hasCover = await this.downloadCoverArt(
 						track.videoId,
 						tempCover,
+						signal,
 					);
+					this.throwIfAborted(signal);
+
 					await this.convertAudio(
 						tempSource,
 						destination,
 						format,
 						track,
 						hasCover ? tempCover : undefined,
+						signal,
 					);
 					upsertDownloadsIndexEntry(track.videoId, destination, format);
 					result.downloaded++;
+					removeSource = true;
 					onProgress?.({current, total, track, phase: 'done'});
 					logger.info('DownloadService', 'Track download complete', {
 						videoId: track.videoId,
 						destination,
 					});
 				} catch (error) {
+					if (isDownloadCancelledError(error) || signal.aborted) {
+						result.cancelled += tracks.length - index;
+						onProgress?.({
+							current,
+							total,
+							track,
+							phase: 'cancel',
+							error: 'Cancelled',
+						});
+						logger.info('DownloadService', 'Download batch cancelled', {
+							videoId: track.videoId,
+							title: track.title,
+						});
+						break;
+					}
+
 					result.failed++;
 					const message =
 						error instanceof Error ? error.message : 'Unknown download failure';
@@ -199,18 +349,24 @@ class DownloadService {
 						error: message,
 					});
 				} finally {
-					if (existsSync(tempSource)) {
-						unlinkSync(tempSource);
-					}
-					if (existsSync(tempCover)) {
-						unlinkSync(tempCover);
+					unlinkIfExists(tempCover);
+					if (removeSource) {
+						unlinkIfExists(tempSource);
 					}
 				}
 			}
 
 			return result;
 		} finally {
-			this.activeDownload = false;
+			externalSignal?.removeEventListener('abort', onExternalAbort);
+			this.activeChild = null;
+			this.activeController = null;
+		}
+	}
+
+	private throwIfAborted(signal: AbortSignal): void {
+		if (signal.aborted) {
+			throw new DownloadCancelledError();
 		}
 	}
 
@@ -229,19 +385,25 @@ class DownloadService {
 	/**
 	 * Prefer yt-dlp (same dependency as playback), then in-process stream URL
 	 * extraction, then mpv --stream-record.
+	 * yt-dlp supports resume via --continue; stream/mpv paths restart from scratch.
 	 */
 	private async acquireAudioSource(
 		videoId: string,
 		tempSource: string,
+		signal: AbortSignal,
 	): Promise<void> {
 		const errors: string[] = [];
+		this.throwIfAborted(signal);
 
 		try {
 			logger.debug('DownloadService', 'Attempting yt-dlp download', {videoId});
-			await this.recordViaYtDlp(videoId, tempSource);
+			await this.recordViaYtDlp(videoId, tempSource, signal);
 			logger.info('DownloadService', 'Downloaded via yt-dlp', {videoId});
 			return;
 		} catch (ytdlpError) {
+			if (isDownloadCancelledError(ytdlpError) || signal.aborted) {
+				throw new DownloadCancelledError();
+			}
 			const message =
 				ytdlpError instanceof Error ? ytdlpError.message : String(ytdlpError);
 			errors.push(`yt-dlp: ${message}`);
@@ -252,16 +414,25 @@ class DownloadService {
 			);
 		}
 
+		this.throwIfAborted(signal);
+
+		// Stream/mpv cannot resume partial yt-dlp bytes — start those fallbacks clean.
+		unlinkIfExists(tempSource);
+
 		try {
 			logger.debug('DownloadService', 'Attempting stream URL extraction', {
 				videoId,
 			});
 			const streamUrl = await this.musicService.getStreamUrl(videoId);
-			const audioBuffer = await this.fetchAudio(streamUrl);
+			this.throwIfAborted(signal);
+			const audioBuffer = await this.fetchAudio(streamUrl, signal);
 			writeFileSync(tempSource, audioBuffer);
 			logger.info('DownloadService', 'Downloaded via stream URL', {videoId});
 			return;
 		} catch (streamError) {
+			if (isDownloadCancelledError(streamError) || signal.aborted) {
+				throw new DownloadCancelledError();
+			}
 			const message =
 				streamError instanceof Error
 					? streamError.message
@@ -274,13 +445,19 @@ class DownloadService {
 			);
 		}
 
+		this.throwIfAborted(signal);
+		unlinkIfExists(tempSource);
+
 		try {
-			await this.recordViaMpv(videoId, tempSource);
+			await this.recordViaMpv(videoId, tempSource, signal);
 			logger.info('DownloadService', 'Downloaded via mpv recording', {
 				videoId,
 			});
 			return;
 		} catch (mpvError) {
+			if (isDownloadCancelledError(mpvError) || signal.aborted) {
+				throw new DownloadCancelledError();
+			}
 			const message =
 				mpvError instanceof Error ? mpvError.message : String(mpvError);
 			errors.push(`mpv: ${message}`);
@@ -293,8 +470,8 @@ class DownloadService {
 		);
 	}
 
-	private async fetchAudio(url: string): Promise<Buffer> {
-		const response = await fetch(url);
+	private async fetchAudio(url: string, signal: AbortSignal): Promise<Buffer> {
+		const response = await fetch(url, {signal});
 		if (!response.ok) {
 			throw new Error(`Failed to fetch audio stream (${response.status}).`);
 		}
@@ -315,7 +492,7 @@ class DownloadService {
 
 		this.ffmpegChecked = true;
 		try {
-			await this.runFfmpeg(['-version']);
+			await this.runProcess('ffmpeg', ['-version']);
 			this.ffmpegAvailable = true;
 		} catch {
 			this.ffmpegAvailable = false;
@@ -330,7 +507,8 @@ class DownloadService {
 		destinationPath: string,
 		format: DownloadFormat,
 		track: Track,
-		coverPath?: string,
+		coverPath: string | undefined,
+		signal: AbortSignal,
 	): Promise<void> {
 		const metadataArgs = this.buildMetadataArgs(track);
 		if (format === 'mp3') {
@@ -357,7 +535,7 @@ class DownloadService {
 			}
 
 			args.push(destinationPath);
-			await this.runFfmpeg(args);
+			await this.runProcess('ffmpeg', args, signal);
 			return;
 		}
 
@@ -374,7 +552,7 @@ class DownloadService {
 		}
 
 		args.push(destinationPath);
-		await this.runFfmpeg(args);
+		await this.runProcess('ffmpeg', args, signal);
 	}
 
 	private buildMetadataArgs(track: Track): string[] {
@@ -394,21 +572,65 @@ class DownloadService {
 		];
 	}
 
-	private async runFfmpeg(args: string[]): Promise<void> {
-		await new Promise<void>((resolve, reject) => {
-			const process = spawn('ffmpeg', args, {windowsHide: true});
+	private async runProcess(
+		command: string,
+		args: string[],
+		signal?: AbortSignal,
+	): Promise<{stdout: string; stderr: string}> {
+		if (signal?.aborted) {
+			throw new DownloadCancelledError();
+		}
+
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(new DownloadCancelledError());
+				return;
+			}
+
+			const child = spawn(command, args, {windowsHide: true});
+			this.activeChild = child;
 			let stderr = '';
-			process.stderr.on('data', chunk => {
+			let stdout = '';
+
+			const onAbort = (): void => {
+				killChildProcess(child);
+			};
+			signal?.addEventListener('abort', onAbort, {once: true});
+
+			child.stderr?.on('data', chunk => {
 				stderr += String(chunk);
 			});
-			process.on('error', reject);
-			process.on('exit', code => {
-				if (code === 0) {
-					resolve();
+			child.stdout?.on('data', chunk => {
+				stdout += String(chunk);
+			});
+			child.on('error', error => {
+				signal?.removeEventListener('abort', onAbort);
+				if (this.activeChild === child) {
+					this.activeChild = null;
+				}
+				reject(error);
+			});
+			child.on('exit', code => {
+				signal?.removeEventListener('abort', onAbort);
+				if (this.activeChild === child) {
+					this.activeChild = null;
+				}
+
+				if (signal?.aborted) {
+					reject(new DownloadCancelledError());
 					return;
 				}
 
-				reject(new Error(stderr.trim() || `ffmpeg exited with code ${code}`));
+				if (code === 0) {
+					resolve({stdout, stderr});
+					return;
+				}
+
+				reject(
+					new Error(
+						(stderr || stdout).trim() || `${command} exited with code ${code}`,
+					),
+				);
 			});
 		});
 	}
@@ -416,6 +638,7 @@ class DownloadService {
 	private async recordViaYtDlp(
 		videoId: string,
 		outputPath: string,
+		signal: AbortSignal,
 	): Promise<void> {
 		const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
 		const config = getConfigService();
@@ -423,6 +646,7 @@ class DownloadService {
 			'--no-playlist',
 			'--quiet',
 			'--no-warnings',
+			'--continue',
 			'--js-runtimes',
 			'node',
 			'-f',
@@ -438,50 +662,36 @@ class DownloadService {
 		});
 		ytdlpArgs.push(watchUrl);
 
-		await new Promise<void>((resolve, reject) => {
-			const process = spawn('yt-dlp', ytdlpArgs, {windowsHide: true});
-			let stderr = '';
-			let stdout = '';
-			process.stderr.on('data', chunk => {
-				stderr += String(chunk);
-			});
-			process.stdout.on('data', chunk => {
-				stdout += String(chunk);
-			});
-			process.on('error', reject);
-			process.on('exit', code => {
-				if (code === 0 && existsSync(outputPath)) {
-					resolve();
-					return;
-				}
-
-				reject(
-					new Error(
-						(stderr || stdout).trim() ||
-							`yt-dlp exited with code ${code} and no output file`,
-					),
-				);
-			});
-		});
+		await this.runProcess('yt-dlp', ytdlpArgs, signal);
+		if (!existsSync(outputPath)) {
+			throw new Error(
+				'yt-dlp exited successfully but no output file was found',
+			);
+		}
 	}
 
 	private async downloadCoverArt(
 		videoId: string,
 		outputPath: string,
+		signal: AbortSignal,
 	): Promise<boolean> {
 		const candidates = [
 			`https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
 			`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
 		];
 		for (const url of candidates) {
+			this.throwIfAborted(signal);
 			try {
-				const response = await fetch(url);
+				const response = await fetch(url, {signal});
 				if (!response.ok) continue;
 				const image = Buffer.from(await response.arrayBuffer());
 				if (image.length === 0) continue;
 				writeFileSync(outputPath, image);
 				return true;
-			} catch {
+			} catch (error) {
+				if (isDownloadCancelledError(error) || signal.aborted) {
+					throw new DownloadCancelledError();
+				}
 				continue;
 			}
 		}
@@ -492,39 +702,24 @@ class DownloadService {
 	private async recordViaMpv(
 		videoId: string,
 		outputPath: string,
+		signal: AbortSignal,
 	): Promise<void> {
 		const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
-		await new Promise<void>((resolve, reject) => {
-			const process = spawn(
-				'mpv',
-				[
-					watchUrl,
-					'--no-video',
-					'--ao=null',
-					'--ytdl=yes',
-					'--really-quiet',
-					`--stream-record=${outputPath}`,
-				],
-				{windowsHide: true},
-			);
-			let stderr = '';
-			process.stderr.on('data', chunk => {
-				stderr += String(chunk);
-			});
-			process.on('error', reject);
-			process.on('exit', code => {
-				if (code === 0 && existsSync(outputPath)) {
-					resolve();
-					return;
-				}
-
-				reject(
-					new Error(
-						stderr.trim() || `mpv exited with code ${code} and no output file`,
-					),
-				);
-			});
-		});
+		await this.runProcess(
+			'mpv',
+			[
+				watchUrl,
+				'--no-video',
+				'--ao=null',
+				'--ytdl=yes',
+				'--really-quiet',
+				`--stream-record=${outputPath}`,
+			],
+			signal,
+		);
+		if (!existsSync(outputPath)) {
+			throw new Error('mpv exited successfully but no output file was found');
+		}
 	}
 }
 
@@ -535,4 +730,11 @@ export function getDownloadService(): DownloadService {
 		downloadServiceInstance = new DownloadService();
 	}
 	return downloadServiceInstance;
+}
+
+export function resetDownloadServiceForTests(): void {
+	if (downloadServiceInstance?.isDownloading()) {
+		downloadServiceInstance.cancel();
+	}
+	downloadServiceInstance = null;
 }

@@ -32,7 +32,7 @@ A powerful Terminal User Interface (TUI) music player for YouTube Music
 - 🖥️ **Immersive Mode** - Fullscreen Windows TUI with audio visualizer and disco effects
 - 🌐 **Web Companion** - Browser UI with synced playback controls (`--web`); included in every production build
 - 🔗 **Playlist Sync** - Sync YouTube Music playlists to local config with `ymc sync`; search and list saved playlists
-- 💾 **Downloads** - Save tracks/playlists/artists with `Shift+D`
+- 💾 **Downloads** - Save tracks/playlists/artists with `Shift+D` or `ymc download` (cancel + yt-dlp resume)
 - 📊 **Listening Stats** - Press `o` for totals, top tracks/artists, streaks; share with `S` / `E` or `ymc stats --share`
 - 🏷️ **Metadata Tagging** - Auto-tag title/artist/album with optional cover art
 - ⚡️ **Shell Completions** - `ymc completions <bash|zsh|powershell|fish>` emits scripts you can source or save so the CLI (also available as `ymc`) tab-completes subcommands and flags
@@ -49,7 +49,7 @@ Your support helps keep this project alive and improving!
 
 ## Roadmap
 
-Visit [`SUGGESTIONS.md`](SUGGESTIONS.md) for the backlog and [`docs/roadmap.md`](docs/roadmap.md) for current focus (downloads enhancement, playlist sync depth). Discovery Queue ships in the 0.4.0 batch.
+Visit [`SUGGESTIONS.md`](SUGGESTIONS.md) for the backlog and [`docs/roadmap.md`](docs/roadmap.md) for current focus (playlist sync depth). Discovery Queue shipped in 0.3.11; the 0.4.0 batch is downloads enhancement (`ymc download`, cancel, yt-dlp resume).
 
 ## What's new in 0.1.0
 
@@ -503,6 +503,8 @@ Config is stored in `~/.youtube-music-cli/config.json`:
 - Enable/disable downloads in **Settings** (`,`).
 - Set your download directory in **Settings → Download Folder**.
 - Choose format in **Settings → Download Format** (`mp3` or `m4a`).
+- Download from the TUI with `Shift+D` (press again to cancel), or headless with `ymc download <track-id|url|playlist-id>`.
+- Interrupted yt-dlp downloads keep the partial `.source` file and resume on the next attempt; stream/mpv fallbacks restart from scratch.
 - Downloads are saved as:
   - `<downloadDirectory>/<artist>/<album>/<title> [<videoId>].mp3` (or `.m4a`)
 - MP3/M4A files are tagged with metadata (`title`, `artist`, `album`) and include cover art when available.

@@ -68,6 +68,10 @@ export default function FavoritesList() {
 
 	const handleDownloadAll = useCallback(async () => {
 		if (favorites.length === 0) return;
+		if (downloadService.isDownloading()) {
+			downloadService.cancel();
+			return;
+		}
 
 		try {
 			const config = downloadService.getConfig();
@@ -82,6 +86,10 @@ export default function FavoritesList() {
 
 	const handleDownload = useCallback(async () => {
 		if (favorites.length === 0) return;
+		if (downloadService.isDownloading()) {
+			downloadService.cancel();
+			return;
+		}
 		const track = favorites[selectedIndex];
 		if (!track) return;
 

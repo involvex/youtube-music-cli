@@ -392,8 +392,9 @@ function SearchResults({
 
 	const downloadSelected = useCallback(async () => {
 		if (!isActive) return;
-		if (isDownloading) {
-			downloadStatusRef.current?.('Download already in progress. Please wait.');
+		if (isDownloading || downloadService.isDownloading()) {
+			downloadService.cancel();
+			downloadStatusRef.current?.('Cancelling download...');
 			return;
 		}
 		const selected = results[selectedIndex];
@@ -416,7 +417,7 @@ function SearchResults({
 			}
 
 			downloadStatusRef.current?.(
-				`Downloading ${target.tracks.length} track(s) from "${target.name}"...`,
+				`Downloading ${target.tracks.length} track(s) from "${target.name}"... (Shift+D to cancel)`,
 			);
 			const summary = await downloadService.downloadTracks(target.tracks, {
 				onProgress: info => {
@@ -424,7 +425,9 @@ function SearchResults({
 				},
 			});
 			downloadStatusRef.current?.(
-				`Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
+				summary.cancelled > 0
+					? `Cancelled. Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}, cancelled ${summary.cancelled}.`
+					: `Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
 			);
 		} catch (error) {
 			downloadStatusRef.current?.(
