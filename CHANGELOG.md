@@ -1,3 +1,9 @@
+## [0.3.12](https://github.com/involvex/youtube-music-cli/compare/v0.3.11...v0.3.12) (2026-11-23)
+
+### Features
+
+- **downloads:** add ymc download, cancel, and yt-dlp resume ([774a252](https://github.com/involvex/youtube-music-cli/commit/774a2528ac4f88dcd22006f4486c2965ce7d1f25))
+
 ## [0.3.11](https://github.com/involvex/youtube-music-cli/compare/v0.3.10...v0.3.11) (2026-11-22)
 
 ### Bug Fixes
