@@ -212,8 +212,9 @@ export default function PlaylistList() {
 
 	const handleDownload = useCallback(async () => {
 		if (renamingPlaylistId || viewingTracks) return;
-		if (isDownloading) {
-			setDownloadStatus('Download already in progress. Please wait.');
+		if (isDownloading || downloadService.isDownloading()) {
+			downloadService.cancel();
+			setDownloadStatus('Cancelling download...');
 			return;
 		}
 		const playlist = playlists[selectedIndex];
@@ -234,7 +235,7 @@ export default function PlaylistList() {
 		}
 
 		setDownloadStatus(
-			`Downloading ${target.tracks.length} track(s) from "${playlist.name}"...`,
+			`Downloading ${target.tracks.length} track(s) from "${playlist.name}"... (Shift+D to cancel)`,
 		);
 		try {
 			setIsDownloading(true);
@@ -244,7 +245,9 @@ export default function PlaylistList() {
 				},
 			});
 			setDownloadStatus(
-				`Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
+				summary.cancelled > 0
+					? `Cancelled. Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}, cancelled ${summary.cancelled}.`
+					: `Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`,
 			);
 		} catch (error) {
 			setDownloadStatus(

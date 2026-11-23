@@ -1071,11 +1071,12 @@ export async function startImmersiveApp(
 			return added ? 'Added to favorites' : 'Removed from favorites';
 		},
 		onDownloadSearchResult: async (result: SearchResult, onProgress) => {
-			if (immersiveDownloadInProgress) {
-				return 'Download already in progress. Please wait.';
+			const downloadService = getDownloadService();
+			if (immersiveDownloadInProgress || downloadService.isDownloading()) {
+				downloadService.cancel();
+				return 'Cancelling download...';
 			}
 
-			const downloadService = getDownloadService();
 			const downloadConfig = downloadService.getConfig();
 			if (!downloadConfig.enabled) {
 				return 'Downloads are disabled. Enable Downloads in Settings.';
@@ -1090,13 +1091,16 @@ export async function startImmersiveApp(
 
 				showTrackChangeToast(
 					'Download',
-					`Downloading ${target.tracks.length} track(s)...`,
+					`Downloading ${target.tracks.length} track(s)... (Shift+D to cancel)`,
 				);
 				const summary = await downloadService.downloadTracks(target.tracks, {
 					onProgress: info => {
 						onProgress?.(formatDownloadProgress(info));
 					},
 				});
+				if (summary.cancelled > 0) {
+					return `Cancelled. Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}, cancelled ${summary.cancelled}.`;
+				}
 				return `Downloaded ${summary.downloaded}, skipped ${summary.skipped}, failed ${summary.failed}.`;
 			} catch (error) {
 				return error instanceof Error ? error.message : 'Download failed.';

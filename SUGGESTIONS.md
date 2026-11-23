@@ -268,9 +268,10 @@ This document tracks potential features, enhancements, and improvements for yout
 
 ### Medium Priority
 
-- Partial **Download Queue** - Batch download support exists; no dedicated download queue management UI
+- Partial **Download Queue** - Batch download + cancel for the active job; no persisted multi-job download manager UI yet
 - Partial **Format Options** - MP3 and M4A supported; FLAC, OGG, OPUS not implemented
-- Planned **Download Resume** - Resume interrupted downloads
+- Implemented **Download Resume** - yt-dlp `--continue` keeps partial `.source` files across cancel/failure; stream URL and mpv fallbacks restart from scratch
+- Implemented **`ymc download`** - Headless download of a video id, YouTube URL, or saved local playlist id
 - Planned **Live Stream Recording** - Record live streams and radio stations to file via the yt-dlp pipeline
 
 ### Low Priority
@@ -375,4 +376,5 @@ Want to work on any of these? Check our [Contributing Guide](CONTRIBUTING.md) an
 - **[Stable] Offline mode** - Cache downloaded tracks for playback without network.
 - **[Stable] Smart Playlists** - Deterministic history rules materialize into local `config.playlists` (`ymc smart-playlist`, Ctrl+Shift+M, immersive Library).
 - **[Stable] Discovery Queue** - History-seeded endless radio with suggestion refill for artist/mood/genre/album seeds (`ymc discover`).
+- **[Stable] Downloads enhancement (0.4.0)** - `ymc download`, cancel in-flight batch (Shift+D / Ctrl+C), yt-dlp `--continue` resume for partial sources.
 - **[Next] Session reliability + playlist sync depth** - Background token refresh and pull diffs; two-way YouTube Music writes after that.

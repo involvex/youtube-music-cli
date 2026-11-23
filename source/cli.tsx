@@ -71,6 +71,7 @@ const cli = meow(
 	  $ youtube-music-cli search <query>
 	  $ youtube-music-cli playlist <playlist-id>
 	  $ youtube-music-cli sync <playlist-id|ytm-url>
+	  $ youtube-music-cli download <track-id|youtube-url|playlist-id>
 	  $ youtube-music-cli suggestions
 	  $ youtube-music-cli radio <track-id>
 	  $ youtube-music-cli discover
@@ -95,6 +96,10 @@ const cli = meow(
 	  $ youtube-music-cli sync <playlist-id|ytm-url>    Sync a YTM playlist to local config
 	  $ youtube-music-cli sync search <query>         Search YTM playlists to sync
 	  $ youtube-music-cli sync list                   List locally synced playlists
+
+	⬇️  Download Commands
+	  $ youtube-music-cli download <track-id|youtube-url>  Download a track (yt-dlp resume supported)
+	  $ youtube-music-cli download <playlist-id>           Download a saved local playlist
 
 	📋 Logs Commands
 	  $ youtube-music-cli logs                    Show recent debug logs
@@ -164,6 +169,7 @@ const cli = meow(
 	  $ youtube-music-cli play dQw4w9WgXcQ --headless
 	  $ youtube-music-cli plugins install adblock
 	  $ youtube-music-cli import spotify "https://open.spotify.com/playlist/..."
+	  $ youtube-music-cli download dQw4w9WgXcQ
 	  $ youtube-music-cli --web --port 3000
 	  $ youtube-music-cli completions powershell | Out-String | Invoke-Expression
 `,
@@ -444,6 +450,90 @@ Built-in ids:
 
 	console.error(`Unknown smart-playlist subcommand: ${subcommand}`);
 	process.exit(1);
+}
+
+// Handle download command (headless — never boots the TUI)
+if (command === 'download') {
+	const targetInput = args.join(' ').trim();
+	if (!targetInput || targetInput === 'help') {
+		console.log(`youtube-music-cli download
+
+Usage:
+  ymc download <track-id|youtube-url>   Download a single track
+  ymc download <playlist-id>            Download a saved local playlist
+
+Notes:
+  - Requires Downloads enabled and a download directory in Settings
+  - Interrupted yt-dlp downloads resume on the next run (--continue)
+  - Stream URL / mpv fallbacks restart from scratch
+
+Examples:
+  ymc download dQw4w9WgXcQ
+  ymc download "https://music.youtube.com/watch?v=dQw4w9WgXcQ"
+  ymc download VLPLm90DCMQmtlk26B3JPo9E1cJULsgeUNrP
+`);
+		process.exit(0);
+	}
+
+	try {
+		const {getDownloadService} =
+			await import('./services/download/download.service.ts');
+		const {formatDownloadProgress, formatDownloadSummary} =
+			await import('./utils/download-progress.ts');
+		const downloadService = getDownloadService();
+		const config = downloadService.getConfig();
+
+		if (!config.enabled) {
+			console.error(
+				'Downloads are disabled. Enable Download Feature in Settings, then retry.',
+			);
+			process.exit(1);
+		}
+
+		if (!config.directory) {
+			console.error(
+				'No download directory configured. Set Download Directory in Settings.',
+			);
+			process.exit(1);
+		}
+
+		console.log(`Resolving "${targetInput}"...`);
+		const target = await downloadService.resolveDownloadInput(targetInput);
+		if (target.tracks.length === 0) {
+			console.error(`No tracks found for "${target.name}".`);
+			process.exit(1);
+		}
+
+		console.log(
+			`Downloading ${target.tracks.length} track(s) from "${target.name}" to ${config.directory} (${config.format})...`,
+		);
+		console.log(
+			'Press Ctrl+C to cancel (partial yt-dlp files are kept for resume).',
+		);
+
+		const onSigint = (): void => {
+			downloadService.cancel();
+			console.log('\nCancelling download...');
+		};
+		process.on('SIGINT', onSigint);
+
+		try {
+			const summary = await downloadService.downloadTracks(target.tracks, {
+				onProgress: info => {
+					console.log(`  ${formatDownloadProgress(info)}`);
+				},
+			});
+			console.log(`\n✓ ${formatDownloadSummary(summary)}`);
+			process.exit(summary.failed > 0 && summary.downloaded === 0 ? 1 : 0);
+		} finally {
+			process.off('SIGINT', onSigint);
+		}
+	} catch (error) {
+		console.error(
+			`\n✗ Download failed: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		process.exit(1);
+	}
 }
 
 // Handle config doctor command
