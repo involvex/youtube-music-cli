@@ -62,7 +62,8 @@ jobs:
           # Native Linux (runner)
           bun run compile
           cp dist/youtube-music-cli dist/youtube-music-cli-linux-x64
-          # Cross-compile Windows + macOS
+          # Cross-compile Linux ARM64 (Raspberry Pi 64-bit / Graviton) + Windows + macOS
+          bun build source/cli.tsx --compile --target=bun-linux-arm64 --outfile dist/youtube-music-cli-linux-arm64
           bun build source/cli.tsx --compile --target=bun-windows-x64 --outfile dist/youtube-music-cli-windows-x64.exe
           bun build source/cli.tsx --compile --target=bun-darwin-x64 --outfile dist/youtube-music-cli-darwin-x64
           bun build source/cli.tsx --compile --target=bun-darwin-arm64 --outfile dist/youtube-music-cli-darwin-arm64
@@ -91,6 +92,7 @@ jobs:
           files: |
             dist/youtube-music-cli
             dist/youtube-music-cli-linux-x64
+            dist/youtube-music-cli-linux-arm64
             dist/youtube-music-cli.exe
             dist/youtube-music-cli-windows-x64.exe
             dist/ymc-win32.exe

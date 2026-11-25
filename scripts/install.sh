@@ -39,6 +39,9 @@ case "$OS-$ARCH" in
   linux-x86_64|linux-amd64)
     ASSET_CANDIDATES=("youtube-music-cli-linux-x64" "youtube-music-cli")
     ;;
+  linux-aarch64|linux-arm64)
+    ASSET_CANDIDATES=("youtube-music-cli-linux-arm64")
+    ;;
   darwin-arm64)
     ASSET_CANDIDATES=("youtube-music-cli-darwin-arm64" "youtube-music-cli")
     ;;

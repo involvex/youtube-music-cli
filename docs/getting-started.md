@@ -108,6 +108,8 @@ This installs both `youtube-music-cli` and `ymc` commands.
 https://github.com/involvex/youtube-music-cli/releases
 ```
 
+Raspberry Pi (64-bit OS only): download `youtube-music-cli-linux-arm64`, or use the install script below.
+
 ### Install Script (bash)
 
 ```bash
