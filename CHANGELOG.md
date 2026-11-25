@@ -1,3 +1,9 @@
+## [0.3.13](https://github.com/involvex/youtube-music-cli/compare/v0.3.12...v0.3.13) (2026-11-25)
+
+### Features
+
+- **release:** ship linux-arm64 binary for Raspberry Pi ([a6d2a29](https://github.com/involvex/youtube-music-cli/commit/a6d2a298b6e87f1694eb50678fad5d6195cc10ab)), closes [#92](https://github.com/involvex/youtube-music-cli/issues/92)
+
 ## [0.3.12](https://github.com/involvex/youtube-music-cli/compare/v0.3.11...v0.3.12) (2026-11-23)
 
 ### Features
