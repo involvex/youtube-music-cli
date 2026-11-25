@@ -285,7 +285,7 @@ This document tracks potential features, enhancements, and improvements for yout
 - Implemented **Homebrew Formula** - Easy installation on macOS via brew install
 - Implemented **Windows MSIX Package** - MSIX installer for Windows via bun run msix
 - Implemented **Standalone Executable** - Single binary distribution with embedded runtime
-- Implemented **GitHub Actions Release Pipeline** - Automated cross-platform binary builds (linux-x64, windows-x64.exe, darwin-x64, darwin-arm64) on tag push, published to GitHub Releases + npm
+- Implemented **GitHub Actions Release Pipeline** - Automated cross-platform binary builds (linux-x64, linux-arm64, windows-x64.exe, darwin-x64, darwin-arm64) on tag push, published to GitHub Releases + npm
 
 ### Medium Priority
 

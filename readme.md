@@ -129,8 +129,11 @@ Release assets (prefer the platform-specific name; install scripts fall back to 
 | ------------------- | --------------------------------------------------------------------- |
 | Windows x64         | `youtube-music-cli-windows-x64.exe` (legacy: `youtube-music-cli.exe`) |
 | Linux x64           | `youtube-music-cli-linux-x64` (legacy: `youtube-music-cli`)           |
+| Linux ARM64         | `youtube-music-cli-linux-arm64` (Raspberry Pi 64-bit / Graviton)      |
 | macOS Apple Silicon | `youtube-music-cli-darwin-arm64`                                      |
 | macOS Intel         | `youtube-music-cli-darwin-x64`                                        |
+
+Raspberry Pi (64-bit OS only): use the install script or `youtube-music-cli-linux-arm64`, then `ymc --web-only --host 0.0.0.0` (still needs `mpv` / `yt-dlp` on the Pi). 32-bit Raspberry Pi OS is not supported.
 
 Immersive Win32 build (`ymc-win32.exe`) is separate (`bun run build:win32`) and is not the default install-script binary.
 
