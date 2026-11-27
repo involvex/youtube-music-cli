@@ -328,7 +328,7 @@ if (command === 'logs') {
 	} else if (cli.flags.getPath) {
 		showLogPath();
 	} else if (cli.flags.setPath) {
-		setLogPath(cli.flags.setPath);
+		setLogPath(cli.flags.setPath as string);
 	} else {
 		showLogs();
 	}

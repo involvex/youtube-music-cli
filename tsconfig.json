@@ -13,7 +13,7 @@
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
 		"jsx": "react-jsx",
-		"types": ["bun-types", "node"]
+		"types": ["bun-types", "node", "bun"]
 	},
 	"include": [
 		"source",

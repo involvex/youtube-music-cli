@@ -4,6 +4,7 @@
 [install]
 registry = "https://registry.npmjs.org/"
 global = false
+auto = "auto"
 
 [test]
 # Isolate HOME so tests never touch the real ~/.youtube-music-cli
@@ -14,3 +15,4 @@ watch = false
 
 [run]
 compat = "bun"
+bun = true
