@@ -24,6 +24,8 @@ ignorePatterns = [
   "dist",
   "docs",
   "node_modules",
+  "plugins",
+  "scoop-bucket",
   ".claude",
   ".gemini",
   ".agent",

@@ -21,14 +21,14 @@ This file provides guidance for AI agents operating in this repository.
 
 ### Code Quality
 
-| Command                | Description                                           |
-| ---------------------- | ----------------------------------------------------- |
-| `bun run format`       | Format code with `bun fmt` (config in `bunfig.toml`)  |
+| Command                | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `bun run format`       | Format code with `bun fmt` (config in `bunfig.toml`)   |
 | `bun run format:check` | Check formatting without modifying (`bun fmt --check`) |
-| `bun run lint`         | Lint code with ESLint                                 |
-| `bun run lint:fix`     | Fix linting issues automatically                      |
-| `bun run typecheck`    | Type check via `bun check` (no emit)                  |
-| `bun run prebuild`     | Run format → lint:fix → typecheck (used before build) |
+| `bun run lint`         | Lint code with ESLint                                  |
+| `bun run lint:fix`     | Fix linting issues automatically                       |
+| `bun run typecheck`    | Type check via `bun check` (no emit)                   |
+| `bun run prebuild`     | Run format → lint:fix → typecheck (used before build)  |
 
 ### Testing
 
