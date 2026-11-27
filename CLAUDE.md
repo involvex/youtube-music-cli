@@ -12,7 +12,7 @@ Guidance for Claude Code in this repository. Prefer root [`AGENTS.md`](AGENTS.md
 bun run dev          # Run CLI
 bun run build        # CLI + web companion
 bun run test         # bun:test
-bun run format       # Prettier
+bun run format       # bun fmt (see bunfig.toml [fmt])
 bun run lint         # ESLint
 bun run typecheck    # bun check
 bun run sync:skills  # Copy .agents/skills → .claude/skills

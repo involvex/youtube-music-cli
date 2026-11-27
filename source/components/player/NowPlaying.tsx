@@ -1,210 +1,233 @@
 // Now playing component
-import {Box, Text} from 'ink';
-import {usePlayer} from '../../hooks/usePlayer.ts';
-import {useFavorites} from '../../stores/favorites.store.tsx';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {formatTime} from '../../utils/format.ts';
-import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
-import {getSleepTimerService} from '../../services/sleep-timer/sleep-timer.service.ts';
-import {getConfigService} from '../../services/config/config.service.ts';
-import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
-import {useState, useEffect} from 'react';
-import {ICONS} from '../../utils/icons.ts';
-import {formatNetworkStatusLabel} from '../../utils/network-status-label.ts';
+import { Box, Text } from "ink";
+import { useEffect, useState } from "react";
+
+import { usePlayer } from "../../hooks/usePlayer.ts";
+import { useTerminalSize } from "../../hooks/useTerminalSize.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { getConfigService } from "../../services/config/config.service.ts";
+import { getOfflineState } from "../../services/offline/offline-mode.service.ts";
+import { getSleepTimerService } from "../../services/sleep-timer/sleep-timer.service.ts";
+import { useFavorites } from "../../stores/favorites.store.tsx";
+import { formatTime } from "../../utils/format.ts";
+import { ICONS } from "../../utils/icons.ts";
+import { formatNetworkStatusLabel } from "../../utils/network-status-label.ts";
 
 export default function NowPlaying() {
-	const {theme} = useTheme();
-	const {state: playerState} = usePlayer();
-	const {isFavorite} = useFavorites();
-	const {columns} = useTerminalSize();
-	const sleepTimer = getSleepTimerService();
-	const config = getConfigService();
-	const subtitlesEnabled = config.get('subtitlesEnabled') ?? false;
-	const showNetworkStatus = config.get('showNetworkStatus') ?? true;
-	const [sleepRemaining, setSleepRemaining] = useState<number | null>(null);
+  const { theme } = useTheme();
+  const { state: playerState } = usePlayer();
+  const { isFavorite } = useFavorites();
+  const { columns } = useTerminalSize();
+  const sleepTimer = getSleepTimerService();
+  const config = getConfigService();
+  const subtitlesEnabled = config.get("subtitlesEnabled") ?? false;
+  const showNetworkStatus = config.get("showNetworkStatus") ?? true;
+  const [sleepRemaining, setSleepRemaining] = useState<number | null>(null);
 
-	// Poll sleep timer remaining every second
-	useEffect(() => {
-		if (!sleepTimer.isActive()) {
-			return;
-		}
-		const interval = setInterval(() => {
-			const remaining = sleepTimer.getRemainingSeconds();
-			setSleepRemaining(remaining);
-			if (remaining === null || remaining === 0) {
-				clearInterval(interval);
-			}
-		}, 1000);
-		return () => {
-			clearInterval(interval);
-		};
-	}, [sleepTimer]);
+  // Poll sleep timer remaining every second
+  useEffect(() => {
+    if (!sleepTimer.isActive()) {
+      return;
+    }
+    const interval = setInterval(() => {
+      const remaining = sleepTimer.getRemainingSeconds();
+      setSleepRemaining(remaining);
+      if (remaining === null || remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [sleepTimer]);
 
-	if (playerState.playbackMode === 'stream' && playerState.currentStation) {
-		const station = playerState.currentStation;
-		const nowPlaying = playerState.streamNowPlaying;
-		const songLine = nowPlaying
-			? nowPlaying.artist && nowPlaying.title
-				? `${nowPlaying.artist} — ${nowPlaying.title}`
-				: (nowPlaying.title ?? nowPlaying.raw)
-			: null;
+  if (playerState.playbackMode === "stream" && playerState.currentStation) {
+    const station = playerState.currentStation;
+    const nowPlaying = playerState.streamNowPlaying;
+    const songLine = nowPlaying
+      ? nowPlaying.artist && nowPlaying.title
+        ? `${nowPlaying.artist} — ${nowPlaying.title}`
+        : (nowPlaying.title ?? nowPlaying.raw)
+      : null;
 
-		return (
-			<Box
-				flexDirection="column"
-				borderStyle="round"
-				borderColor={theme.colors.primary}
-				paddingX={1}
-			>
-				<Box>
-					<Text bold color={theme.colors.primary}>
-						{station.name}
-					</Text>
-					<Text color={theme.colors.dim}> • </Text>
-					<Text color={theme.colors.accent}>LIVE</Text>
-				</Box>
-				{songLine ? (
-					<Text color={theme.colors.secondary}>{songLine}</Text>
-				) : station.region ? (
-					<Text color={theme.colors.dim}>{station.region}</Text>
-				) : null}
-				{songLine && station.region ? (
-					<Text color={theme.colors.dim}>{station.region}</Text>
-				) : null}
-				<Box>
-					<Text color={theme.colors.secondary}>
-						{playerState.isPlaying ? '▶ Playing' : '⏸ Paused'}
-					</Text>
-					{playerState.isLoading ? (
-						<Text color={theme.colors.dim}> • Loading…</Text>
-					) : null}
-				</Box>
-			</Box>
-		);
-	}
+    return (
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={theme.colors.primary}
+        paddingX={1}
+      >
+        <Box>
+          <Text
+            bold
+            color={theme.colors.primary}
+          >
+            {station.name}
+          </Text>
+          <Text color={theme.colors.dim}> • </Text>
+          <Text color={theme.colors.accent}>LIVE</Text>
+        </Box>
+        {songLine ? (
+          <Text color={theme.colors.secondary}>{songLine}</Text>
+        ) : station.region ? (
+          <Text color={theme.colors.dim}>{station.region}</Text>
+        ) : null}
+        {songLine && station.region ? (
+          <Text color={theme.colors.dim}>{station.region}</Text>
+        ) : null}
+        <Box>
+          <Text color={theme.colors.secondary}>
+            {playerState.isPlaying ? "▶ Playing" : "⏸ Paused"}
+          </Text>
+          {playerState.isLoading ? (
+            <Text color={theme.colors.dim}> • Loading…</Text>
+          ) : null}
+        </Box>
+      </Box>
+    );
+  }
 
-	if (!playerState.currentTrack) {
-		return (
-			<Box borderStyle="round" borderColor={theme.colors.dim} paddingX={1}>
-				<Text color={theme.colors.dim}>No track playing</Text>
-			</Box>
-		);
-	}
+  if (!playerState.currentTrack) {
+    return (
+      <Box
+        borderStyle="round"
+        borderColor={theme.colors.dim}
+        paddingX={1}
+      >
+        <Text color={theme.colors.dim}>No track playing</Text>
+      </Box>
+    );
+  }
 
-	const track = playerState.currentTrack;
-	const artists =
-		track.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
+  const track = playerState.currentTrack;
+  const artists =
+    track.artists?.map(a => a.name).join(", ") || "Unknown Artist";
 
-	// Clamp progress to valid range
-	const progress = Math.max(
-		0,
-		Math.min(playerState.progress, playerState.duration || 0),
-	);
-	const duration = playerState.duration || 0;
-	const percentage =
-		duration > 0 ? Math.min(100, Math.floor((progress / duration) * 100)) : 0;
-	const barWidth = Math.max(10, columns - 8);
-	const filledWidth =
-		duration > 0 ? Math.floor((progress / duration) * barWidth) : 0;
+  // Clamp progress to valid range
+  const progress = Math.max(
+    0,
+    Math.min(playerState.progress, playerState.duration || 0),
+  );
+  const duration = playerState.duration || 0;
+  const percentage =
+    duration > 0 ? Math.min(100, Math.floor((progress / duration) * 100)) : 0;
+  const barWidth = Math.max(10, columns - 8);
+  const filledWidth =
+    duration > 0 ? Math.floor((progress / duration) * barWidth) : 0;
 
-	return (
-		<Box
-			flexDirection="column"
-			borderStyle="round"
-			borderColor={theme.colors.primary}
-			paddingX={1}
-		>
-			{/* Title & Artist on same line if space allows */}
-			<Box>
-				<Text bold color={theme.colors.primary}>
-					{isFavorite(track.videoId) ? `${ICONS.HEART} ` : ''}
-					{track.title}
-				</Text>
-				<Text color={theme.colors.dim}> • </Text>
-				<Text color={theme.colors.secondary}>{artists}</Text>
-				{playerState.mediaSource === 'local' ? (
-					<>
-						<Text color={theme.colors.dim}> • </Text>
-						<Text color={theme.colors.accent}>Local</Text>
-					</>
-				) : null}
-			</Box>
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={theme.colors.primary}
+      paddingX={1}
+    >
+      {/* Title & Artist on same line if space allows */}
+      <Box>
+        <Text
+          bold
+          color={theme.colors.primary}
+        >
+          {isFavorite(track.videoId) ? `${ICONS.HEART} ` : ""}
+          {track.title}
+        </Text>
+        <Text color={theme.colors.dim}> • </Text>
+        <Text color={theme.colors.secondary}>{artists}</Text>
+        {playerState.mediaSource === "local" ? (
+          <>
+            <Text color={theme.colors.dim}> • </Text>
+            <Text color={theme.colors.accent}>Local</Text>
+          </>
+        ) : null}
+      </Box>
 
-			{/* Album */}
-			{track.album && <Text color={theme.colors.dim}>{track.album.name}</Text>}
+      {/* Album */}
+      {track.album && <Text color={theme.colors.dim}>{track.album.name}</Text>}
 
-			{/* Progress Bar */}
-			<Box>
-				<Text color={theme.colors.primary}>
-					{'█'.repeat(Math.min(filledWidth, barWidth))}
-				</Text>
-				<Text color={theme.colors.dim}>
-					{'░'.repeat(Math.max(0, barWidth - filledWidth))}
-				</Text>
-			</Box>
+      {/* Progress Bar */}
+      <Box>
+        <Text color={theme.colors.primary}>
+          {"█".repeat(Math.min(filledWidth, barWidth))}
+        </Text>
+        <Text color={theme.colors.dim}>
+          {"░".repeat(Math.max(0, barWidth - filledWidth))}
+        </Text>
+      </Box>
 
-			{/* Time display */}
-			<Box>
-				<Text color={theme.colors.text}>{formatTime(progress)}</Text>
-				<Text color={theme.colors.dim}> / {formatTime(duration)} </Text>
-				<Text color={theme.colors.dim}>[{percentage}%]</Text>
-				{showNetworkStatus && getOfflineState().isOffline && (
-					<Text color={theme.colors.accent}>
-						{' '}
-						{formatNetworkStatusLabel(true)}
-					</Text>
-				)}
-				{playerState.isLoading && (
-					<Text color={theme.colors.accent}> Loading...</Text>
-				)}
-				{!playerState.isPlaying && progress > 0 && (
-					<Text color={theme.colors.dim}> {ICONS.PAUSE}</Text>
-				)}
-				{playerState.shuffle && (
-					<Text color={theme.colors.accent} bold>
-						{' '}
-						{ICONS.SHUFFLE}•
-					</Text>
-				)}
-				{playerState.repeat !== 'off' && (
-					<Text color={theme.colors.accent} bold>
-						{' '}
-						{playerState.repeat === 'one' ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL}
-						•
-					</Text>
-				)}
-				{playerState.autoplay && (
-					<Text color={theme.colors.accent} bold>
-						{' '}
-						{ICONS.AUTOPLAY}•
-					</Text>
-				)}
-				{sleepRemaining !== null && (
-					<Text color={theme.colors.warning}>
-						{' '}
-						⏾ {formatTime(sleepRemaining)}
-					</Text>
-				)}
-			</Box>
+      {/* Time display */}
+      <Box>
+        <Text color={theme.colors.text}>{formatTime(progress)}</Text>
+        <Text color={theme.colors.dim}> / {formatTime(duration)} </Text>
+        <Text color={theme.colors.dim}>[{percentage}%]</Text>
+        {showNetworkStatus && getOfflineState().isOffline && (
+          <Text color={theme.colors.accent}>
+            {" "}
+            {formatNetworkStatusLabel(true)}
+          </Text>
+        )}
+        {playerState.isLoading && (
+          <Text color={theme.colors.accent}> Loading...</Text>
+        )}
+        {!playerState.isPlaying && progress > 0 && (
+          <Text color={theme.colors.dim}> {ICONS.PAUSE}</Text>
+        )}
+        {playerState.shuffle && (
+          <Text
+            color={theme.colors.accent}
+            bold
+          >
+            {" "}
+            {ICONS.SHUFFLE}•
+          </Text>
+        )}
+        {playerState.repeat !== "off" && (
+          <Text
+            color={theme.colors.accent}
+            bold
+          >
+            {" "}
+            {playerState.repeat === "one" ? ICONS.REPEAT_ONE : ICONS.REPEAT_ALL}
+            •
+          </Text>
+        )}
+        {playerState.autoplay && (
+          <Text
+            color={theme.colors.accent}
+            bold
+          >
+            {" "}
+            {ICONS.AUTOPLAY}•
+          </Text>
+        )}
+        {sleepRemaining !== null && (
+          <Text color={theme.colors.warning}>
+            {" "}
+            ⏾ {formatTime(sleepRemaining)}
+          </Text>
+        )}
+      </Box>
 
-			{/* Error */}
-			{playerState.error && (
-				<Text color={theme.colors.error}>{playerState.error}</Text>
-			)}
+      {/* Error */}
+      {playerState.error && (
+        <Text color={theme.colors.error}>{playerState.error}</Text>
+      )}
 
-			{/* Subtitle Display */}
-			{subtitlesEnabled && playerState.subtitle && (
-				<Box
-					marginTop={1}
-					borderStyle="round"
-					borderColor={theme.colors.secondary}
-					paddingX={1}
-				>
-					<Text color={theme.colors.text} italic>
-						{playerState.subtitle}
-					</Text>
-				</Box>
-			)}
-		</Box>
-	);
+      {/* Subtitle Display */}
+      {subtitlesEnabled && playerState.subtitle && (
+        <Box
+          marginTop={1}
+          borderStyle="round"
+          borderColor={theme.colors.secondary}
+          paddingX={1}
+        >
+          <Text
+            color={theme.colors.text}
+            italic
+          >
+            {playerState.subtitle}
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
 }

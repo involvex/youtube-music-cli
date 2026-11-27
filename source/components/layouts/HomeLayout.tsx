@@ -1,396 +1,434 @@
 // Home / Startup screen component
-import {Box, Text} from 'ink';
-import {useState} from 'react';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {useNavigation} from '../../hooks/useNavigation.ts';
-import {useHistory} from '../../stores/history.store.tsx';
-import {useFavorites} from '../../stores/favorites.store.tsx';
-import {usePlayer} from '../../hooks/usePlayer.ts';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import {VIEW} from '../../utils/constants.ts';
-import {truncate, formatTime, formatIconLabel} from '../../utils/format.ts';
-import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
-import {ICONS} from '../../utils/icons.ts';
-import {getMusicService} from '../../services/youtube-music/api.ts';
-import {type Track} from '../../types/youtube-music.types.ts';
-import {getConfigService} from '../../services/config/config.service.ts';
-import {getOfflineState} from '../../services/offline/offline-mode.service.ts';
-import {formatNetworkStatusSuffix} from '../../utils/network-status-label.ts';
+import { Box, Text } from "ink";
+import { useState } from "react";
+
+import { useKeyBinding } from "../../hooks/useKeyboard.ts";
+import { useNavigation } from "../../hooks/useNavigation.ts";
+import { usePlayer } from "../../hooks/usePlayer.ts";
+import { useTerminalSize } from "../../hooks/useTerminalSize.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { getConfigService } from "../../services/config/config.service.ts";
+import { getOfflineState } from "../../services/offline/offline-mode.service.ts";
+import { getMusicService } from "../../services/youtube-music/api.ts";
+import { useFavorites } from "../../stores/favorites.store.tsx";
+import { useHistory } from "../../stores/history.store.tsx";
+import { type Track } from "../../types/youtube-music.types.ts";
+import { VIEW } from "../../utils/constants.ts";
+import { formatIconLabel, formatTime, truncate } from "../../utils/format.ts";
+import { ICONS } from "../../utils/icons.ts";
+import { resolveKeybinding } from "../../utils/keybinding-resolver.ts";
+import { formatNetworkStatusSuffix } from "../../utils/network-status-label.ts";
 
 export default function HomeLayout() {
-	const {theme} = useTheme();
-	const {dispatch} = useNavigation();
-	const {history} = useHistory();
-	const {favorites, toggleFavorite} = useFavorites();
-	const {state: playerState, play, startRadio} = usePlayer();
-	const {columns} = useTerminalSize();
-	const offlineState = getOfflineState();
-	const showNetworkStatus = getConfigService().get('showNetworkStatus') ?? true;
+  const { theme } = useTheme();
+  const { dispatch } = useNavigation();
+  const { history } = useHistory();
+  const { favorites, toggleFavorite } = useFavorites();
+  const { state: playerState, play, startRadio } = usePlayer();
+  const { columns } = useTerminalSize();
+  const offlineState = getOfflineState();
+  const showNetworkStatus = getConfigService().get("showNetworkStatus") ?? true;
 
-	const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-	const RANDOM_QUERIES = [
-		'top hits 2024',
-		'popular songs',
-		'trending music',
-		'chill vibes',
-		'rock classics',
-		'indie hits',
-		'hip hop bangers',
-		'electronic dance',
-		'acoustic favorites',
-		'feel good music',
-		'jazz essentials',
-		'r&b hits',
-		'summer songs',
-	];
+  const RANDOM_QUERIES = [
+    "top hits 2024",
+    "popular songs",
+    "trending music",
+    "chill vibes",
+    "rock classics",
+    "indie hits",
+    "hip hop bangers",
+    "electronic dance",
+    "acoustic favorites",
+    "feel good music",
+    "jazz essentials",
+    "r&b hits",
+    "summer songs",
+  ];
 
-	const handlePlayRandom = () => {
-		const query =
-			RANDOM_QUERIES[Math.floor(Math.random() * RANDOM_QUERIES.length)]!;
-		getMusicService()
-			.search(query, {type: 'songs', limit: 10})
-			.then(response => {
-				const tracks = response.results
-					.filter(r => r.type === 'song')
-					.map(r => r.data as Track);
-				if (tracks.length > 0) {
-					const track = tracks[Math.floor(Math.random() * tracks.length)]!;
-					play(track, {clearQueue: true});
-				}
-			})
-			.catch(() => {});
-	};
+  const handlePlayRandom = () => {
+    const query =
+      RANDOM_QUERIES[Math.floor(Math.random() * RANDOM_QUERIES.length)]!;
+    getMusicService()
+      .search(query, { type: "songs", limit: 10 })
+      .then(response => {
+        const tracks = response.results
+          .filter(r => r.type === "song")
+          .map(r => r.data as Track);
+        if (tracks.length > 0) {
+          const track = tracks[Math.floor(Math.random() * tracks.length)]!;
+          play(track, { clearQueue: true });
+        }
+      })
+      .catch(() => {});
+  };
 
-	const handlePlayRandomFavorite = () => {
-		if (favorites.length === 0) {
-			return;
-		}
-		const randomIndex = Math.floor(Math.random() * favorites.length);
-		const track = favorites[randomIndex];
-		if (track) {
-			play(track, {clearQueue: true});
-		}
-	};
+  const handlePlayRandomFavorite = () => {
+    if (favorites.length === 0) {
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * favorites.length);
+    const track = favorites[randomIndex];
+    if (track) {
+      play(track, { clearQueue: true });
+    }
+  };
 
-	const handleDiscoveryQueue = () => {
-		void import('../../services/radio/discovery-queue.service.ts').then(
-			({DISCOVERY_RADIO_SEED}) => {
-				void startRadio(DISCOVERY_RADIO_SEED);
-			},
-		);
-	};
+  const handleDiscoveryQueue = () => {
+    void import("../../services/radio/discovery-queue.service.ts").then(
+      ({ DISCOVERY_RADIO_SEED }) => {
+        void startRadio(DISCOVERY_RADIO_SEED);
+      },
+    );
+  };
 
-	type QuickLink =
-		| {label: string; view: (typeof VIEW)[keyof typeof VIEW]; action?: never}
-		| {label: string; view?: never; action: () => void};
+  type QuickLink =
+    | { label: string; view: (typeof VIEW)[keyof typeof VIEW]; action?: never }
+    | { label: string; view?: never; action: () => void };
 
-	const quickLinkLabel = (icon: string, text: string): string =>
-		formatIconLabel(icon, text);
+  const quickLinkLabel = (icon: string, text: string): string =>
+    formatIconLabel(icon, text);
 
-	// Quick links
-	const quickLinks: QuickLink[] = [
-		{label: quickLinkLabel(ICONS.MAGNIFY, 'Search'), view: VIEW.SEARCH},
-		{label: quickLinkLabel(ICONS.PLAYLIST, 'Playlists'), view: VIEW.PLAYLISTS},
-		{
-			label: quickLinkLabel(ICONS.PLAYLIST, 'Smart Playlists'),
-			view: VIEW.SMART_PLAYLISTS,
-		},
-		{label: quickLinkLabel(ICONS.TRENDING, 'Trending'), view: VIEW.TRENDING},
-		{label: quickLinkLabel(ICONS.NEW, 'New Releases'), view: VIEW.NEW_RELEASES},
-		{label: quickLinkLabel(ICONS.HEART, 'Favorites'), view: VIEW.FAVORITES},
-		{
-			label: quickLinkLabel(ICONS.PLAYLIST, 'Account Library'),
-			view: VIEW.ACCOUNT_LIBRARY,
-		},
-		{label: quickLinkLabel(ICONS.AI, 'AI Playlist'), view: VIEW.AI_PLAYLIST},
-		{label: quickLinkLabel(ICONS.RADIO, 'Radio Streams'), view: VIEW.RADIO},
-		{
-			label: quickLinkLabel(ICONS.LIVE_STREAM, 'Live Streams'),
-			view: VIEW.LIVE_STREAMS,
-		},
-		{label: quickLinkLabel(ICONS.MOOD, 'Mood Radio'), view: VIEW.MOOD_RADIO},
-		{
-			label: quickLinkLabel(ICONS.AUTOPLAY, 'Discovery Queue'),
-			action: handleDiscoveryQueue,
-		},
-		{
-			label: quickLinkLabel(ICONS.CLOCK, 'Queue & History'),
-			view: VIEW.HISTORY,
-		},
-		{
-			label: quickLinkLabel(ICONS.DICE, 'Play Random Song'),
-			action: handlePlayRandom,
-		},
-		{
-			label: quickLinkLabel(ICONS.VOLUME, 'Play Random Favorite'),
-			action: handlePlayRandomFavorite,
-		},
-	];
+  // Quick links
+  const quickLinks: QuickLink[] = [
+    { label: quickLinkLabel(ICONS.MAGNIFY, "Search"), view: VIEW.SEARCH },
+    {
+      label: quickLinkLabel(ICONS.PLAYLIST, "Playlists"),
+      view: VIEW.PLAYLISTS,
+    },
+    {
+      label: quickLinkLabel(ICONS.PLAYLIST, "Smart Playlists"),
+      view: VIEW.SMART_PLAYLISTS,
+    },
+    { label: quickLinkLabel(ICONS.TRENDING, "Trending"), view: VIEW.TRENDING },
+    {
+      label: quickLinkLabel(ICONS.NEW, "New Releases"),
+      view: VIEW.NEW_RELEASES,
+    },
+    { label: quickLinkLabel(ICONS.HEART, "Favorites"), view: VIEW.FAVORITES },
+    {
+      label: quickLinkLabel(ICONS.PLAYLIST, "Account Library"),
+      view: VIEW.ACCOUNT_LIBRARY,
+    },
+    { label: quickLinkLabel(ICONS.AI, "AI Playlist"), view: VIEW.AI_PLAYLIST },
+    { label: quickLinkLabel(ICONS.RADIO, "Radio Streams"), view: VIEW.RADIO },
+    {
+      label: quickLinkLabel(ICONS.LIVE_STREAM, "Live Streams"),
+      view: VIEW.LIVE_STREAMS,
+    },
+    { label: quickLinkLabel(ICONS.MOOD, "Mood Radio"), view: VIEW.MOOD_RADIO },
+    {
+      label: quickLinkLabel(ICONS.AUTOPLAY, "Discovery Queue"),
+      action: handleDiscoveryQueue,
+    },
+    {
+      label: quickLinkLabel(ICONS.CLOCK, "Queue & History"),
+      view: VIEW.HISTORY,
+    },
+    {
+      label: quickLinkLabel(ICONS.DICE, "Play Random Song"),
+      action: handlePlayRandom,
+    },
+    {
+      label: quickLinkLabel(ICONS.VOLUME, "Play Random Favorite"),
+      action: handlePlayRandomFavorite,
+    },
+  ];
 
-	const recentHistory = history.slice(0, 5);
-	const recentFavorites = favorites.slice(0, 5);
+  const recentHistory = history.slice(0, 5);
+  const recentFavorites = favorites.slice(0, 5);
 
-	const totalItems =
-		quickLinks.length + recentHistory.length + recentFavorites.length;
+  const totalItems =
+    quickLinks.length + recentHistory.length + recentFavorites.length;
 
-	const handleSelect = () => {
-		if (selectedIndex < quickLinks.length) {
-			const link = quickLinks[selectedIndex]!;
-			if (link.action) {
-				link.action();
-			} else {
-				dispatch({category: 'NAVIGATE', view: link.view});
-			}
-		} else if (selectedIndex < quickLinks.length + recentHistory.length) {
-			const entry = recentHistory[selectedIndex - quickLinks.length];
-			if (entry) play(entry.track, {clearQueue: true});
-		} else {
-			const track =
-				recentFavorites[
-					selectedIndex - quickLinks.length - recentHistory.length
-				];
-			if (track) play(track, {clearQueue: true});
-		}
-	};
+  const handleSelect = () => {
+    if (selectedIndex < quickLinks.length) {
+      const link = quickLinks[selectedIndex]!;
+      if (link.action) {
+        link.action();
+      } else {
+        dispatch({ category: "NAVIGATE", view: link.view });
+      }
+    } else if (selectedIndex < quickLinks.length + recentHistory.length) {
+      const entry = recentHistory[selectedIndex - quickLinks.length];
+      if (entry) play(entry.track, { clearQueue: true });
+    } else {
+      const track =
+        recentFavorites[
+          selectedIndex - quickLinks.length - recentHistory.length
+        ];
+      if (track) play(track, { clearQueue: true });
+    }
+  };
 
-	useKeyBinding(resolveKeybinding('UP'), () => {
-		setSelectedIndex(prev => (prev > 0 ? prev - 1 : totalItems - 1));
-	});
+  useKeyBinding(resolveKeybinding("UP"), () => {
+    setSelectedIndex(prev => (prev > 0 ? prev - 1 : totalItems - 1));
+  });
 
-	useKeyBinding(resolveKeybinding('DOWN'), () => {
-		setSelectedIndex(prev => (prev < totalItems - 1 ? prev + 1 : 0));
-	});
+  useKeyBinding(resolveKeybinding("DOWN"), () => {
+    setSelectedIndex(prev => (prev < totalItems - 1 ? prev + 1 : 0));
+  });
 
-	useKeyBinding(resolveKeybinding('SELECT'), handleSelect);
-	useKeyBinding(resolveKeybinding('SEARCH'), () =>
-		dispatch({category: 'NAVIGATE', view: VIEW.SEARCH}),
-	);
+  useKeyBinding(resolveKeybinding("SELECT"), handleSelect);
+  useKeyBinding(resolveKeybinding("SEARCH"), () =>
+    dispatch({ category: "NAVIGATE", view: VIEW.SEARCH }),
+  );
 
-	useKeyBinding(resolveKeybinding('TOGGLE_FAVORITE'), () => {
-		if (playerState.currentTrack) {
-			toggleFavorite(playerState.currentTrack);
-		}
-	});
+  useKeyBinding(resolveKeybinding("TOGGLE_FAVORITE"), () => {
+    if (playerState.currentTrack) {
+      toggleFavorite(playerState.currentTrack);
+    }
+  });
 
-	const maxTitleLength = Math.max(20, columns - 40);
+  const maxTitleLength = Math.max(20, columns - 40);
 
-	// Progress bar calculation
-	const progress = Math.max(
-		0,
-		Math.min(playerState.progress, playerState.duration || 0),
-	);
-	const duration = playerState.duration || 0;
-	const barWidth = Math.max(10, columns - 30);
-	const filledWidth =
-		duration > 0 ? Math.floor((progress / duration) * barWidth) : 0;
+  // Progress bar calculation
+  const progress = Math.max(
+    0,
+    Math.min(playerState.progress, playerState.duration || 0),
+  );
+  const duration = playerState.duration || 0;
+  const barWidth = Math.max(10, columns - 30);
+  const filledWidth =
+    duration > 0 ? Math.floor((progress / duration) * barWidth) : 0;
 
-	// Extract artist string from current track
-	const currentTrackArtists =
-		playerState.currentTrack?.artists?.map(a => a.name).join(', ') ?? '';
+  // Extract artist string from current track
+  const currentTrackArtists =
+    playerState.currentTrack?.artists?.map(a => a.name).join(", ") ?? "";
 
-	return (
-		<Box flexDirection="column" paddingX={1} paddingY={0}>
-			{/* Header with Network Status */}
-			<Box
-				borderStyle="double"
-				borderColor={theme.colors.primary}
-				paddingX={1}
-				justifyContent="center"
-			>
-				<Text bold color={theme.colors.primary}>
-					{ICONS.VOLUME} {ICONS.PLAY} youtube-music-cli {ICONS.PLAY}{' '}
-					{ICONS.VOLUME}
-					{showNetworkStatus
-						? formatNetworkStatusSuffix(offlineState.isOffline)
-						: ''}
-				</Text>
-			</Box>
+  return (
+    <Box
+      flexDirection="column"
+      paddingX={1}
+      paddingY={0}
+    >
+      {/* Header with Network Status */}
+      <Box
+        borderStyle="double"
+        borderColor={theme.colors.primary}
+        paddingX={1}
+        justifyContent="center"
+      >
+        <Text
+          bold
+          color={theme.colors.primary}
+        >
+          {ICONS.VOLUME} {ICONS.PLAY} youtube-music-cli {ICONS.PLAY}{" "}
+          {ICONS.VOLUME}
+          {showNetworkStatus
+            ? formatNetworkStatusSuffix(offlineState.isOffline)
+            : ""}
+        </Text>
+      </Box>
 
-			<Box flexDirection="row" gap={1}>
-				{/* Left Column: Quick Links */}
-				<Box
-					flexDirection="column"
-					width="25%"
-					borderStyle="round"
-					borderColor={theme.colors.dim}
-					paddingX={1}
-				>
-					<Box marginBottom={0}>
-						<Text bold color={theme.colors.secondary}>
-							Quick Links
-						</Text>
-					</Box>
-					{quickLinks.map((link, index) => (
-						<Box key={link.label}>
-							<Text
-								backgroundColor={
-									selectedIndex === index ? theme.colors.primary : undefined
-								}
-								color={
-									selectedIndex === index
-										? theme.colors.background
-										: theme.colors.text
-								}
-							>
-								{selectedIndex === index ? '> ' : '  '}
-								{link.label}
-							</Text>
-						</Box>
-					))}
-				</Box>
+      <Box
+        flexDirection="row"
+        gap={1}
+      >
+        {/* Left Column: Quick Links */}
+        <Box
+          flexDirection="column"
+          width="25%"
+          borderStyle="round"
+          borderColor={theme.colors.dim}
+          paddingX={1}
+        >
+          <Box marginBottom={0}>
+            <Text
+              bold
+              color={theme.colors.secondary}
+            >
+              Quick Links
+            </Text>
+          </Box>
+          {quickLinks.map((link, index) => (
+            <Box key={link.label}>
+              <Text
+                backgroundColor={
+                  selectedIndex === index ? theme.colors.primary : undefined
+                }
+                color={
+                  selectedIndex === index
+                    ? theme.colors.background
+                    : theme.colors.text
+                }
+              >
+                {selectedIndex === index ? "> " : "  "}
+                {link.label}
+              </Text>
+            </Box>
+          ))}
+        </Box>
 
-				{/* Right Column: Activity */}
-				<Box flexDirection="column" flexGrow={1}>
-					{/* Recently Played */}
-					<Box
-						flexDirection="column"
-						borderStyle="round"
-						borderColor={theme.colors.dim}
-						paddingX={1}
-					>
-						<Text bold color={theme.colors.secondary}>
-							{formatIconLabel(ICONS.CLOCK, 'Recently Played')}
-						</Text>
-						{recentHistory.length === 0 ? (
-							<Text color={theme.colors.dim}> No history yet</Text>
-						) : (
-							recentHistory.map((entry, index) => {
-								const actualIndex = index + quickLinks.length;
-								return (
-									<Box key={`${entry.playedAt}-${entry.track.videoId}`}>
-										<Text
-											backgroundColor={
-												selectedIndex === actualIndex
-													? theme.colors.primary
-													: undefined
-											}
-											color={
-												selectedIndex === actualIndex
-													? theme.colors.background
-													: theme.colors.text
-											}
-										>
-											{selectedIndex === actualIndex ? '> ' : '  '}
-											{truncate(entry.track.title, maxTitleLength)}
-										</Text>
-										<Text color={theme.colors.dim} wrap="truncate">
-											{' '}
-											- {entry.track.artists[0]?.name}
-										</Text>
-									</Box>
-								);
-							})
-						)}
-					</Box>
+        {/* Right Column: Activity */}
+        <Box
+          flexDirection="column"
+          flexGrow={1}
+        >
+          {/* Recently Played */}
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={theme.colors.dim}
+            paddingX={1}
+          >
+            <Text
+              bold
+              color={theme.colors.secondary}
+            >
+              {formatIconLabel(ICONS.CLOCK, "Recently Played")}
+            </Text>
+            {recentHistory.length === 0 ? (
+              <Text color={theme.colors.dim}> No history yet</Text>
+            ) : (
+              recentHistory.map((entry, index) => {
+                const actualIndex = index + quickLinks.length;
+                return (
+                  <Box key={`${entry.playedAt}-${entry.track.videoId}`}>
+                    <Text
+                      backgroundColor={
+                        selectedIndex === actualIndex
+                          ? theme.colors.primary
+                          : undefined
+                      }
+                      color={
+                        selectedIndex === actualIndex
+                          ? theme.colors.background
+                          : theme.colors.text
+                      }
+                    >
+                      {selectedIndex === actualIndex ? "> " : "  "}
+                      {truncate(entry.track.title, maxTitleLength)}
+                    </Text>
+                    <Text
+                      color={theme.colors.dim}
+                      wrap="truncate"
+                    >
+                      {" "}
+                      - {entry.track.artists[0]?.name}
+                    </Text>
+                  </Box>
+                );
+              })
+            )}
+          </Box>
 
-					{/* Top Favorites */}
-					<Box
-						flexDirection="column"
-						borderStyle="round"
-						borderColor={theme.colors.dim}
-						paddingX={1}
-					>
-						<Text bold color={theme.colors.secondary}>
-							{formatIconLabel(ICONS.HEART, 'Recent Favorites')}
-						</Text>
-						{recentFavorites.length === 0 ? (
-							<Text color={theme.colors.dim}>
-								{' '}
-								No favorites yet (press 'f' while playing)
-							</Text>
-						) : (
-							recentFavorites.map((track, index) => {
-								const actualIndex =
-									index + quickLinks.length + recentHistory.length;
-								return (
-									<Box key={track.videoId}>
-										<Text
-											backgroundColor={
-												selectedIndex === actualIndex
-													? theme.colors.primary
-													: undefined
-											}
-											color={
-												selectedIndex === actualIndex
-													? theme.colors.background
-													: theme.colors.text
-											}
-										>
-											{selectedIndex === actualIndex ? '> ' : '  '}
-											{truncate(track.title, maxTitleLength)}
-										</Text>
-										<Text color={theme.colors.dim} wrap="truncate">
-											{' '}
-											- {track.artists[0]?.name}
-										</Text>
-									</Box>
-								);
-							})
-						)}
-					</Box>
-				</Box>
-			</Box>
+          {/* Top Favorites */}
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={theme.colors.dim}
+            paddingX={1}
+          >
+            <Text
+              bold
+              color={theme.colors.secondary}
+            >
+              {formatIconLabel(ICONS.HEART, "Recent Favorites")}
+            </Text>
+            {recentFavorites.length === 0 ? (
+              <Text color={theme.colors.dim}>
+                {" "}
+                No favorites yet (press 'f' while playing)
+              </Text>
+            ) : (
+              recentFavorites.map((track, index) => {
+                const actualIndex =
+                  index + quickLinks.length + recentHistory.length;
+                return (
+                  <Box key={track.videoId}>
+                    <Text
+                      backgroundColor={
+                        selectedIndex === actualIndex
+                          ? theme.colors.primary
+                          : undefined
+                      }
+                      color={
+                        selectedIndex === actualIndex
+                          ? theme.colors.background
+                          : theme.colors.text
+                      }
+                    >
+                      {selectedIndex === actualIndex ? "> " : "  "}
+                      {truncate(track.title, maxTitleLength)}
+                    </Text>
+                    <Text
+                      color={theme.colors.dim}
+                      wrap="truncate"
+                    >
+                      {" "}
+                      - {track.artists[0]?.name}
+                    </Text>
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+        </Box>
+      </Box>
 
-			{/* Player Status / Progress Bar */}
-			{playerState.currentTrack && (
-				<Box
-					flexDirection="column"
-					borderStyle="round"
-					borderColor={theme.colors.primary}
-					paddingX={1}
-					marginY={0}
-				>
-					<Box justifyContent="space-between">
-						<Box>
-							<Text color={theme.colors.secondary}>
-								{playerState.isPlaying ? ICONS.PLAY : ICONS.PAUSE} Currently
-								playing:{' '}
-							</Text>
-							<Text bold color={theme.colors.primary}>
-								{truncate(
-									`${playerState.currentTrack.title}${
-										currentTrackArtists ? ' - ' + currentTrackArtists : ''
-									}`,
-									columns - 45,
-								)}
-							</Text>
-						</Box>
-						<Text color={theme.colors.dim}>
-							{formatTime(progress)} / {formatTime(duration)}
-						</Text>
-					</Box>
-					<Box>
-						<Text color={theme.colors.primary}>
-							{'█'.repeat(Math.min(filledWidth, barWidth))}
-						</Text>
-						<Text color={theme.colors.dim}>
-							{'░'.repeat(Math.max(0, barWidth - filledWidth))}
-						</Text>
-					</Box>
-				</Box>
-			)}
+      {/* Player Status / Progress Bar */}
+      {playerState.currentTrack && (
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor={theme.colors.primary}
+          paddingX={1}
+          marginY={0}
+        >
+          <Box justifyContent="space-between">
+            <Box>
+              <Text color={theme.colors.secondary}>
+                {playerState.isPlaying ? ICONS.PLAY : ICONS.PAUSE} Currently
+                playing:{" "}
+              </Text>
+              <Text
+                bold
+                color={theme.colors.primary}
+              >
+                {truncate(
+                  `${playerState.currentTrack.title}${
+                    currentTrackArtists ? " - " + currentTrackArtists : ""
+                  }`,
+                  columns - 45,
+                )}
+              </Text>
+            </Box>
+            <Text color={theme.colors.dim}>
+              {formatTime(progress)} / {formatTime(duration)}
+            </Text>
+          </Box>
+          <Box>
+            <Text color={theme.colors.primary}>
+              {"█".repeat(Math.min(filledWidth, barWidth))}
+            </Text>
+            <Text color={theme.colors.dim}>
+              {"░".repeat(Math.max(0, barWidth - filledWidth))}
+            </Text>
+          </Box>
+        </Box>
+      )}
 
-			{/* Footer / Shortcuts */}
-			<Box
-				paddingX={1}
-				borderStyle="single"
-				borderColor={theme.colors.dim}
-				flexDirection="row"
-				justifyContent="space-between"
-			>
-				<Box>
-					<Text color={theme.colors.dim}>
-						Navigate: Arrows • Select: Enter • Search: / • Quit: q
-					</Text>
-				</Box>
-				<Box>
-					<Text color={theme.colors.dim}>
-						f: Favorites • Shift+H: History • o: Stats • ,: Settings
-					</Text>
-				</Box>
-			</Box>
-		</Box>
-	);
+      {/* Footer / Shortcuts */}
+      <Box
+        paddingX={1}
+        borderStyle="single"
+        borderColor={theme.colors.dim}
+        flexDirection="row"
+        justifyContent="space-between"
+      >
+        <Box>
+          <Text color={theme.colors.dim}>
+            Navigate: Arrows • Select: Enter • Search: / • Quit: q
+          </Text>
+        </Box>
+        <Box>
+          <Text color={theme.colors.dim}>
+            f: Favorites • Shift+H: History • o: Stats • ,: Settings
+          </Text>
+        </Box>
+      </Box>
+    </Box>
+  );
 }

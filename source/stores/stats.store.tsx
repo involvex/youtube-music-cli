@@ -1,48 +1,49 @@
-import {createContext, useContext, useMemo, type ReactNode} from 'react';
-import {useHistory} from './history.store.tsx';
-import {computeStats} from '../services/stats/stats.service.ts';
-import type {ListeningStats} from '../types/stats.types.ts';
+import { createContext, type ReactNode, useContext, useMemo } from "react";
+
+import { computeStats } from "../services/stats/stats.service.ts";
+import type { ListeningStats } from "../types/stats.types.ts";
+import { useHistory } from "./history.store.tsx";
 
 const emptyStats: ListeningStats = {
-	totalPlays: 0,
-	totalListeningMinutes: 0,
-	uniqueTracks: 0,
-	uniqueArtists: 0,
-	topTracks: [],
-	topArtists: [],
-	listeningByDay: [],
-	currentStreak: 0,
-	longestStreak: 0,
-	firstPlayDate: null,
-	averageDailyMinutes: 0,
+  totalPlays: 0,
+  totalListeningMinutes: 0,
+  uniqueTracks: 0,
+  uniqueArtists: 0,
+  topTracks: [],
+  topArtists: [],
+  listeningByDay: [],
+  currentStreak: 0,
+  longestStreak: 0,
+  firstPlayDate: null,
+  averageDailyMinutes: 0,
 };
 
 type StatsContextValue = {
-	stats: ListeningStats;
+  stats: ListeningStats;
 };
 
 const StatsContext = createContext<StatsContextValue | null>(null);
 
-export function StatsProvider({children}: {children: ReactNode}) {
-	const {history} = useHistory();
+export function StatsProvider({ children }: { children: ReactNode }) {
+  const { history } = useHistory();
 
-	const stats = useMemo(() => computeStats(history), [history]);
+  const stats = useMemo(() => computeStats(history), [history]);
 
-	const value = useMemo(() => ({stats}), [stats]);
+  const value = useMemo(() => ({ stats }), [stats]);
 
-	return (
-		<StatsContext.Provider value={value}>{children}</StatsContext.Provider>
-	);
+  return (
+    <StatsContext.Provider value={value}>{children}</StatsContext.Provider>
+  );
 }
 
 export function useStats(): StatsContextValue {
-	const context = useContext(StatsContext);
+  const context = useContext(StatsContext);
 
-	if (!context) {
-		throw new Error('useStats must be used within StatsProvider');
-	}
+  if (!context) {
+    throw new Error("useStats must be used within StatsProvider");
+  }
 
-	return context;
+  return context;
 }
 
-export {emptyStats};
+export { emptyStats };

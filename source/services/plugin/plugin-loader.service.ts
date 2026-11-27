@@ -1,221 +1,222 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
 // Plugin loader service - loads, validates, and manages plugin lifecycle
 import type {
-	Plugin,
-	PluginManifest,
-	PluginInstance,
-	PluginContext,
-} from '../../types/plugin.types.ts';
-import {logger} from '../logger/logger.service.ts';
-import {formatErrorData} from '../../utils/error.ts';
-import {existsSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
+  Plugin,
+  PluginContext,
+  PluginInstance,
+  PluginManifest,
+} from "../../types/plugin.types.ts";
+import { formatErrorData } from "../../utils/error.ts";
+import { logger } from "../logger/logger.service.ts";
 
 /**
  * Validate plugin manifest
  */
 function validateManifest(manifest: unknown): manifest is PluginManifest {
-	if (typeof manifest !== 'object' || manifest === null) {
-		return false;
-	}
+  if (typeof manifest !== "object" || manifest === null) {
+    return false;
+  }
 
-	const m = manifest as Record<string, unknown>;
+  const m = manifest as Record<string, unknown>;
 
-	return (
-		typeof m['id'] === 'string' &&
-		typeof m['name'] === 'string' &&
-		typeof m['version'] === 'string' &&
-		typeof m['description'] === 'string' &&
-		typeof m['author'] === 'string' &&
-		typeof m['main'] === 'string' &&
-		Array.isArray(m['permissions'])
-	);
+  return (
+    typeof m["id"] === "string" &&
+    typeof m["name"] === "string" &&
+    typeof m["version"] === "string" &&
+    typeof m["description"] === "string" &&
+    typeof m["author"] === "string" &&
+    typeof m["main"] === "string" &&
+    Array.isArray(m["permissions"])
+  );
 }
 
 /**
  * Plugin loader service - handles dynamic loading of plugins
  */
 class PluginLoaderService {
-	/**
-	 * Load a plugin from a directory
-	 */
-	async loadPlugin(pluginPath: string): Promise<PluginInstance> {
-		logger.info('PluginLoaderService', `Loading plugin from ${pluginPath}`);
+  /**
+   * Load a plugin from a directory
+   */
+  async loadPlugin(pluginPath: string): Promise<PluginInstance> {
+    logger.info("PluginLoaderService", `Loading plugin from ${pluginPath}`);
 
-		// Load and validate manifest
-		const manifestPath = join(pluginPath, 'plugin.json');
-		if (!existsSync(manifestPath)) {
-			throw new Error(`Plugin manifest not found: ${manifestPath}`);
-		}
+    // Load and validate manifest
+    const manifestPath = join(pluginPath, "plugin.json");
+    if (!existsSync(manifestPath)) {
+      throw new Error(`Plugin manifest not found: ${manifestPath}`);
+    }
 
-		const manifestData = readFileSync(manifestPath, 'utf-8');
-		const manifest = JSON.parse(manifestData) as unknown;
+    const manifestData = readFileSync(manifestPath, "utf-8");
+    const manifest = JSON.parse(manifestData) as unknown;
 
-		if (!validateManifest(manifest)) {
-			throw new Error(`Invalid plugin manifest: ${manifestPath}`);
-		}
+    if (!validateManifest(manifest)) {
+      throw new Error(`Invalid plugin manifest: ${manifestPath}`);
+    }
 
-		logger.debug(
-			'PluginLoaderService',
-			`Validated manifest for ${manifest.name} v${manifest.version}`,
-		);
+    logger.debug(
+      "PluginLoaderService",
+      `Validated manifest for ${manifest.name} v${manifest.version}`,
+    );
 
-		// Load plugin module
-		const pluginEntryPath = join(pluginPath, manifest.main);
-		if (!existsSync(pluginEntryPath)) {
-			throw new Error(`Plugin entry point not found: ${pluginEntryPath}`);
-		}
+    // Load plugin module
+    const pluginEntryPath = join(pluginPath, manifest.main);
+    if (!existsSync(pluginEntryPath)) {
+      throw new Error(`Plugin entry point not found: ${pluginEntryPath}`);
+    }
 
-		let pluginModule: unknown;
-		try {
-			// Use native ESM import with file URL for TypeScript support (Node.js 24+)
-			// On Windows, ESM requires file:// URLs, not absolute paths
-			const pluginUrl = pathToFileURL(pluginEntryPath).href;
-			pluginModule = await import(pluginUrl);
-			// Clear perf entries accumulated by module loading
-			performance.clearMeasures();
-		} catch (error) {
-			logger.error(
-				'PluginLoaderService',
-				'Failed to load plugin module:',
-				formatErrorData(error),
-			);
-			throw new Error(
-				`Failed to load plugin from ${pluginEntryPath}: ${error instanceof Error ? error.message : String(error)}`,
-			);
-		}
+    let pluginModule: unknown;
+    try {
+      // Use native ESM import with file URL for TypeScript support (Node.js 24+)
+      // On Windows, ESM requires file:// URLs, not absolute paths
+      const pluginUrl = pathToFileURL(pluginEntryPath).href;
+      pluginModule = await import(pluginUrl);
+      // Clear perf entries accumulated by module loading
+      performance.clearMeasures();
+    } catch (error) {
+      logger.error(
+        "PluginLoaderService",
+        "Failed to load plugin module:",
+        formatErrorData(error),
+      );
+      throw new Error(
+        `Failed to load plugin from ${pluginEntryPath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
-		// Unwrap ESM namespace object that may return when a module has named exports
-		if (
-			pluginModule !== null &&
-			typeof pluginModule === 'object' &&
-			'default' in (pluginModule as Record<string, unknown>)
-		) {
-			const maybeDefault = (pluginModule as Record<string, unknown>)['default'];
-			if (this.isValidPlugin(maybeDefault)) {
-				pluginModule = maybeDefault;
-			}
-		}
+    // Unwrap ESM namespace object that may return when a module has named exports
+    if (
+      pluginModule !== null &&
+      typeof pluginModule === "object" &&
+      "default" in (pluginModule as Record<string, unknown>)
+    ) {
+      const maybeDefault = (pluginModule as Record<string, unknown>)["default"];
+      if (this.isValidPlugin(maybeDefault)) {
+        pluginModule = maybeDefault;
+      }
+    }
 
-		// Validate plugin module
-		if (!this.isValidPlugin(pluginModule)) {
-			throw new Error(`Invalid plugin module: ${pluginEntryPath}`);
-		}
+    // Validate plugin module
+    if (!this.isValidPlugin(pluginModule)) {
+      throw new Error(`Invalid plugin module: ${pluginEntryPath}`);
+    }
 
-		const plugin = pluginModule as Plugin;
+    const plugin = pluginModule as Plugin;
 
-		// Verify manifest consistency
-		if (plugin.manifest.id !== manifest.id) {
-			logger.warn(
-				'PluginLoaderService',
-				`Plugin manifest ID mismatch: ${plugin.manifest.id} vs ${manifest.id}`,
-			);
-		}
+    // Verify manifest consistency
+    if (plugin.manifest.id !== manifest.id) {
+      logger.warn(
+        "PluginLoaderService",
+        `Plugin manifest ID mismatch: ${plugin.manifest.id} vs ${manifest.id}`,
+      );
+    }
 
-		logger.info(
-			'PluginLoaderService',
-			`Successfully loaded plugin: ${manifest.name} v${manifest.version}`,
-		);
+    logger.info(
+      "PluginLoaderService",
+      `Successfully loaded plugin: ${manifest.name} v${manifest.version}`,
+    );
 
-		// Create plugin instance (context will be injected later)
-		const instance: PluginInstance = {
-			manifest,
-			plugin,
-			// Note: Context is set by plugin registry
-			context: null as unknown as PluginContext,
-			config: {
-				enabled: false,
-				config: {},
-				permissions: {},
-			},
-			enabled: false,
-			loadedAt: Date.now(),
-		};
+    // Create plugin instance (context will be injected later)
+    const instance: PluginInstance = {
+      manifest,
+      plugin,
+      // Note: Context is set by plugin registry
+      context: null as unknown as PluginContext,
+      config: {
+        enabled: false,
+        config: {},
+        permissions: {},
+      },
+      enabled: false,
+      loadedAt: Date.now(),
+    };
 
-		return instance;
-	}
+    return instance;
+  }
 
-	/**
-	 * Validate plugin module structure
-	 */
-	private isValidPlugin(module: unknown): boolean {
-		if (typeof module !== 'object' || module === null) {
-			return false;
-		}
+  /**
+   * Validate plugin module structure
+   */
+  private isValidPlugin(module: unknown): boolean {
+    if (typeof module !== "object" || module === null) {
+      return false;
+    }
 
-		const m = module as Record<string, unknown>;
+    const m = module as Record<string, unknown>;
 
-		// Must have manifest
-		if (!m['manifest'] || typeof m['manifest'] !== 'object') {
-			return false;
-		}
+    // Must have manifest
+    if (!m["manifest"] || typeof m["manifest"] !== "object") {
+      return false;
+    }
 
-		// Optional lifecycle hooks must be functions if present
-		if (m['init'] && typeof m['init'] !== 'function') {
-			return false;
-		}
+    // Optional lifecycle hooks must be functions if present
+    if (m["init"] && typeof m["init"] !== "function") {
+      return false;
+    }
 
-		if (m['enable'] && typeof m['enable'] !== 'function') {
-			return false;
-		}
+    if (m["enable"] && typeof m["enable"] !== "function") {
+      return false;
+    }
 
-		if (m['disable'] && typeof m['disable'] !== 'function') {
-			return false;
-		}
+    if (m["disable"] && typeof m["disable"] !== "function") {
+      return false;
+    }
 
-		if (m['destroy'] && typeof m['destroy'] !== 'function') {
-			return false;
-		}
+    if (m["destroy"] && typeof m["destroy"] !== "function") {
+      return false;
+    }
 
-		return true;
-	}
+    return true;
+  }
 
-	/**
-	 * Call plugin lifecycle hook safely
-	 */
-	async callHook(
-		plugin: Plugin,
-		hook: 'init' | 'enable' | 'disable' | 'destroy',
-		context: PluginInstance['context'],
-	): Promise<void> {
-		const hookFn = plugin[hook];
-		if (!hookFn) {
-			logger.debug(
-				'PluginLoaderService',
-				`Plugin ${plugin.manifest.name} has no ${hook} hook`,
-			);
-			return;
-		}
+  /**
+   * Call plugin lifecycle hook safely
+   */
+  async callHook(
+    plugin: Plugin,
+    hook: "init" | "enable" | "disable" | "destroy",
+    context: PluginInstance["context"],
+  ): Promise<void> {
+    const hookFn = plugin[hook];
+    if (!hookFn) {
+      logger.debug(
+        "PluginLoaderService",
+        `Plugin ${plugin.manifest.name} has no ${hook} hook`,
+      );
+      return;
+    }
 
-		try {
-			logger.debug(
-				'PluginLoaderService',
-				`Calling ${hook} hook for ${plugin.manifest.name}`,
-			);
-			await Promise.resolve(hookFn(context));
-			logger.debug(
-				'PluginLoaderService',
-				`${hook} hook completed for ${plugin.manifest.name}`,
-			);
-		} catch (error) {
-			logger.error(
-				'PluginLoaderService',
-				`Error in ${hook} hook for ${plugin.manifest.name}:`,
-				formatErrorData(error),
-			);
-			throw error;
-		}
-	}
+    try {
+      logger.debug(
+        "PluginLoaderService",
+        `Calling ${hook} hook for ${plugin.manifest.name}`,
+      );
+      await Promise.resolve(hookFn(context));
+      logger.debug(
+        "PluginLoaderService",
+        `${hook} hook completed for ${plugin.manifest.name}`,
+      );
+    } catch (error) {
+      logger.error(
+        "PluginLoaderService",
+        `Error in ${hook} hook for ${plugin.manifest.name}:`,
+        formatErrorData(error),
+      );
+      throw error;
+    }
+  }
 
-	/**
-	 * Reload a plugin (useful for development)
-	 */
-	async reloadPlugin(pluginPath: string): Promise<PluginInstance> {
-		logger.info('PluginLoaderService', `Reloading plugin from ${pluginPath}`);
+  /**
+   * Reload a plugin (useful for development)
+   */
+  async reloadPlugin(pluginPath: string): Promise<PluginInstance> {
+    logger.info("PluginLoaderService", `Reloading plugin from ${pluginPath}`);
 
-		// Native ESM imports are not cached between calls, so reloading works automatically
-		return this.loadPlugin(pluginPath);
-	}
+    // Native ESM imports are not cached between calls, so reloading works automatically
+    return this.loadPlugin(pluginPath);
+  }
 }
 
 // Singleton instance
@@ -225,15 +226,15 @@ let instance: PluginLoaderService | null = null;
  * Get the plugin loader service singleton
  */
 export function getPluginLoaderService(): PluginLoaderService {
-	if (!instance) {
-		instance = new PluginLoaderService();
-	}
-	return instance;
+  if (!instance) {
+    instance = new PluginLoaderService();
+  }
+  return instance;
 }
 
 /**
  * Reset the singleton (for testing)
  */
 export function resetPluginLoaderService(): void {
-	instance = null;
+  instance = null;
 }

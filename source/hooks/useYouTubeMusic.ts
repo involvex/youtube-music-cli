@@ -1,145 +1,146 @@
+import { useCallback, useState } from "react";
+
+import { getMusicService } from "../services/youtube-music/api.ts";
 // YouTube Music API integration hook
 import type {
-	SearchOptions,
-	SearchResponse,
-	Track,
-	Album,
-	Artist,
-	Playlist,
-} from '../types/youtube-music.types.ts';
-import {getMusicService} from '../services/youtube-music/api.ts';
-import {useState, useCallback} from 'react';
+  Album,
+  Artist,
+  Playlist,
+  SearchOptions,
+  SearchResponse,
+  Track,
+} from "../types/youtube-music.types.ts";
 
 export function useYouTubeMusic() {
-	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [error, setError] = useState<string | null>(null);
-	const musicService = getMusicService();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const musicService = getMusicService();
 
-	const search = useCallback(
-		async (
-			query: string,
-			options: SearchOptions = {},
-		): Promise<SearchResponse | null> => {
-			setIsLoading(true);
-			setError(null);
+  const search = useCallback(
+    async (
+      query: string,
+      options: SearchOptions = {},
+    ): Promise<SearchResponse | null> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const response = await musicService.search(query, options);
-				return response;
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Search failed');
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const response = await musicService.search(query, options);
+        return response;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	const getTrack = useCallback(
-		async (videoId: string): Promise<Track | null> => {
-			setIsLoading(true);
-			setError(null);
+  const getTrack = useCallback(
+    async (videoId: string): Promise<Track | null> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const track = await musicService.getTrack(videoId);
-				return track;
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to get track');
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const track = await musicService.getTrack(videoId);
+        return track;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get track");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	const getAlbum = useCallback(
-		async (albumId: string): Promise<Album | null> => {
-			setIsLoading(true);
-			setError(null);
+  const getAlbum = useCallback(
+    async (albumId: string): Promise<Album | null> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const album = await musicService.getAlbum(albumId);
-				return album;
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to get album');
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const album = await musicService.getAlbum(albumId);
+        return album;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get album");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	const getArtist = useCallback(
-		async (artistId: string): Promise<Artist | null> => {
-			setIsLoading(true);
-			setError(null);
+  const getArtist = useCallback(
+    async (artistId: string): Promise<Artist | null> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const artist = await musicService.getArtist(artistId);
-				return artist;
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to get artist');
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const artist = await musicService.getArtist(artistId);
+        return artist;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get artist");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	const getPlaylist = useCallback(
-		async (playlistId: string): Promise<Playlist | null> => {
-			setIsLoading(true);
-			setError(null);
+  const getPlaylist = useCallback(
+    async (playlistId: string): Promise<Playlist | null> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const playlist = await musicService.getPlaylist(playlistId);
-				return playlist;
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to get playlist');
-				return null;
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const playlist = await musicService.getPlaylist(playlistId);
+        return playlist;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to get playlist");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	const getSuggestions = useCallback(
-		async (trackId: string): Promise<Track[]> => {
-			setIsLoading(true);
-			setError(null);
+  const getSuggestions = useCallback(
+    async (trackId: string): Promise<Track[]> => {
+      setIsLoading(true);
+      setError(null);
 
-			try {
-				const suggestions = await musicService.getSuggestions(trackId);
-				return suggestions;
-			} catch (err) {
-				// Suppress YouTubeJS parsing errors (library limitation with YouTube's changing API)
-				// These are not user-actionable and create noise in the UI
-				const errorMessage =
-					err instanceof Error ? err.message : 'Failed to get suggestions';
-				if (!errorMessage.includes('ParsingError')) {
-					setError(errorMessage);
-				}
-				return [];
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[musicService],
-	);
+      try {
+        const suggestions = await musicService.getSuggestions(trackId);
+        return suggestions;
+      } catch (err) {
+        // Suppress YouTubeJS parsing errors (library limitation with YouTube's changing API)
+        // These are not user-actionable and create noise in the UI
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to get suggestions";
+        if (!errorMessage.includes("ParsingError")) {
+          setError(errorMessage);
+        }
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [musicService],
+  );
 
-	return {
-		isLoading,
-		error,
-		search,
-		getTrack,
-		getAlbum,
-		getArtist,
-		getPlaylist,
-		getSuggestions,
-	};
+  return {
+    isLoading,
+    error,
+    search,
+    getTrack,
+    getAlbum,
+    getArtist,
+    getPlaylist,
+    getSuggestions,
+  };
 }

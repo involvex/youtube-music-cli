@@ -1,1186 +1,1196 @@
+import { Box, Text } from "ink";
+import TextInput from "ink-text-input";
 // Settings component
-import {useEffect, useState} from 'react';
-import {Box, Text} from 'ink';
-import TextInput from 'ink-text-input';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {useNavigation} from '../../hooks/useNavigation.ts';
-import {getConfigService} from '../../services/config/config.service.ts';
-import {getLLMService} from '../../services/llm/llm.service.ts';
-import {
-	AI_PROVIDER_PRESETS,
-	getProviderPreset,
-} from '../../services/llm/ai-providers.ts';
-import type {LLMProvider} from '../../types/llm.types.ts';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {useKeyboardBlocker} from '../../hooks/useKeyboardBlocker.tsx';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import {VIEW} from '../../utils/constants.ts';
-import {useSleepTimer} from '../../hooks/useSleepTimer.ts';
-import {formatTime} from '../../utils/format.ts';
-import {ensureDownloadDirectory} from '../../utils/download-path.ts';
-import type {
-	CookiesFromBrowser,
-	DownloadFormat,
-	EqualizerPreset,
-} from '../../types/config.types.ts';
-import {
-	formatCookiesFromBrowserLabel,
-	nextCookiesFromBrowser,
-} from '../../services/player/ytdl-cookies.ts';
-import {
-	formatThemeLabel,
-	nextBuiltinThemeId,
-} from '../../config/themes.config.ts';
+import { useEffect, useState } from "react";
 
-const QUALITIES: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
-const DOWNLOAD_FORMATS: DownloadFormat[] = ['mp3', 'm4a'];
+import {
+  formatThemeLabel,
+  nextBuiltinThemeId,
+} from "../../config/themes.config.ts";
+import { useKeyBinding } from "../../hooks/useKeyboard.ts";
+import { useKeyboardBlocker } from "../../hooks/useKeyboardBlocker.tsx";
+import { useNavigation } from "../../hooks/useNavigation.ts";
+import { useSleepTimer } from "../../hooks/useSleepTimer.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { getConfigService } from "../../services/config/config.service.ts";
+import {
+  AI_PROVIDER_PRESETS,
+  getProviderPreset,
+} from "../../services/llm/ai-providers.ts";
+import { getLLMService } from "../../services/llm/llm.service.ts";
+import {
+  formatCookiesFromBrowserLabel,
+  nextCookiesFromBrowser,
+} from "../../services/player/ytdl-cookies.ts";
+import type {
+  CookiesFromBrowser,
+  DownloadFormat,
+  EqualizerPreset,
+} from "../../types/config.types.ts";
+import type { LLMProvider } from "../../types/llm.types.ts";
+import { VIEW } from "../../utils/constants.ts";
+import { ensureDownloadDirectory } from "../../utils/download-path.ts";
+import { formatTime } from "../../utils/format.ts";
+import { resolveKeybinding } from "../../utils/keybinding-resolver.ts";
+
+const QUALITIES: Array<"low" | "medium" | "high"> = ["low", "medium", "high"];
+const DOWNLOAD_FORMATS: DownloadFormat[] = ["mp3", "m4a"];
 const CROSSFADE_PRESETS = [0, 1, 2, 3, 5];
 const EQUALIZER_PRESETS: EqualizerPreset[] = [
-	'flat',
-	'bass_boost',
-	'vocal',
-	'bright',
-	'warm',
+  "flat",
+  "bass_boost",
+  "vocal",
+  "bright",
+  "warm",
 ];
 const VOLUME_FADE_PRESETS = [0, 1, 2, 3, 5];
 const CACHE_TTL_PRESETS = [1, 5, 10, 15, 30];
 const CACHE_ENTRIES_PRESETS = [50, 100, 200, 500];
 
 const SETTINGS_ITEMS = [
-	'Account',
-	'Theme',
-	'Stream Quality',
-	'Audio Normalization',
-	'Gapless Playback',
-	'Crossfade Duration',
-	'Volume Fade Duration',
-	'Equalizer Preset',
-	'Subtitles',
-	'Notifications',
-	'Discord Rich Presence',
-	'LLM Enabled',
-	'LLM API Key',
-	'AI Provider',
-	'LLM Model',
-	'Refresh Models',
-	'LLM Temperature',
-	'LLM Base URL',
-	'Downloads Enabled',
-	'Download Folder',
-	'Download Format',
-	'Prefer Local Playback',
-	'Show Network Status',
-	'Cookies From Browser',
-	'Cookies File',
-	'mpv Extra Args',
-	'Sleep Timer',
-	'Import Playlists',
-	'Export Playlists',
-	'Custom Keybindings',
-	'Manage Plugins',
-	'Cache TTL',
-	'Cache Max Entries',
-	'Smart Playlists Refresh On Launch',
+  "Account",
+  "Theme",
+  "Stream Quality",
+  "Audio Normalization",
+  "Gapless Playback",
+  "Crossfade Duration",
+  "Volume Fade Duration",
+  "Equalizer Preset",
+  "Subtitles",
+  "Notifications",
+  "Discord Rich Presence",
+  "LLM Enabled",
+  "LLM API Key",
+  "AI Provider",
+  "LLM Model",
+  "Refresh Models",
+  "LLM Temperature",
+  "LLM Base URL",
+  "Downloads Enabled",
+  "Download Folder",
+  "Download Format",
+  "Prefer Local Playback",
+  "Show Network Status",
+  "Cookies From Browser",
+  "Cookies File",
+  "mpv Extra Args",
+  "Sleep Timer",
+  "Import Playlists",
+  "Export Playlists",
+  "Custom Keybindings",
+  "Manage Plugins",
+  "Cache TTL",
+  "Cache Max Entries",
+  "Smart Playlists Refresh On Launch",
 ] as const;
 
 export default function Settings() {
-	const {theme, themeName, setTheme} = useTheme();
-	const {dispatch} = useNavigation();
-	const config = getConfigService();
-	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [quality, setQuality] = useState(config.get('streamQuality') || 'high');
-	const [audioNormalization, setAudioNormalization] = useState(
-		config.get('audioNormalization') ?? false,
-	);
-	const [gaplessPlayback, setGaplessPlayback] = useState(
-		config.get('gaplessPlayback') ?? true,
-	);
-	const [crossfadeDuration, setCrossfadeDuration] = useState(
-		config.get('crossfadeDuration') ?? 0,
-	);
-	const [volumeFadeDuration, setVolumeFadeDuration] = useState(
-		config.get('volumeFadeDuration') ?? 0,
-	);
-	const [equalizerPreset, setEqualizerPreset] = useState<EqualizerPreset>(
-		config.get('equalizerPreset') ?? 'flat',
-	);
-	const [subtitlesEnabled, setSubtitlesEnabled] = useState(
-		config.get('subtitlesEnabled') ?? false,
-	);
-	const [notifications, setNotifications] = useState(
-		config.get('notifications') ?? false,
-	);
-	const [discordRpc, setDiscordRpc] = useState(
-		config.get('discordRichPresence') ?? false,
-	);
-	const [downloadsEnabled, setDownloadsEnabled] = useState(
-		config.get('downloadsEnabled') ?? false,
-	);
-	const [downloadDirectory, setDownloadDirectory] = useState(
-		config.get('downloadDirectory') ?? '',
-	);
-	const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>(
-		config.get('downloadFormat') ?? 'mp3',
-	);
-	const [preferLocalPlayback, setPreferLocalPlayback] = useState(
-		config.get('preferLocalPlayback') ?? true,
-	);
-	const [showNetworkStatus, setShowNetworkStatus] = useState(
-		config.get('showNetworkStatus') ?? true,
-	);
-	const [smartPlaylistsRefreshOnLaunch, setSmartPlaylistsRefreshOnLaunch] =
-		useState(config.get('smartPlaylistsRefreshOnLaunch') ?? false);
-	const [cookiesFromBrowser, setCookiesFromBrowser] = useState<
-		CookiesFromBrowser | undefined
-	>(config.get('cookiesFromBrowser'));
-	const [cookiesFile, setCookiesFile] = useState(
-		config.get('cookiesFile') ?? '',
-	);
-	const [isEditingCookiesFile, setIsEditingCookiesFile] = useState(false);
-	const [mpvExtraArgs, setMpvExtraArgs] = useState(
-		config.get('mpvExtraArgs') ?? '',
-	);
-	const [isEditingMpvExtraArgs, setIsEditingMpvExtraArgs] = useState(false);
-	const [llmEnabled, setLLMEnabled] = useState(config.getLLMEnabled());
-	const [llmApiKey, setLLMApiKey] = useState(config.getLLMApiKey() ?? '');
-	const [llmProvider, setLLMProvider] = useState<LLMProvider>(
-		config.getLLMConfig()?.provider ?? 'kilo',
-	);
-	const [llmModel, setLLMModel] = useState(
-		config.getLLMConfig()?.model ??
-			getProviderPreset(config.getLLMConfig()?.provider ?? 'kilo').defaultModel,
-	);
-	const [availableModels, setAvailableModels] = useState<string[]>(() =>
-		getLLMService().getCachedModels(),
-	);
-	const [modelsStatus, setModelsStatus] = useState<string | null>(null);
-	const [llmTemperature, setLLMTemperature] = useState(
-		config.getLLMConfig()?.temperature ?? 0.7,
-	);
-	const [llmBaseUrl, setLLMBaseUrl] = useState(
-		config.getLLMConfig()?.baseUrl ?? '',
-	);
-	const [isEditingDownloadDirectory, setIsEditingDownloadDirectory] =
-		useState(false);
-	const [cacheTtlMinutes, setCacheTtlMinutes] = useState(
-		config.get('cacheTtlMinutes') ?? 5,
-	);
-	const [cacheMaxEntries, setCacheMaxEntries] = useState(
-		config.get('cacheMaxEntries') ?? 100,
-	);
-	const [downloadFolderFeedback, setDownloadFolderFeedback] = useState<
-		string | null
-	>(null);
-	const [isEditingApiKey, setIsEditingApiKey] = useState(false);
-	const [isEditingBaseUrl, setIsEditingBaseUrl] = useState(false);
-	const {
-		isActive,
-		activeMinutes,
-		remainingSeconds,
-		startTimer,
-		cancelTimer,
-		presets,
-	} = useSleepTimer();
-
-	const navigateUp = () => {
-		if (
-			isEditingApiKey ||
-			isEditingDownloadDirectory ||
-			isEditingBaseUrl ||
-			isEditingCookiesFile
-		) {
-			return;
-		}
-		setSelectedIndex(prev => Math.max(0, prev - 1));
-	};
-
-	const navigateDown = (): void => {
-		if (
-			isEditingApiKey ||
-			isEditingDownloadDirectory ||
-			isEditingBaseUrl ||
-			isEditingCookiesFile
-		) {
-			return;
-		}
-		setSelectedIndex(prev => Math.min(SETTINGS_ITEMS.length - 1, prev + 1));
-	};
-
-	const cycleTheme = () => {
-		const next = nextBuiltinThemeId(themeName);
-		setTheme(next);
-	};
-
-	const toggleQuality = () => {
-		const currentIndex = QUALITIES.indexOf(quality);
-		const nextQuality = QUALITIES[(currentIndex + 1) % QUALITIES.length]!;
-		setQuality(nextQuality);
-		config.set('streamQuality', nextQuality);
-	};
-
-	const toggleNormalization = () => {
-		const next = !audioNormalization;
-		setAudioNormalization(next);
-		config.set('audioNormalization', next);
-	};
-
-	const toggleGaplessPlayback = () => {
-		const next = !gaplessPlayback;
-		setGaplessPlayback(next);
-		config.set('gaplessPlayback', next);
-	};
-
-	const cycleCrossfadeDuration = () => {
-		const currentIndex = CROSSFADE_PRESETS.indexOf(crossfadeDuration);
-		const nextIndex =
-			currentIndex === -1 ? 0 : (currentIndex + 1) % CROSSFADE_PRESETS.length;
-		const next = CROSSFADE_PRESETS[nextIndex] ?? 0;
-		setCrossfadeDuration(next);
-		config.set('crossfadeDuration', next);
-	};
-
-	const cycleVolumeFadeDuration = () => {
-		const currentIndex = VOLUME_FADE_PRESETS.indexOf(volumeFadeDuration);
-		const nextIndex =
-			currentIndex === -1 ? 0 : (currentIndex + 1) % VOLUME_FADE_PRESETS.length;
-		const next = VOLUME_FADE_PRESETS[nextIndex] ?? 0;
-		setVolumeFadeDuration(next);
-		config.set('volumeFadeDuration', next);
-	};
-
-	const cycleEqualizerPreset = () => {
-		const currentIndex = EQUALIZER_PRESETS.indexOf(equalizerPreset);
-		const nextPreset =
-			EQUALIZER_PRESETS[(currentIndex + 1) % EQUALIZER_PRESETS.length]!;
-		setEqualizerPreset(nextPreset);
-		config.set('equalizerPreset', nextPreset);
-	};
-
-	const toggleSubtitles = () => {
-		const next = !subtitlesEnabled;
-		setSubtitlesEnabled(next);
-		config.set('subtitlesEnabled', next);
-	};
-
-	const formatEqualizerLabel = (preset: EqualizerPreset) =>
-		preset
-			.split('_')
-			.map(segment => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
-			.join(' ');
-
-	const toggleNotifications = () => {
-		const next = !notifications;
-		setNotifications(next);
-		config.set('notifications', next);
-	};
-
-	const toggleDiscordRpc = () => {
-		const next = !discordRpc;
-		setDiscordRpc(next);
-		config.set('discordRichPresence', next);
-	};
-
-	const toggleDownloadsEnabled = () => {
-		const next = !downloadsEnabled;
-		setDownloadsEnabled(next);
-		config.set('downloadsEnabled', next);
-	};
-
-	const cycleDownloadFormat = () => {
-		const currentIndex = DOWNLOAD_FORMATS.indexOf(downloadFormat);
-		const nextFormat =
-			DOWNLOAD_FORMATS[(currentIndex + 1) % DOWNLOAD_FORMATS.length]!;
-		setDownloadFormat(nextFormat);
-		config.set('downloadFormat', nextFormat);
-	};
-
-	const togglePreferLocalPlayback = () => {
-		const next = !preferLocalPlayback;
-		setPreferLocalPlayback(next);
-		config.set('preferLocalPlayback', next);
-	};
-
-	const toggleShowNetworkStatus = () => {
-		const next = !showNetworkStatus;
-		setShowNetworkStatus(next);
-		config.set('showNetworkStatus', next);
-	};
-
-	const toggleSmartPlaylistsRefreshOnLaunch = () => {
-		const next = !smartPlaylistsRefreshOnLaunch;
-		setSmartPlaylistsRefreshOnLaunch(next);
-		config.set('smartPlaylistsRefreshOnLaunch', next);
-	};
-
-	const cycleCookiesFromBrowser = () => {
-		const next = nextCookiesFromBrowser(cookiesFromBrowser);
-		setCookiesFromBrowser(next);
-		config.set('cookiesFromBrowser', next);
-	};
-
-	const cycleCacheTtl = () => {
-		const currentIndex = CACHE_TTL_PRESETS.indexOf(cacheTtlMinutes);
-		const next =
-			CACHE_TTL_PRESETS[(currentIndex + 1) % CACHE_TTL_PRESETS.length] ?? 5;
-		setCacheTtlMinutes(next);
-		config.set('cacheTtlMinutes', next);
-	};
-
-	const cycleCacheEntries = () => {
-		const currentIndex = CACHE_ENTRIES_PRESETS.indexOf(cacheMaxEntries);
-		const next =
-			CACHE_ENTRIES_PRESETS[
-				(currentIndex + 1) % CACHE_ENTRIES_PRESETS.length
-			] ?? 100;
-		setCacheMaxEntries(next);
-		config.set('cacheMaxEntries', next);
-	};
-
-	const toggleLLMEnabled = () => {
-		const next = !llmEnabled;
-		setLLMEnabled(next);
-		config.setLLMEnabled(next);
-	};
-
-	const cycleLLMProvider = () => {
-		const ids = AI_PROVIDER_PRESETS.map(p => p.id);
-		const currentIndex = ids.indexOf(llmProvider);
-		const next = ids[(currentIndex + 1) % ids.length]!;
-		const preset = getProviderPreset(next);
-		setLLMProvider(next);
-		setLLMModel(preset.defaultModel);
-		setAvailableModels(getLLMService().getCachedModels());
-		setModelsStatus(null);
-		config.setLLMConfig({
-			...config.getLLMConfig(),
-			provider: next,
-			model: preset.defaultModel,
-			baseUrl: preset.baseUrl,
-			endpoint: preset.chatCompletionsUrl,
-		});
-		getLLMService().reloadConfig();
-		void refreshModels(true);
-	};
-
-	async function refreshModels(silent = false): Promise<void> {
-		if (!silent) {
-			setModelsStatus('Fetching…');
-		}
-		try {
-			const models = await getLLMService().fetchAvailableModels(true);
-			setAvailableModels(models);
-			setModelsStatus(`✓ ${models.length} models`);
-			if (!models.includes(llmModel) && models[0]) {
-				setLLMModel(models[0]);
-				config.setLLMConfig({...config.getLLMConfig(), model: models[0]});
-				getLLMService().reloadConfig();
-			}
-		} catch (error) {
-			setModelsStatus(
-				error instanceof Error ? `Failed: ${error.message}` : 'Failed',
-			);
-		}
-	}
-
-	useEffect(() => {
-		let cancelled = false;
-		void getLLMService()
-			.fetchAvailableModels(false)
-			.then(models => {
-				if (!cancelled && models.length > 0) {
-					setAvailableModels(models);
-				}
-			})
-			.catch(() => {});
-		return () => {
-			cancelled = true;
-		};
-	}, [llmProvider]);
-
-	const cycleLLMModel = () => {
-		const list =
-			availableModels.length > 0
-				? availableModels
-				: [getProviderPreset(llmProvider).defaultModel];
-		const currentIndex = list.indexOf(llmModel);
-		const nextModel = list[(currentIndex + 1) % list.length]!;
-		setLLMModel(nextModel);
-		config.setLLMConfig({...config.getLLMConfig(), model: nextModel});
-		getLLMService().reloadConfig();
-	};
-
-	const cycleLLMTemperature = () => {
-		const temps = [0.3, 0.5, 0.7, 0.9, 1.1];
-		const currentIndex = temps.indexOf(llmTemperature);
-		const nextTemp = temps[(currentIndex + 1) % temps.length]!;
-		setLLMTemperature(nextTemp);
-		config.setLLMConfig({...config.getLLMConfig(), temperature: nextTemp});
-		getLLMService().reloadConfig();
-	};
-
-	const cycleSleepTimer = () => {
-		if (isActive) {
-			cancelTimer();
-			return;
-		}
-		// Find next preset (start from first if none active)
-		const currentPresetIndex = activeMinutes
-			? presets.indexOf(activeMinutes as (typeof presets)[number])
-			: -1;
-		const nextPreset = presets[(currentPresetIndex + 1) % presets.length]!;
-		startTimer(nextPreset);
-	};
-
-	const handleSelect = () => {
-		if (selectedIndex === 0) {
-			dispatch({category: 'NAVIGATE', view: VIEW.LOGIN});
-		} else if (selectedIndex === 1) {
-			cycleTheme();
-		} else if (selectedIndex === 2) {
-			toggleQuality();
-		} else if (selectedIndex === 3) {
-			toggleNormalization();
-		} else if (selectedIndex === 4) {
-			toggleGaplessPlayback();
-		} else if (selectedIndex === 5) {
-			cycleCrossfadeDuration();
-		} else if (selectedIndex === 6) {
-			cycleVolumeFadeDuration();
-		} else if (selectedIndex === 7) {
-			cycleEqualizerPreset();
-		} else if (selectedIndex === 8) {
-			toggleSubtitles();
-		} else if (selectedIndex === 9) {
-			toggleNotifications();
-		} else if (selectedIndex === 10) {
-			toggleDiscordRpc();
-		} else if (selectedIndex === 11) {
-			toggleLLMEnabled();
-		} else if (selectedIndex === 12) {
-			setIsEditingApiKey(true);
-		} else if (selectedIndex === 13) {
-			cycleLLMProvider();
-		} else if (selectedIndex === 14) {
-			cycleLLMModel();
-		} else if (selectedIndex === 15) {
-			void refreshModels();
-		} else if (selectedIndex === 16) {
-			cycleLLMTemperature();
-		} else if (selectedIndex === 17) {
-			setIsEditingBaseUrl(true);
-		} else if (selectedIndex === 18) {
-			toggleDownloadsEnabled();
-		} else if (selectedIndex === 19) {
-			setIsEditingDownloadDirectory(true);
-		} else if (selectedIndex === 20) {
-			cycleDownloadFormat();
-		} else if (selectedIndex === 21) {
-			togglePreferLocalPlayback();
-		} else if (selectedIndex === 22) {
-			toggleShowNetworkStatus();
-		} else if (selectedIndex === 23) {
-			cycleCookiesFromBrowser();
-		} else if (selectedIndex === 24) {
-			setIsEditingCookiesFile(true);
-		} else if (selectedIndex === 25) {
-			setIsEditingMpvExtraArgs(true);
-		} else if (selectedIndex === 26) {
-			cycleSleepTimer();
-		} else if (selectedIndex === 27) {
-			dispatch({category: 'NAVIGATE', view: VIEW.IMPORT});
-		} else if (selectedIndex === 28) {
-			dispatch({category: 'NAVIGATE', view: VIEW.EXPORT_PLAYLISTS});
-		} else if (selectedIndex === 29) {
-			dispatch({category: 'NAVIGATE', view: VIEW.KEYBINDINGS});
-		} else if (selectedIndex === 30) {
-			dispatch({category: 'NAVIGATE', view: VIEW.PLUGINS});
-		} else if (selectedIndex === 31) {
-			cycleCacheTtl();
-		} else if (selectedIndex === 32) {
-			cycleCacheEntries();
-		} else if (selectedIndex === 33) {
-			toggleSmartPlaylistsRefreshOnLaunch();
-		}
-	};
-
-	useKeyBinding(resolveKeybinding('UP'), navigateUp);
-	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
-	useKeyBinding(resolveKeybinding('SELECT'), handleSelect);
-
-	// Block global shortcuts while editing a text field so typing doesn't
-	// trigger app actions (e.g. 'q' leaving settings mid-typing). The BACK
-	// handler below uses bypassBlock: Escape first cancels the edit, then
-	// leaves the view on the next press.
-	const isEditingText =
-		isEditingApiKey ||
-		isEditingDownloadDirectory ||
-		isEditingBaseUrl ||
-		isEditingCookiesFile ||
-		isEditingMpvExtraArgs;
-	useKeyboardBlocker(isEditingText);
-
-	useKeyBinding(
-		resolveKeybinding('BACK'),
-		() => {
-			if (isEditingText) {
-				setIsEditingApiKey(false);
-				setIsEditingDownloadDirectory(false);
-				setIsEditingBaseUrl(false);
-				setIsEditingCookiesFile(false);
-				setIsEditingMpvExtraArgs(false);
-				return;
-			}
-			dispatch({category: 'GO_BACK'});
-		},
-		{bypassBlock: true},
-	);
-
-	const sleepTimerLabel =
-		isActive && remainingSeconds !== null
-			? `Sleep Timer: ${formatTime(remainingSeconds)} remaining (Enter to cancel)`
-			: 'Sleep Timer: Off (Enter to set)';
-
-	return (
-		<Box flexDirection="column" gap={1}>
-			<Box
-				borderStyle="double"
-				borderColor={theme.colors.secondary}
-				paddingX={1}
-				marginBottom={1}
-			>
-				<Text bold color={theme.colors.primary}>
-					Settings
-				</Text>
-			</Box>
-
-			{/* Account */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 0 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 0 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 0}
-				>
-					Account →
-				</Text>
-			</Box>
-
-			{/* Theme */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 1 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 1 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 1}
-				>
-					Theme: {formatThemeLabel(themeName)} (Enter to cycle)
-				</Text>
-			</Box>
-
-			{/* Stream Quality */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 2 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 2 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 2}
-				>
-					Stream Quality: {quality.toUpperCase()}
-				</Text>
-			</Box>
-
-			{/* Audio Normalization */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 3 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 3 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 3}
-				>
-					Audio Normalization: {audioNormalization ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Gapless Playback */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 4 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 4 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 4}
-				>
-					Gapless Playback: {gaplessPlayback ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Crossfade Duration */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 5 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 5 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 5}
-				>
-					Crossfade: {crossfadeDuration === 0 ? 'Off' : `${crossfadeDuration}s`}
-				</Text>
-			</Box>
-
-			{/* Volume Fade Duration */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 6 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 6 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 6}
-				>
-					Volume Fade:{' '}
-					{volumeFadeDuration === 0 ? 'Off' : `${volumeFadeDuration}s`}
-				</Text>
-			</Box>
-
-			{/* Equalizer Preset */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 7 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 7 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 7}
-				>
-					Equalizer: {formatEqualizerLabel(equalizerPreset)}
-				</Text>
-			</Box>
-
-			{/* Subtitles */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 8 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 8 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 8}
-				>
-					Subtitles: {subtitlesEnabled ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Notifications */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 9 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 9 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 9}
-				>
-					Desktop Notifications: {notifications ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Discord Rich Presence */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 10 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 10 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 10}
-				>
-					Discord Rich Presence: {discordRpc ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* LLM Enabled */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 11 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 11 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 11}
-				>
-					AI Assistant: {llmEnabled ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* LLM API Key */}
-			<Box paddingX={1}>
-				{isEditingApiKey && selectedIndex === 12 ? (
-					<TextInput
-						value={llmApiKey}
-						onChange={setLLMApiKey}
-						onSubmit={value => {
-							const trimmed = value.trim();
-							setLLMApiKey(trimmed);
-							config.setLLMApiKey(trimmed);
-							getLLMService().reloadConfig();
-							setIsEditingApiKey(false);
-							void refreshModels();
-						}}
-						placeholder={`Enter your ${getProviderPreset(llmProvider).label} API key`}
-						focus
-					/>
-				) : (
-					<Text
-						backgroundColor={
-							selectedIndex === 12 ? theme.colors.primary : undefined
-						}
-						color={
-							selectedIndex === 12 ? theme.colors.background : theme.colors.text
-						}
-						bold={selectedIndex === 12}
-					>
-						API Key:{' '}
-						{llmApiKey
-							? `${llmApiKey.slice(0, 4)}...${llmApiKey.slice(-4)}`
-							: '(not set)'}
-					</Text>
-				)}
-			</Box>
-
-			{/* AI Provider */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 13 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 13 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 13}
-				>
-					AI Provider: {getProviderPreset(llmProvider).label}
-				</Text>
-			</Box>
-
-			{/* LLM Model */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 14 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 14 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 14}
-				>
-					Model: {llmModel}
-					{modelsStatus ? ` (${modelsStatus})` : ''}
-				</Text>
-			</Box>
-
-			{/* Refresh Models */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 15 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 15 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 15}
-				>
-					Refresh Models ↻
-				</Text>
-			</Box>
-
-			{/* LLM Temperature */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 16 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 16 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 16}
-				>
-					Temperature: {llmTemperature.toFixed(1)}
-				</Text>
-			</Box>
-
-			{/* LLM Base URL */}
-			<Box paddingX={1}>
-				{isEditingBaseUrl && selectedIndex === 17 ? (
-					<TextInput
-						value={llmBaseUrl}
-						onChange={setLLMBaseUrl}
-						onSubmit={value => {
-							const trimmed = value.trim();
-							setLLMBaseUrl(trimmed);
-							config.setLLMConfig({...config.getLLMConfig(), baseUrl: trimmed});
-							getLLMService().reloadConfig();
-							setIsEditingBaseUrl(false);
-						}}
-						placeholder={`Base URL (default ${getProviderPreset(llmProvider).baseUrl})`}
-						focus
-					/>
-				) : (
-					<Text
-						backgroundColor={
-							selectedIndex === 17 ? theme.colors.primary : undefined
-						}
-						color={
-							selectedIndex === 17 ? theme.colors.background : theme.colors.text
-						}
-						bold={selectedIndex === 17}
-					>
-						Base URL:{' '}
-						{llmBaseUrl
-							? llmBaseUrl.replace('https://', '').substring(0, 30)
-							: `Default (${getProviderPreset(llmProvider).baseUrl.replace('https://', '')})`}
-					</Text>
-				)}
-			</Box>
-
-			{/* Downloads Enabled */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 18 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 18 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 18}
-				>
-					Download Feature: {downloadsEnabled ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Download Folder */}
-			<Box paddingX={1}>
-				{isEditingDownloadDirectory && selectedIndex === 19 ? (
-					<TextInput
-						value={downloadDirectory}
-						onChange={setDownloadDirectory}
-						onSubmit={value => {
-							try {
-								const normalized = ensureDownloadDirectory(value);
-								setDownloadDirectory(normalized);
-								config.setSync('downloadDirectory', normalized);
-								setIsEditingDownloadDirectory(false);
-								if (!(config.get('downloadsEnabled') ?? false)) {
-									setDownloadFolderFeedback(
-										'Saved download folder (enable Download Feature to use)',
-									);
-								} else {
-									setDownloadFolderFeedback('Saved download folder');
-								}
-							} catch (error) {
-								setDownloadFolderFeedback(
-									error instanceof Error
-										? error.message
-										: 'Failed to save download folder',
-								);
-							}
-						}}
-						placeholder="Download directory"
-						focus
-					/>
-				) : (
-					<Text
-						backgroundColor={
-							selectedIndex === 19 ? theme.colors.primary : undefined
-						}
-						color={
-							selectedIndex === 19 ? theme.colors.background : theme.colors.text
-						}
-						bold={selectedIndex === 19}
-					>
-						Download Folder: {downloadDirectory}
-					</Text>
-				)}
-			</Box>
-			{downloadFolderFeedback ? (
-				<Box paddingX={1}>
-					<Text color={theme.colors.secondary}>{downloadFolderFeedback}</Text>
-				</Box>
-			) : null}
-
-			{/* Download Format */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 20 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 20 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 20}
-				>
-					Download Format: {downloadFormat.toUpperCase()}
-				</Text>
-			</Box>
-
-			{/* Prefer Local Playback */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 21 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 21 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 21}
-				>
-					Prefer Local Playback: {preferLocalPlayback ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Show Network Status */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 22 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 22 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 22}
-				>
-					Show Network Status: {showNetworkStatus ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Cookies From Browser */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 23 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 23 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 23}
-				>
-					Cookies From Browser:{' '}
-					{formatCookiesFromBrowserLabel(cookiesFromBrowser)}
-				</Text>
-			</Box>
-
-			{/* Cookies File */}
-			<Box paddingX={1}>
-				{isEditingCookiesFile && selectedIndex === 24 ? (
-					<TextInput
-						value={cookiesFile}
-						onChange={setCookiesFile}
-						onSubmit={value => {
-							const trimmed = value.trim();
-							setCookiesFile(trimmed);
-							config.set('cookiesFile', trimmed || undefined);
-							setIsEditingCookiesFile(false);
-						}}
-						placeholder="Path to Netscape cookies.txt (optional)"
-						focus
-					/>
-				) : (
-					<Text
-						backgroundColor={
-							selectedIndex === 24 ? theme.colors.primary : undefined
-						}
-						color={
-							selectedIndex === 24 ? theme.colors.background : theme.colors.text
-						}
-						bold={selectedIndex === 24}
-					>
-						Cookies File: {cookiesFile.trim() || '(not set)'}
-					</Text>
-				)}
-			</Box>
-
-			{/* mpv Extra Args */}
-			<Box paddingX={1}>
-				{isEditingMpvExtraArgs && selectedIndex === 25 ? (
-					<TextInput
-						value={mpvExtraArgs}
-						onChange={setMpvExtraArgs}
-						onSubmit={value => {
-							const trimmed = value.trim();
-							setMpvExtraArgs(trimmed);
-							config.set('mpvExtraArgs', trimmed || undefined);
-							setIsEditingMpvExtraArgs(false);
-						}}
-						placeholder="e.g. --no-config (applies on next track)"
-						focus
-					/>
-				) : (
-					<Text
-						backgroundColor={
-							selectedIndex === 25 ? theme.colors.primary : undefined
-						}
-						color={
-							selectedIndex === 25 ? theme.colors.background : theme.colors.text
-						}
-						bold={selectedIndex === 25}
-					>
-						mpv Extra Args: {mpvExtraArgs.trim() || '(not set)'}
-					</Text>
-				)}
-			</Box>
-
-			{/* Sleep Timer */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 26 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 26
-							? theme.colors.background
-							: isActive
-								? theme.colors.accent
-								: theme.colors.text
-					}
-					bold={selectedIndex === 26}
-				>
-					{sleepTimerLabel}
-				</Text>
-			</Box>
-
-			{/* Import Playlists */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 27 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 27 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 27}
-				>
-					Import Playlists →
-				</Text>
-			</Box>
-
-			{/* Export Playlists */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 28 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 28 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 28}
-				>
-					Export Playlists →
-				</Text>
-			</Box>
-
-			{/* Custom Keybindings */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 29 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 29 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 29}
-				>
-					Custom Keybindings →
-				</Text>
-			</Box>
-
-			{/* Manage Plugins */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 30 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 30 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 30}
-				>
-					Manage Plugins →
-				</Text>
-			</Box>
-
-			{/* Cache TTL */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 31 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 31 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 31}
-				>
-					Cache TTL: {cacheTtlMinutes}m
-				</Text>
-			</Box>
-
-			{/* Cache Max Entries */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 32 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 32 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 32}
-				>
-					Cache Max Entries: {cacheMaxEntries}
-				</Text>
-			</Box>
-
-			{/* Smart Playlists Refresh On Launch */}
-			<Box paddingX={1}>
-				<Text
-					backgroundColor={
-						selectedIndex === 33 ? theme.colors.primary : undefined
-					}
-					color={
-						selectedIndex === 33 ? theme.colors.background : theme.colors.text
-					}
-					bold={selectedIndex === 33}
-				>
-					Smart Playlists Refresh On Launch:{' '}
-					{smartPlaylistsRefreshOnLaunch ? 'ON' : 'OFF'}
-				</Text>
-			</Box>
-
-			{/* Info */}
-			<Box marginTop={1}>
-				<Text color={theme.colors.dim}>
-					Arrows to navigate, Enter to select, Esc/q to go back
-				</Text>
-			</Box>
-		</Box>
-	);
+  const { theme, themeName, setTheme } = useTheme();
+  const { dispatch } = useNavigation();
+  const config = getConfigService();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [quality, setQuality] = useState(config.get("streamQuality") || "high");
+  const [audioNormalization, setAudioNormalization] = useState(
+    config.get("audioNormalization") ?? false,
+  );
+  const [gaplessPlayback, setGaplessPlayback] = useState(
+    config.get("gaplessPlayback") ?? true,
+  );
+  const [crossfadeDuration, setCrossfadeDuration] = useState(
+    config.get("crossfadeDuration") ?? 0,
+  );
+  const [volumeFadeDuration, setVolumeFadeDuration] = useState(
+    config.get("volumeFadeDuration") ?? 0,
+  );
+  const [equalizerPreset, setEqualizerPreset] = useState<EqualizerPreset>(
+    config.get("equalizerPreset") ?? "flat",
+  );
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(
+    config.get("subtitlesEnabled") ?? false,
+  );
+  const [notifications, setNotifications] = useState(
+    config.get("notifications") ?? false,
+  );
+  const [discordRpc, setDiscordRpc] = useState(
+    config.get("discordRichPresence") ?? false,
+  );
+  const [downloadsEnabled, setDownloadsEnabled] = useState(
+    config.get("downloadsEnabled") ?? false,
+  );
+  const [downloadDirectory, setDownloadDirectory] = useState(
+    config.get("downloadDirectory") ?? "",
+  );
+  const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>(
+    config.get("downloadFormat") ?? "mp3",
+  );
+  const [preferLocalPlayback, setPreferLocalPlayback] = useState(
+    config.get("preferLocalPlayback") ?? true,
+  );
+  const [showNetworkStatus, setShowNetworkStatus] = useState(
+    config.get("showNetworkStatus") ?? true,
+  );
+  const [smartPlaylistsRefreshOnLaunch, setSmartPlaylistsRefreshOnLaunch] =
+    useState(config.get("smartPlaylistsRefreshOnLaunch") ?? false);
+  const [cookiesFromBrowser, setCookiesFromBrowser] = useState<
+    CookiesFromBrowser | undefined
+  >(config.get("cookiesFromBrowser"));
+  const [cookiesFile, setCookiesFile] = useState(
+    config.get("cookiesFile") ?? "",
+  );
+  const [isEditingCookiesFile, setIsEditingCookiesFile] = useState(false);
+  const [mpvExtraArgs, setMpvExtraArgs] = useState(
+    config.get("mpvExtraArgs") ?? "",
+  );
+  const [isEditingMpvExtraArgs, setIsEditingMpvExtraArgs] = useState(false);
+  const [llmEnabled, setLLMEnabled] = useState(config.getLLMEnabled());
+  const [llmApiKey, setLLMApiKey] = useState(config.getLLMApiKey() ?? "");
+  const [llmProvider, setLLMProvider] = useState<LLMProvider>(
+    config.getLLMConfig()?.provider ?? "kilo",
+  );
+  const [llmModel, setLLMModel] = useState(
+    config.getLLMConfig()?.model ??
+      getProviderPreset(config.getLLMConfig()?.provider ?? "kilo").defaultModel,
+  );
+  const [availableModels, setAvailableModels] = useState<string[]>(() =>
+    getLLMService().getCachedModels(),
+  );
+  const [modelsStatus, setModelsStatus] = useState<string | null>(null);
+  const [llmTemperature, setLLMTemperature] = useState(
+    config.getLLMConfig()?.temperature ?? 0.7,
+  );
+  const [llmBaseUrl, setLLMBaseUrl] = useState(
+    config.getLLMConfig()?.baseUrl ?? "",
+  );
+  const [isEditingDownloadDirectory, setIsEditingDownloadDirectory] =
+    useState(false);
+  const [cacheTtlMinutes, setCacheTtlMinutes] = useState(
+    config.get("cacheTtlMinutes") ?? 5,
+  );
+  const [cacheMaxEntries, setCacheMaxEntries] = useState(
+    config.get("cacheMaxEntries") ?? 100,
+  );
+  const [downloadFolderFeedback, setDownloadFolderFeedback] = useState<
+    string | null
+  >(null);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+  const [isEditingBaseUrl, setIsEditingBaseUrl] = useState(false);
+  const {
+    isActive,
+    activeMinutes,
+    remainingSeconds,
+    startTimer,
+    cancelTimer,
+    presets,
+  } = useSleepTimer();
+
+  const navigateUp = () => {
+    if (
+      isEditingApiKey ||
+      isEditingDownloadDirectory ||
+      isEditingBaseUrl ||
+      isEditingCookiesFile
+    ) {
+      return;
+    }
+    setSelectedIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const navigateDown = (): void => {
+    if (
+      isEditingApiKey ||
+      isEditingDownloadDirectory ||
+      isEditingBaseUrl ||
+      isEditingCookiesFile
+    ) {
+      return;
+    }
+    setSelectedIndex(prev => Math.min(SETTINGS_ITEMS.length - 1, prev + 1));
+  };
+
+  const cycleTheme = () => {
+    const next = nextBuiltinThemeId(themeName);
+    setTheme(next);
+  };
+
+  const toggleQuality = () => {
+    const currentIndex = QUALITIES.indexOf(quality);
+    const nextQuality = QUALITIES[(currentIndex + 1) % QUALITIES.length]!;
+    setQuality(nextQuality);
+    config.set("streamQuality", nextQuality);
+  };
+
+  const toggleNormalization = () => {
+    const next = !audioNormalization;
+    setAudioNormalization(next);
+    config.set("audioNormalization", next);
+  };
+
+  const toggleGaplessPlayback = () => {
+    const next = !gaplessPlayback;
+    setGaplessPlayback(next);
+    config.set("gaplessPlayback", next);
+  };
+
+  const cycleCrossfadeDuration = () => {
+    const currentIndex = CROSSFADE_PRESETS.indexOf(crossfadeDuration);
+    const nextIndex =
+      currentIndex === -1 ? 0 : (currentIndex + 1) % CROSSFADE_PRESETS.length;
+    const next = CROSSFADE_PRESETS[nextIndex] ?? 0;
+    setCrossfadeDuration(next);
+    config.set("crossfadeDuration", next);
+  };
+
+  const cycleVolumeFadeDuration = () => {
+    const currentIndex = VOLUME_FADE_PRESETS.indexOf(volumeFadeDuration);
+    const nextIndex =
+      currentIndex === -1 ? 0 : (currentIndex + 1) % VOLUME_FADE_PRESETS.length;
+    const next = VOLUME_FADE_PRESETS[nextIndex] ?? 0;
+    setVolumeFadeDuration(next);
+    config.set("volumeFadeDuration", next);
+  };
+
+  const cycleEqualizerPreset = () => {
+    const currentIndex = EQUALIZER_PRESETS.indexOf(equalizerPreset);
+    const nextPreset =
+      EQUALIZER_PRESETS[(currentIndex + 1) % EQUALIZER_PRESETS.length]!;
+    setEqualizerPreset(nextPreset);
+    config.set("equalizerPreset", nextPreset);
+  };
+
+  const toggleSubtitles = () => {
+    const next = !subtitlesEnabled;
+    setSubtitlesEnabled(next);
+    config.set("subtitlesEnabled", next);
+  };
+
+  const formatEqualizerLabel = (preset: EqualizerPreset) =>
+    preset
+      .split("_")
+      .map(segment => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+      .join(" ");
+
+  const toggleNotifications = () => {
+    const next = !notifications;
+    setNotifications(next);
+    config.set("notifications", next);
+  };
+
+  const toggleDiscordRpc = () => {
+    const next = !discordRpc;
+    setDiscordRpc(next);
+    config.set("discordRichPresence", next);
+  };
+
+  const toggleDownloadsEnabled = () => {
+    const next = !downloadsEnabled;
+    setDownloadsEnabled(next);
+    config.set("downloadsEnabled", next);
+  };
+
+  const cycleDownloadFormat = () => {
+    const currentIndex = DOWNLOAD_FORMATS.indexOf(downloadFormat);
+    const nextFormat =
+      DOWNLOAD_FORMATS[(currentIndex + 1) % DOWNLOAD_FORMATS.length]!;
+    setDownloadFormat(nextFormat);
+    config.set("downloadFormat", nextFormat);
+  };
+
+  const togglePreferLocalPlayback = () => {
+    const next = !preferLocalPlayback;
+    setPreferLocalPlayback(next);
+    config.set("preferLocalPlayback", next);
+  };
+
+  const toggleShowNetworkStatus = () => {
+    const next = !showNetworkStatus;
+    setShowNetworkStatus(next);
+    config.set("showNetworkStatus", next);
+  };
+
+  const toggleSmartPlaylistsRefreshOnLaunch = () => {
+    const next = !smartPlaylistsRefreshOnLaunch;
+    setSmartPlaylistsRefreshOnLaunch(next);
+    config.set("smartPlaylistsRefreshOnLaunch", next);
+  };
+
+  const cycleCookiesFromBrowser = () => {
+    const next = nextCookiesFromBrowser(cookiesFromBrowser);
+    setCookiesFromBrowser(next);
+    config.set("cookiesFromBrowser", next);
+  };
+
+  const cycleCacheTtl = () => {
+    const currentIndex = CACHE_TTL_PRESETS.indexOf(cacheTtlMinutes);
+    const next =
+      CACHE_TTL_PRESETS[(currentIndex + 1) % CACHE_TTL_PRESETS.length] ?? 5;
+    setCacheTtlMinutes(next);
+    config.set("cacheTtlMinutes", next);
+  };
+
+  const cycleCacheEntries = () => {
+    const currentIndex = CACHE_ENTRIES_PRESETS.indexOf(cacheMaxEntries);
+    const next =
+      CACHE_ENTRIES_PRESETS[
+        (currentIndex + 1) % CACHE_ENTRIES_PRESETS.length
+      ] ?? 100;
+    setCacheMaxEntries(next);
+    config.set("cacheMaxEntries", next);
+  };
+
+  const toggleLLMEnabled = () => {
+    const next = !llmEnabled;
+    setLLMEnabled(next);
+    config.setLLMEnabled(next);
+  };
+
+  const cycleLLMProvider = () => {
+    const ids = AI_PROVIDER_PRESETS.map(p => p.id);
+    const currentIndex = ids.indexOf(llmProvider);
+    const next = ids[(currentIndex + 1) % ids.length]!;
+    const preset = getProviderPreset(next);
+    setLLMProvider(next);
+    setLLMModel(preset.defaultModel);
+    setAvailableModels(getLLMService().getCachedModels());
+    setModelsStatus(null);
+    config.setLLMConfig({
+      ...config.getLLMConfig(),
+      provider: next,
+      model: preset.defaultModel,
+      baseUrl: preset.baseUrl,
+      endpoint: preset.chatCompletionsUrl,
+    });
+    getLLMService().reloadConfig();
+    void refreshModels(true);
+  };
+
+  async function refreshModels(silent = false): Promise<void> {
+    if (!silent) {
+      setModelsStatus("Fetching…");
+    }
+    try {
+      const models = await getLLMService().fetchAvailableModels(true);
+      setAvailableModels(models);
+      setModelsStatus(`✓ ${models.length} models`);
+      if (!models.includes(llmModel) && models[0]) {
+        setLLMModel(models[0]);
+        config.setLLMConfig({ ...config.getLLMConfig(), model: models[0] });
+        getLLMService().reloadConfig();
+      }
+    } catch (error) {
+      setModelsStatus(
+        error instanceof Error ? `Failed: ${error.message}` : "Failed",
+      );
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void getLLMService()
+      .fetchAvailableModels(false)
+      .then(models => {
+        if (!cancelled && models.length > 0) {
+          setAvailableModels(models);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [llmProvider]);
+
+  const cycleLLMModel = () => {
+    const list =
+      availableModels.length > 0
+        ? availableModels
+        : [getProviderPreset(llmProvider).defaultModel];
+    const currentIndex = list.indexOf(llmModel);
+    const nextModel = list[(currentIndex + 1) % list.length]!;
+    setLLMModel(nextModel);
+    config.setLLMConfig({ ...config.getLLMConfig(), model: nextModel });
+    getLLMService().reloadConfig();
+  };
+
+  const cycleLLMTemperature = () => {
+    const temps = [0.3, 0.5, 0.7, 0.9, 1.1];
+    const currentIndex = temps.indexOf(llmTemperature);
+    const nextTemp = temps[(currentIndex + 1) % temps.length]!;
+    setLLMTemperature(nextTemp);
+    config.setLLMConfig({ ...config.getLLMConfig(), temperature: nextTemp });
+    getLLMService().reloadConfig();
+  };
+
+  const cycleSleepTimer = () => {
+    if (isActive) {
+      cancelTimer();
+      return;
+    }
+    // Find next preset (start from first if none active)
+    const currentPresetIndex = activeMinutes
+      ? presets.indexOf(activeMinutes as (typeof presets)[number])
+      : -1;
+    const nextPreset = presets[(currentPresetIndex + 1) % presets.length]!;
+    startTimer(nextPreset);
+  };
+
+  const handleSelect = () => {
+    if (selectedIndex === 0) {
+      dispatch({ category: "NAVIGATE", view: VIEW.LOGIN });
+    } else if (selectedIndex === 1) {
+      cycleTheme();
+    } else if (selectedIndex === 2) {
+      toggleQuality();
+    } else if (selectedIndex === 3) {
+      toggleNormalization();
+    } else if (selectedIndex === 4) {
+      toggleGaplessPlayback();
+    } else if (selectedIndex === 5) {
+      cycleCrossfadeDuration();
+    } else if (selectedIndex === 6) {
+      cycleVolumeFadeDuration();
+    } else if (selectedIndex === 7) {
+      cycleEqualizerPreset();
+    } else if (selectedIndex === 8) {
+      toggleSubtitles();
+    } else if (selectedIndex === 9) {
+      toggleNotifications();
+    } else if (selectedIndex === 10) {
+      toggleDiscordRpc();
+    } else if (selectedIndex === 11) {
+      toggleLLMEnabled();
+    } else if (selectedIndex === 12) {
+      setIsEditingApiKey(true);
+    } else if (selectedIndex === 13) {
+      cycleLLMProvider();
+    } else if (selectedIndex === 14) {
+      cycleLLMModel();
+    } else if (selectedIndex === 15) {
+      void refreshModels();
+    } else if (selectedIndex === 16) {
+      cycleLLMTemperature();
+    } else if (selectedIndex === 17) {
+      setIsEditingBaseUrl(true);
+    } else if (selectedIndex === 18) {
+      toggleDownloadsEnabled();
+    } else if (selectedIndex === 19) {
+      setIsEditingDownloadDirectory(true);
+    } else if (selectedIndex === 20) {
+      cycleDownloadFormat();
+    } else if (selectedIndex === 21) {
+      togglePreferLocalPlayback();
+    } else if (selectedIndex === 22) {
+      toggleShowNetworkStatus();
+    } else if (selectedIndex === 23) {
+      cycleCookiesFromBrowser();
+    } else if (selectedIndex === 24) {
+      setIsEditingCookiesFile(true);
+    } else if (selectedIndex === 25) {
+      setIsEditingMpvExtraArgs(true);
+    } else if (selectedIndex === 26) {
+      cycleSleepTimer();
+    } else if (selectedIndex === 27) {
+      dispatch({ category: "NAVIGATE", view: VIEW.IMPORT });
+    } else if (selectedIndex === 28) {
+      dispatch({ category: "NAVIGATE", view: VIEW.EXPORT_PLAYLISTS });
+    } else if (selectedIndex === 29) {
+      dispatch({ category: "NAVIGATE", view: VIEW.KEYBINDINGS });
+    } else if (selectedIndex === 30) {
+      dispatch({ category: "NAVIGATE", view: VIEW.PLUGINS });
+    } else if (selectedIndex === 31) {
+      cycleCacheTtl();
+    } else if (selectedIndex === 32) {
+      cycleCacheEntries();
+    } else if (selectedIndex === 33) {
+      toggleSmartPlaylistsRefreshOnLaunch();
+    }
+  };
+
+  useKeyBinding(resolveKeybinding("UP"), navigateUp);
+  useKeyBinding(resolveKeybinding("DOWN"), navigateDown);
+  useKeyBinding(resolveKeybinding("SELECT"), handleSelect);
+
+  // Block global shortcuts while editing a text field so typing doesn't
+  // trigger app actions (e.g. 'q' leaving settings mid-typing). The BACK
+  // handler below uses bypassBlock: Escape first cancels the edit, then
+  // leaves the view on the next press.
+  const isEditingText =
+    isEditingApiKey ||
+    isEditingDownloadDirectory ||
+    isEditingBaseUrl ||
+    isEditingCookiesFile ||
+    isEditingMpvExtraArgs;
+  useKeyboardBlocker(isEditingText);
+
+  useKeyBinding(
+    resolveKeybinding("BACK"),
+    () => {
+      if (isEditingText) {
+        setIsEditingApiKey(false);
+        setIsEditingDownloadDirectory(false);
+        setIsEditingBaseUrl(false);
+        setIsEditingCookiesFile(false);
+        setIsEditingMpvExtraArgs(false);
+        return;
+      }
+      dispatch({ category: "GO_BACK" });
+    },
+    { bypassBlock: true },
+  );
+
+  const sleepTimerLabel =
+    isActive && remainingSeconds !== null
+      ? `Sleep Timer: ${formatTime(remainingSeconds)} remaining (Enter to cancel)`
+      : "Sleep Timer: Off (Enter to set)";
+
+  return (
+    <Box
+      flexDirection="column"
+      gap={1}
+    >
+      <Box
+        borderStyle="double"
+        borderColor={theme.colors.secondary}
+        paddingX={1}
+        marginBottom={1}
+      >
+        <Text
+          bold
+          color={theme.colors.primary}
+        >
+          Settings
+        </Text>
+      </Box>
+
+      {/* Account */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 0 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 0 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 0}
+        >
+          Account →
+        </Text>
+      </Box>
+
+      {/* Theme */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 1 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 1 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 1}
+        >
+          Theme: {formatThemeLabel(themeName)} (Enter to cycle)
+        </Text>
+      </Box>
+
+      {/* Stream Quality */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 2 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 2 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 2}
+        >
+          Stream Quality: {quality.toUpperCase()}
+        </Text>
+      </Box>
+
+      {/* Audio Normalization */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 3 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 3 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 3}
+        >
+          Audio Normalization: {audioNormalization ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Gapless Playback */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 4 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 4 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 4}
+        >
+          Gapless Playback: {gaplessPlayback ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Crossfade Duration */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 5 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 5 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 5}
+        >
+          Crossfade: {crossfadeDuration === 0 ? "Off" : `${crossfadeDuration}s`}
+        </Text>
+      </Box>
+
+      {/* Volume Fade Duration */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 6 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 6 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 6}
+        >
+          Volume Fade:{" "}
+          {volumeFadeDuration === 0 ? "Off" : `${volumeFadeDuration}s`}
+        </Text>
+      </Box>
+
+      {/* Equalizer Preset */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 7 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 7 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 7}
+        >
+          Equalizer: {formatEqualizerLabel(equalizerPreset)}
+        </Text>
+      </Box>
+
+      {/* Subtitles */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 8 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 8 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 8}
+        >
+          Subtitles: {subtitlesEnabled ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Notifications */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 9 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 9 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 9}
+        >
+          Desktop Notifications: {notifications ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Discord Rich Presence */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 10 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 10 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 10}
+        >
+          Discord Rich Presence: {discordRpc ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* LLM Enabled */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 11 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 11 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 11}
+        >
+          AI Assistant: {llmEnabled ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* LLM API Key */}
+      <Box paddingX={1}>
+        {isEditingApiKey && selectedIndex === 12 ? (
+          <TextInput
+            value={llmApiKey}
+            onChange={setLLMApiKey}
+            onSubmit={value => {
+              const trimmed = value.trim();
+              setLLMApiKey(trimmed);
+              config.setLLMApiKey(trimmed);
+              getLLMService().reloadConfig();
+              setIsEditingApiKey(false);
+              void refreshModels();
+            }}
+            placeholder={`Enter your ${getProviderPreset(llmProvider).label} API key`}
+            focus
+          />
+        ) : (
+          <Text
+            backgroundColor={
+              selectedIndex === 12 ? theme.colors.primary : undefined
+            }
+            color={
+              selectedIndex === 12 ? theme.colors.background : theme.colors.text
+            }
+            bold={selectedIndex === 12}
+          >
+            API Key:{" "}
+            {llmApiKey
+              ? `${llmApiKey.slice(0, 4)}...${llmApiKey.slice(-4)}`
+              : "(not set)"}
+          </Text>
+        )}
+      </Box>
+
+      {/* AI Provider */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 13 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 13 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 13}
+        >
+          AI Provider: {getProviderPreset(llmProvider).label}
+        </Text>
+      </Box>
+
+      {/* LLM Model */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 14 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 14 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 14}
+        >
+          Model: {llmModel}
+          {modelsStatus ? ` (${modelsStatus})` : ""}
+        </Text>
+      </Box>
+
+      {/* Refresh Models */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 15 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 15 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 15}
+        >
+          Refresh Models ↻
+        </Text>
+      </Box>
+
+      {/* LLM Temperature */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 16 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 16 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 16}
+        >
+          Temperature: {llmTemperature.toFixed(1)}
+        </Text>
+      </Box>
+
+      {/* LLM Base URL */}
+      <Box paddingX={1}>
+        {isEditingBaseUrl && selectedIndex === 17 ? (
+          <TextInput
+            value={llmBaseUrl}
+            onChange={setLLMBaseUrl}
+            onSubmit={value => {
+              const trimmed = value.trim();
+              setLLMBaseUrl(trimmed);
+              config.setLLMConfig({
+                ...config.getLLMConfig(),
+                baseUrl: trimmed,
+              });
+              getLLMService().reloadConfig();
+              setIsEditingBaseUrl(false);
+            }}
+            placeholder={`Base URL (default ${getProviderPreset(llmProvider).baseUrl})`}
+            focus
+          />
+        ) : (
+          <Text
+            backgroundColor={
+              selectedIndex === 17 ? theme.colors.primary : undefined
+            }
+            color={
+              selectedIndex === 17 ? theme.colors.background : theme.colors.text
+            }
+            bold={selectedIndex === 17}
+          >
+            Base URL:{" "}
+            {llmBaseUrl
+              ? llmBaseUrl.replace("https://", "").substring(0, 30)
+              : `Default (${getProviderPreset(llmProvider).baseUrl.replace("https://", "")})`}
+          </Text>
+        )}
+      </Box>
+
+      {/* Downloads Enabled */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 18 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 18 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 18}
+        >
+          Download Feature: {downloadsEnabled ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Download Folder */}
+      <Box paddingX={1}>
+        {isEditingDownloadDirectory && selectedIndex === 19 ? (
+          <TextInput
+            value={downloadDirectory}
+            onChange={setDownloadDirectory}
+            onSubmit={value => {
+              try {
+                const normalized = ensureDownloadDirectory(value);
+                setDownloadDirectory(normalized);
+                config.setSync("downloadDirectory", normalized);
+                setIsEditingDownloadDirectory(false);
+                if (!(config.get("downloadsEnabled") ?? false)) {
+                  setDownloadFolderFeedback(
+                    "Saved download folder (enable Download Feature to use)",
+                  );
+                } else {
+                  setDownloadFolderFeedback("Saved download folder");
+                }
+              } catch (error) {
+                setDownloadFolderFeedback(
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to save download folder",
+                );
+              }
+            }}
+            placeholder="Download directory"
+            focus
+          />
+        ) : (
+          <Text
+            backgroundColor={
+              selectedIndex === 19 ? theme.colors.primary : undefined
+            }
+            color={
+              selectedIndex === 19 ? theme.colors.background : theme.colors.text
+            }
+            bold={selectedIndex === 19}
+          >
+            Download Folder: {downloadDirectory}
+          </Text>
+        )}
+      </Box>
+      {downloadFolderFeedback ? (
+        <Box paddingX={1}>
+          <Text color={theme.colors.secondary}>{downloadFolderFeedback}</Text>
+        </Box>
+      ) : null}
+
+      {/* Download Format */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 20 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 20 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 20}
+        >
+          Download Format: {downloadFormat.toUpperCase()}
+        </Text>
+      </Box>
+
+      {/* Prefer Local Playback */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 21 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 21 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 21}
+        >
+          Prefer Local Playback: {preferLocalPlayback ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Show Network Status */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 22 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 22 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 22}
+        >
+          Show Network Status: {showNetworkStatus ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Cookies From Browser */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 23 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 23 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 23}
+        >
+          Cookies From Browser:{" "}
+          {formatCookiesFromBrowserLabel(cookiesFromBrowser)}
+        </Text>
+      </Box>
+
+      {/* Cookies File */}
+      <Box paddingX={1}>
+        {isEditingCookiesFile && selectedIndex === 24 ? (
+          <TextInput
+            value={cookiesFile}
+            onChange={setCookiesFile}
+            onSubmit={value => {
+              const trimmed = value.trim();
+              setCookiesFile(trimmed);
+              config.set("cookiesFile", trimmed || undefined);
+              setIsEditingCookiesFile(false);
+            }}
+            placeholder="Path to Netscape cookies.txt (optional)"
+            focus
+          />
+        ) : (
+          <Text
+            backgroundColor={
+              selectedIndex === 24 ? theme.colors.primary : undefined
+            }
+            color={
+              selectedIndex === 24 ? theme.colors.background : theme.colors.text
+            }
+            bold={selectedIndex === 24}
+          >
+            Cookies File: {cookiesFile.trim() || "(not set)"}
+          </Text>
+        )}
+      </Box>
+
+      {/* mpv Extra Args */}
+      <Box paddingX={1}>
+        {isEditingMpvExtraArgs && selectedIndex === 25 ? (
+          <TextInput
+            value={mpvExtraArgs}
+            onChange={setMpvExtraArgs}
+            onSubmit={value => {
+              const trimmed = value.trim();
+              setMpvExtraArgs(trimmed);
+              config.set("mpvExtraArgs", trimmed || undefined);
+              setIsEditingMpvExtraArgs(false);
+            }}
+            placeholder="e.g. --no-config (applies on next track)"
+            focus
+          />
+        ) : (
+          <Text
+            backgroundColor={
+              selectedIndex === 25 ? theme.colors.primary : undefined
+            }
+            color={
+              selectedIndex === 25 ? theme.colors.background : theme.colors.text
+            }
+            bold={selectedIndex === 25}
+          >
+            mpv Extra Args: {mpvExtraArgs.trim() || "(not set)"}
+          </Text>
+        )}
+      </Box>
+
+      {/* Sleep Timer */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 26 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 26
+              ? theme.colors.background
+              : isActive
+                ? theme.colors.accent
+                : theme.colors.text
+          }
+          bold={selectedIndex === 26}
+        >
+          {sleepTimerLabel}
+        </Text>
+      </Box>
+
+      {/* Import Playlists */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 27 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 27 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 27}
+        >
+          Import Playlists →
+        </Text>
+      </Box>
+
+      {/* Export Playlists */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 28 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 28 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 28}
+        >
+          Export Playlists →
+        </Text>
+      </Box>
+
+      {/* Custom Keybindings */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 29 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 29 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 29}
+        >
+          Custom Keybindings →
+        </Text>
+      </Box>
+
+      {/* Manage Plugins */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 30 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 30 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 30}
+        >
+          Manage Plugins →
+        </Text>
+      </Box>
+
+      {/* Cache TTL */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 31 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 31 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 31}
+        >
+          Cache TTL: {cacheTtlMinutes}m
+        </Text>
+      </Box>
+
+      {/* Cache Max Entries */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 32 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 32 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 32}
+        >
+          Cache Max Entries: {cacheMaxEntries}
+        </Text>
+      </Box>
+
+      {/* Smart Playlists Refresh On Launch */}
+      <Box paddingX={1}>
+        <Text
+          backgroundColor={
+            selectedIndex === 33 ? theme.colors.primary : undefined
+          }
+          color={
+            selectedIndex === 33 ? theme.colors.background : theme.colors.text
+          }
+          bold={selectedIndex === 33}
+        >
+          Smart Playlists Refresh On Launch:{" "}
+          {smartPlaylistsRefreshOnLaunch ? "ON" : "OFF"}
+        </Text>
+      </Box>
+
+      {/* Info */}
+      <Box marginTop={1}>
+        <Text color={theme.colors.dim}>
+          Arrows to navigate, Enter to select, Esc/q to go back
+        </Text>
+      </Box>
+    </Box>
+  );
 }

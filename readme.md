@@ -482,14 +482,14 @@ Config is stored in `~/.youtube-music-cli/config.json`:
 
 ```json
 {
-	"theme": "dark",
-	"volume": 70,
-	"shuffle": false,
-	"repeat": "off",
-	"streamQuality": "high",
-	"downloadsEnabled": false,
-	"downloadDirectory": "D:/Music/youtube-music-cli",
-	"downloadFormat": "mp3"
+  "theme": "dark",
+  "volume": 70,
+  "shuffle": false,
+  "repeat": "off",
+  "streamQuality": "high",
+  "downloadsEnabled": false,
+  "downloadDirectory": "D:/Music/youtube-music-cli",
+  "downloadFormat": "mp3"
 }
 ```
 
@@ -577,7 +577,7 @@ bun run dev
 # Build
 bun run build
 
-# Lint and format
+# Lint and format (bun fmt — see bunfig.toml [fmt])
 bun run lint:fix
 bun run format
 
@@ -590,6 +590,7 @@ bun run typecheck
 - **Runtime:** Node.js 18+ / [Bun](https://bun.sh/)
 - **UI Framework:** [Ink](https://github.com/vadimdemedes/ink) (React for CLI)
 - **Language:** TypeScript
+- **Formatting:** `bun fmt` (`bunfig.toml`)
 - **Audio:** mpv + yt-dlp
 - **API:** YouTube Music Innertube API
 

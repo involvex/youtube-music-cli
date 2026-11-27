@@ -1,227 +1,240 @@
-import {useState, useCallback} from 'react';
-import {Box, Text} from 'ink';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {useFavorites} from '../../stores/favorites.store.tsx';
-import {usePlayer} from '../../hooks/usePlayer.ts';
-import {useNavigation} from '../../hooks/useNavigation.ts';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import {ICONS} from '../../utils/icons.ts';
-import {truncate} from '../../utils/format.ts';
-import {useTerminalSize} from '../../hooks/useTerminalSize.ts';
-import {getDownloadService} from '../../services/download/download.service.ts';
+import { Box, Text } from "ink";
+import { useCallback, useState } from "react";
+
+import { useKeyBinding } from "../../hooks/useKeyboard.ts";
+import { useNavigation } from "../../hooks/useNavigation.ts";
+import { usePlayer } from "../../hooks/usePlayer.ts";
+import { useTerminalSize } from "../../hooks/useTerminalSize.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { getDownloadService } from "../../services/download/download.service.ts";
+import { useFavorites } from "../../stores/favorites.store.tsx";
+import { truncate } from "../../utils/format.ts";
+import { ICONS } from "../../utils/icons.ts";
+import { resolveKeybinding } from "../../utils/keybinding-resolver.ts";
 
 export default function FavoritesList() {
-	const {theme} = useTheme();
-	const {dispatch} = useNavigation();
-	const {favorites, removeFavorite} = useFavorites();
-	const {
-		play,
-		dispatch: playerDispatch,
-		addToQueue,
-		playNext,
-		state: playerState,
-	} = usePlayer();
-	const {columns, rows} = useTerminalSize();
-	const downloadService = getDownloadService();
-	const [selectedIndex, setSelectedIndex] = useState(0);
+  const { theme } = useTheme();
+  const { dispatch } = useNavigation();
+  const { favorites, removeFavorite } = useFavorites();
+  const {
+    play,
+    dispatch: playerDispatch,
+    addToQueue,
+    playNext,
+    state: playerState,
+  } = usePlayer();
+  const { columns, rows } = useTerminalSize();
+  const downloadService = getDownloadService();
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-	// Navigation
-	const navigateUp = useCallback(() => {
-		setSelectedIndex(prev => Math.max(0, prev - 1));
-	}, []);
+  // Navigation
+  const navigateUp = useCallback(() => {
+    setSelectedIndex(prev => Math.max(0, prev - 1));
+  }, []);
 
-	const navigateDown = useCallback(() => {
-		setSelectedIndex(prev => Math.min(favorites.length - 1, prev + 1));
-	}, [favorites.length]);
+  const navigateDown = useCallback(() => {
+    setSelectedIndex(prev => Math.min(favorites.length - 1, prev + 1));
+  }, [favorites.length]);
 
-	const playSelected = useCallback(() => {
-		const track = favorites[selectedIndex];
-		if (track) {
-			play(track);
-		}
-	}, [favorites, selectedIndex, play]);
+  const playSelected = useCallback(() => {
+    const track = favorites[selectedIndex];
+    if (track) {
+      play(track);
+    }
+  }, [favorites, selectedIndex, play]);
 
-	const enqueueSelected = useCallback(() => {
-		const track = favorites[selectedIndex];
-		if (track) addToQueue(track);
-	}, [favorites, selectedIndex, addToQueue]);
+  const enqueueSelected = useCallback(() => {
+    const track = favorites[selectedIndex];
+    if (track) addToQueue(track);
+  }, [favorites, selectedIndex, addToQueue]);
 
-	const playNextSelected = useCallback(() => {
-		const track = favorites[selectedIndex];
-		if (track) playNext(track);
-	}, [favorites, selectedIndex, playNext]);
+  const playNextSelected = useCallback(() => {
+    const track = favorites[selectedIndex];
+    if (track) playNext(track);
+  }, [favorites, selectedIndex, playNext]);
 
-	const playAll = useCallback(() => {
-		if (favorites.length === 0) return;
-		playerDispatch({category: 'SET_QUEUE', queue: favorites});
-		playerDispatch({category: 'PLAY', track: favorites[0]!});
-	}, [favorites, playerDispatch]);
+  const playAll = useCallback(() => {
+    if (favorites.length === 0) return;
+    playerDispatch({ category: "SET_QUEUE", queue: favorites });
+    playerDispatch({ category: "PLAY", track: favorites[0]! });
+  }, [favorites, playerDispatch]);
 
-	const shufflePlayAll = useCallback(() => {
-		if (favorites.length === 0) return;
-		// Create a shuffled copy
-		const shuffled = [...favorites].sort(() => Math.random() - 0.5);
-		playerDispatch({category: 'SET_QUEUE', queue: shuffled});
-		playerDispatch({category: 'PLAY', track: shuffled[0]!});
-	}, [favorites, playerDispatch]);
+  const shufflePlayAll = useCallback(() => {
+    if (favorites.length === 0) return;
+    // Create a shuffled copy
+    const shuffled = [...favorites].sort(() => Math.random() - 0.5);
+    playerDispatch({ category: "SET_QUEUE", queue: shuffled });
+    playerDispatch({ category: "PLAY", track: shuffled[0]! });
+  }, [favorites, playerDispatch]);
 
-	const handleDownloadAll = useCallback(async () => {
-		if (favorites.length === 0) return;
-		if (downloadService.isDownloading()) {
-			downloadService.cancel();
-			return;
-		}
+  const handleDownloadAll = useCallback(async () => {
+    if (favorites.length === 0) return;
+    if (downloadService.isDownloading()) {
+      downloadService.cancel();
+      return;
+    }
 
-		try {
-			const config = downloadService.getConfig();
-			if (!config.enabled || !config.directory) {
-				return;
-			}
-			await downloadService.downloadTracks(favorites);
-		} catch {
-			// Silently fail - download will be shown in logs or errors
-		}
-	}, [favorites, downloadService]);
+    try {
+      const config = downloadService.getConfig();
+      if (!config.enabled || !config.directory) {
+        return;
+      }
+      await downloadService.downloadTracks(favorites);
+    } catch {
+      // Silently fail - download will be shown in logs or errors
+    }
+  }, [favorites, downloadService]);
 
-	const handleDownload = useCallback(async () => {
-		if (favorites.length === 0) return;
-		if (downloadService.isDownloading()) {
-			downloadService.cancel();
-			return;
-		}
-		const track = favorites[selectedIndex];
-		if (!track) return;
+  const handleDownload = useCallback(async () => {
+    if (favorites.length === 0) return;
+    if (downloadService.isDownloading()) {
+      downloadService.cancel();
+      return;
+    }
+    const track = favorites[selectedIndex];
+    if (!track) return;
 
-		try {
-			const config = downloadService.getConfig();
-			if (!config.enabled || !config.directory) {
-				return;
-			}
-			await downloadService.downloadTracks([track]);
-		} catch {
-			// Silently fail - download will be shown in logs or errors
-		}
-	}, [favorites, selectedIndex, downloadService]);
+    try {
+      const config = downloadService.getConfig();
+      if (!config.enabled || !config.directory) {
+        return;
+      }
+      await downloadService.downloadTracks([track]);
+    } catch {
+      // Silently fail - download will be shown in logs or errors
+    }
+  }, [favorites, selectedIndex, downloadService]);
 
-	const handleRemove = useCallback(() => {
-		const track = favorites[selectedIndex];
-		if (track) {
-			removeFavorite(track.videoId);
-			// Adjust selection if needed
-			if (selectedIndex >= favorites.length - 1) {
-				setSelectedIndex(Math.max(0, favorites.length - 2));
-			}
-		}
-	}, [favorites, selectedIndex, removeFavorite]);
+  const handleRemove = useCallback(() => {
+    const track = favorites[selectedIndex];
+    if (track) {
+      removeFavorite(track.videoId);
+      // Adjust selection if needed
+      if (selectedIndex >= favorites.length - 1) {
+        setSelectedIndex(Math.max(0, favorites.length - 2));
+      }
+    }
+  }, [favorites, selectedIndex, removeFavorite]);
 
-	// Key bindings
-	useKeyBinding(resolveKeybinding('BACK'), () => {
-		dispatch({category: 'GO_BACK'});
-	});
-	useKeyBinding(resolveKeybinding('UP'), navigateUp);
-	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
-	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
-	useKeyBinding(resolveKeybinding('ADD_TO_QUEUE'), enqueueSelected);
-	useKeyBinding(resolveKeybinding('PLAY_NEXT'), playNextSelected);
-	useKeyBinding(['delete', 'd', 'backspace'], handleRemove);
-	useKeyBinding(['f'], handleRemove); // Toggle off in this view means remove
-	useKeyBinding(['shift+p'], playAll); // Reuse playlist play shortcut? Or just Enter on a "Play All" button?
-	// Let's add specific shortcuts for playing all/shuffle
-	useKeyBinding(['p'], playAll);
-	useKeyBinding(['s'], shufflePlayAll);
-	useKeyBinding(resolveKeybinding('DOWNLOAD'), handleDownload);
-	useKeyBinding(['shift+d'], handleDownloadAll); // Download all favorites
+  // Key bindings
+  useKeyBinding(resolveKeybinding("BACK"), () => {
+    dispatch({ category: "GO_BACK" });
+  });
+  useKeyBinding(resolveKeybinding("UP"), navigateUp);
+  useKeyBinding(resolveKeybinding("DOWN"), navigateDown);
+  useKeyBinding(resolveKeybinding("SELECT"), playSelected);
+  useKeyBinding(resolveKeybinding("ADD_TO_QUEUE"), enqueueSelected);
+  useKeyBinding(resolveKeybinding("PLAY_NEXT"), playNextSelected);
+  useKeyBinding(["delete", "d", "backspace"], handleRemove);
+  useKeyBinding(["f"], handleRemove); // Toggle off in this view means remove
+  useKeyBinding(["shift+p"], playAll); // Reuse playlist play shortcut? Or just Enter on a "Play All" button?
+  // Let's add specific shortcuts for playing all/shuffle
+  useKeyBinding(["p"], playAll);
+  useKeyBinding(["s"], shufflePlayAll);
+  useKeyBinding(resolveKeybinding("DOWNLOAD"), handleDownload);
+  useKeyBinding(["shift+d"], handleDownloadAll); // Download all favorites
 
-	if (favorites.length === 0) {
-		return (
-			<Box
-				flexDirection="column"
-				alignItems="center"
-				justifyContent="center"
-				height={rows - 10}
-			>
-				<Text color={theme.colors.dim}>No favorites yet.</Text>
-				<Text color={theme.colors.dim}>
-					Press 'f' while playing to add songs.
-				</Text>
-			</Box>
-		);
-	}
+  if (favorites.length === 0) {
+    return (
+      <Box
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        height={rows - 10}
+      >
+        <Text color={theme.colors.dim}>No favorites yet.</Text>
+        <Text color={theme.colors.dim}>
+          Press 'f' while playing to add songs.
+        </Text>
+      </Box>
+    );
+  }
 
-	// Pagination/Windowing
-	const ITEMS_PER_PAGE = Math.max(5, rows - 15); // Adjust based on layout
-	const startIdx = Math.max(
-		0,
-		Math.min(
-			selectedIndex - Math.floor(ITEMS_PER_PAGE / 2),
-			favorites.length - ITEMS_PER_PAGE,
-		),
-	);
+  // Pagination/Windowing
+  const ITEMS_PER_PAGE = Math.max(5, rows - 15); // Adjust based on layout
+  const startIdx = Math.max(
+    0,
+    Math.min(
+      selectedIndex - Math.floor(ITEMS_PER_PAGE / 2),
+      favorites.length - ITEMS_PER_PAGE,
+    ),
+  );
 
-	return (
-		<Box flexDirection="column" padding={1}>
-			<Box marginBottom={1}>
-				<Text color={theme.colors.accent} bold>
-					{ICONS.HEART} Favorites ({favorites.length})
-				</Text>
-				<Text color={theme.colors.dim}> • </Text>
-				<Text color={theme.colors.dim}>
-					{' '}
-					[Enter] Play • [W] Queue · [Y] Next · [p] Play All · [s] Shuffle · [D]
-					Download · [f/Del] Remove
-				</Text>
-			</Box>
+  return (
+    <Box
+      flexDirection="column"
+      padding={1}
+    >
+      <Box marginBottom={1}>
+        <Text
+          color={theme.colors.accent}
+          bold
+        >
+          {ICONS.HEART} Favorites ({favorites.length})
+        </Text>
+        <Text color={theme.colors.dim}> • </Text>
+        <Text color={theme.colors.dim}>
+          {" "}
+          [Enter] Play • [W] Queue · [Y] Next · [p] Play All · [s] Shuffle · [D]
+          Download · [f/Del] Remove
+        </Text>
+      </Box>
 
-			<Box
-				flexDirection="column"
-				height={ITEMS_PER_PAGE}
-				overflow="hidden"
-				contentOffsetY={startIdx}
-				flexShrink={0}
-			>
-				{favorites.map((track, realIndex) => {
-					const isSelected = realIndex === selectedIndex;
-					const isCurrent = playerState.currentTrack?.videoId === track.videoId;
-					const artists =
-						track.artists?.map(a => a.name).join(', ') || 'Unknown';
+      <Box
+        flexDirection="column"
+        height={ITEMS_PER_PAGE}
+        overflow="hidden"
+        contentOffsetY={startIdx}
+        flexShrink={0}
+      >
+        {favorites.map((track, realIndex) => {
+          const isSelected = realIndex === selectedIndex;
+          const isCurrent = playerState.currentTrack?.videoId === track.videoId;
+          const artists =
+            track.artists?.map(a => a.name).join(", ") || "Unknown";
 
-					return (
-						<Box key={track.videoId} flexShrink={0}>
-							<Text
-								color={isSelected ? theme.colors.primary : theme.colors.dim}
-							>
-								{isSelected ? '> ' : '  '}
-							</Text>
-							<Text
-								color={isSelected ? theme.colors.primary : theme.colors.text}
-								bold={isSelected || isCurrent}
-							>
-								{truncate(track.title, Math.floor(columns * 0.4))}
-							</Text>
-							{isCurrent && playerState.mediaSource === 'local' && (
-								<Text color={theme.colors.primary} bold>
-									{' • LOCAL'}
-								</Text>
-							)}
-							<Text color={theme.colors.dim}>
-								{' '}
-								• {truncate(artists, Math.floor(columns * 0.3))}
-							</Text>
-							<Text color={theme.colors.dim}>
-								{' '}
-								(
-								{track.duration
-									? Math.floor(track.duration / 60) +
-										':' +
-										(track.duration % 60).toString().padStart(2, '0')
-									: '--:--'}
-								)
-							</Text>
-						</Box>
-					);
-				})}
-			</Box>
-		</Box>
-	);
+          return (
+            <Box
+              key={track.videoId}
+              flexShrink={0}
+            >
+              <Text
+                color={isSelected ? theme.colors.primary : theme.colors.dim}
+              >
+                {isSelected ? "> " : "  "}
+              </Text>
+              <Text
+                color={isSelected ? theme.colors.primary : theme.colors.text}
+                bold={isSelected || isCurrent}
+              >
+                {truncate(track.title, Math.floor(columns * 0.4))}
+              </Text>
+              {isCurrent && playerState.mediaSource === "local" && (
+                <Text
+                  color={theme.colors.primary}
+                  bold
+                >
+                  {" • LOCAL"}
+                </Text>
+              )}
+              <Text color={theme.colors.dim}>
+                {" "}
+                • {truncate(artists, Math.floor(columns * 0.3))}
+              </Text>
+              <Text color={theme.colors.dim}>
+                {" "}
+                (
+                {track.duration
+                  ? Math.floor(track.duration / 60) +
+                    ":" +
+                    (track.duration % 60).toString().padStart(2, "0")
+                  : "--:--"}
+                )
+              </Text>
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
 }

@@ -1,245 +1,245 @@
+import type { PlaybackMode, RadioStation } from "./radio-station.types.ts";
+import type { RadioSeed } from "./radio.types.ts";
 // Explicit action type definitions
-import type {SearchFilters, Track} from './youtube-music.types.ts';
-import type {RadioSeed} from './radio.types.ts';
-import type {PlaybackMode, RadioStation} from './radio-station.types.ts';
+import type { SearchFilters, Track } from "./youtube-music.types.ts";
 
 export interface PlayAction {
-	readonly category: 'PLAY';
-	track: Track;
+  readonly category: "PLAY";
+  track: Track;
 }
 
 export interface PauseAction {
-	readonly category: 'PAUSE';
+  readonly category: "PAUSE";
 }
 
 export interface ResumeAction {
-	readonly category: 'RESUME';
+  readonly category: "RESUME";
 }
 
 export interface TogglePlayPauseAction {
-	readonly category: 'TOGGLE_PLAY_PAUSE';
+  readonly category: "TOGGLE_PLAY_PAUSE";
 }
 
 export interface StopAction {
-	readonly category: 'STOP';
+  readonly category: "STOP";
 }
 
 export interface NextAction {
-	readonly category: 'NEXT';
+  readonly category: "NEXT";
 }
 
 export interface PreviousAction {
-	readonly category: 'PREVIOUS';
+  readonly category: "PREVIOUS";
 }
 
 export interface SeekAction {
-	readonly category: 'SEEK';
-	position: number;
+  readonly category: "SEEK";
+  position: number;
 }
 
 export interface SetVolumeAction {
-	readonly category: 'SET_VOLUME';
-	volume: number;
+  readonly category: "SET_VOLUME";
+  volume: number;
 }
 
 export interface VolumeUpAction {
-	readonly category: 'VOLUME_UP';
+  readonly category: "VOLUME_UP";
 }
 
 export interface VolumeDownAction {
-	readonly category: 'VOLUME_DOWN';
+  readonly category: "VOLUME_DOWN";
 }
 
 export interface VolumeFineUpAction {
-	readonly category: 'VOLUME_FINE_UP';
+  readonly category: "VOLUME_FINE_UP";
 }
 
 export interface VolumeFineDownAction {
-	readonly category: 'VOLUME_FINE_DOWN';
+  readonly category: "VOLUME_FINE_DOWN";
 }
 
 export interface ToggleShuffleAction {
-	readonly category: 'TOGGLE_SHUFFLE';
+  readonly category: "TOGGLE_SHUFFLE";
 }
 
 export interface ToggleRepeatAction {
-	readonly category: 'TOGGLE_REPEAT';
+  readonly category: "TOGGLE_REPEAT";
 }
 
 export interface ToggleAutoplayAction {
-	readonly category: 'TOGGLE_AUTOPLAY';
+  readonly category: "TOGGLE_AUTOPLAY";
 }
 
 export interface SetQueueAction {
-	readonly category: 'SET_QUEUE';
-	queue: Track[];
+  readonly category: "SET_QUEUE";
+  queue: Track[];
 }
 
 export interface AddToQueueAction {
-	readonly category: 'ADD_TO_QUEUE';
-	track: Track;
+  readonly category: "ADD_TO_QUEUE";
+  track: Track;
 }
 
 export interface PlayNextAction {
-	readonly category: 'PLAY_NEXT';
-	track: Track;
+  readonly category: "PLAY_NEXT";
+  track: Track;
 }
 
 export interface RemoveFromQueueAction {
-	readonly category: 'REMOVE_FROM_QUEUE';
-	index: number;
+  readonly category: "REMOVE_FROM_QUEUE";
+  index: number;
 }
 
 export interface ClearQueueAction {
-	readonly category: 'CLEAR_QUEUE';
+  readonly category: "CLEAR_QUEUE";
 }
 
 export interface SetQueuePositionAction {
-	readonly category: 'SET_QUEUE_POSITION';
-	position: number;
+  readonly category: "SET_QUEUE_POSITION";
+  position: number;
 }
 
 export interface UpdateProgressAction {
-	readonly category: 'UPDATE_PROGRESS';
-	progress: number;
+  readonly category: "UPDATE_PROGRESS";
+  progress: number;
 }
 
 export interface SetDurationAction {
-	readonly category: 'SET_DURATION';
-	duration: number;
+  readonly category: "SET_DURATION";
+  duration: number;
 }
 
 export interface TickAction {
-	readonly category: 'TICK';
+  readonly category: "TICK";
 }
 
 export interface SetLoadingAction {
-	readonly category: 'SET_LOADING';
-	loading: boolean;
+  readonly category: "SET_LOADING";
+  loading: boolean;
 }
 
 export interface SetErrorAction {
-	readonly category: 'SET_ERROR';
-	error: string | null;
+  readonly category: "SET_ERROR";
+  error: string | null;
 }
 
 export interface SetMediaSourceAction {
-	readonly category: 'SET_MEDIA_SOURCE';
-	mediaSource: 'local' | 'youtube' | null;
+  readonly category: "SET_MEDIA_SOURCE";
+  mediaSource: "local" | "youtube" | null;
 }
 
 export interface RestoreStateAction {
-	readonly category: 'RESTORE_STATE';
-	currentTrack: Track | null;
-	queue: Track[];
-	queuePosition: number;
-	progress: number;
-	volume: number;
-	shuffle: boolean;
-	repeat: 'off' | 'all' | 'one';
-	autoplay?: boolean;
-	/** When true, begin playback after restore (e.g. --continue). Distinct from autoplay preference. */
-	startPlayback?: boolean;
-	explicitQueueLength?: number;
-	/** Restores live/radio stream playback instead of a YouTube track. */
-	playbackMode?: PlaybackMode;
-	currentStation?: RadioStation | null;
-	radioIsActive?: boolean;
-	radioSeed?: RadioSeed | null;
+  readonly category: "RESTORE_STATE";
+  currentTrack: Track | null;
+  queue: Track[];
+  queuePosition: number;
+  progress: number;
+  volume: number;
+  shuffle: boolean;
+  repeat: "off" | "all" | "one";
+  autoplay?: boolean;
+  /** When true, begin playback after restore (e.g. --continue). Distinct from autoplay preference. */
+  startPlayback?: boolean;
+  explicitQueueLength?: number;
+  /** Restores live/radio stream playback instead of a YouTube track. */
+  playbackMode?: PlaybackMode;
+  currentStation?: RadioStation | null;
+  radioIsActive?: boolean;
+  radioSeed?: RadioSeed | null;
 }
 
 export interface SetSpeedAction {
-	readonly category: 'SET_SPEED';
-	speed: number;
+  readonly category: "SET_SPEED";
+  speed: number;
 }
 
 export interface SetSubtitleAction {
-	readonly category: 'SET_SUBTITLE';
-	subtitle: string | null;
+  readonly category: "SET_SUBTITLE";
+  subtitle: string | null;
 }
 
 export interface SetStreamNowPlayingAction {
-	readonly category: 'SET_STREAM_NOW_PLAYING';
-	streamNowPlaying: import('./radio-station.types.ts').StreamNowPlaying | null;
+  readonly category: "SET_STREAM_NOW_PLAYING";
+  streamNowPlaying: import("./radio-station.types.ts").StreamNowPlaying | null;
 }
 
 export interface SetABLoopAction {
-	readonly category: 'SET_AB_LOOP';
-	a: number | null;
-	b: number | null;
+  readonly category: "SET_AB_LOOP";
+  a: number | null;
+  b: number | null;
 }
 
 // Navigation actions
 export interface NavigateAction {
-	readonly category: 'NAVIGATE';
-	view: string;
+  readonly category: "NAVIGATE";
+  view: string;
 }
 
 export interface GoBackAction {
-	readonly category: 'GO_BACK';
+  readonly category: "GO_BACK";
 }
 
 export interface SetSearchQueryAction {
-	readonly category: 'SET_SEARCH_QUERY';
-	query: string;
+  readonly category: "SET_SEARCH_QUERY";
+  query: string;
 }
 
 export interface SetSearchCategoryAction {
-	readonly category: 'SET_SEARCH_CATEGORY';
-	searchType: 'all' | 'songs' | 'albums' | 'artists' | 'playlists';
+  readonly category: "SET_SEARCH_CATEGORY";
+  searchType: "all" | "songs" | "albums" | "artists" | "playlists";
 }
 
 export interface SetSearchFiltersAction {
-	readonly category: 'SET_SEARCH_FILTERS';
-	filters: Partial<SearchFilters>;
+  readonly category: "SET_SEARCH_FILTERS";
+  filters: Partial<SearchFilters>;
 }
 
 export interface ClearSearchFiltersAction {
-	readonly category: 'CLEAR_SEARCH_FILTERS';
+  readonly category: "CLEAR_SEARCH_FILTERS";
 }
 
 export interface SetSelectedResultAction {
-	readonly category: 'SET_SELECTED_RESULT';
-	index: number;
+  readonly category: "SET_SELECTED_RESULT";
+  index: number;
 }
 
 export interface SetSelectedPlaylistAction {
-	readonly category: 'SET_SELECTED_PLAYLIST';
-	index: number;
+  readonly category: "SET_SELECTED_PLAYLIST";
+  index: number;
 }
 
 export interface SetHasSearchedAction {
-	readonly category: 'SET_HAS_SEARCHED';
-	hasSearched: boolean;
+  readonly category: "SET_HAS_SEARCHED";
+  hasSearched: boolean;
 }
 
 export interface SetSearchLimitAction {
-	readonly category: 'SET_SEARCH_LIMIT';
-	limit: number;
+  readonly category: "SET_SEARCH_LIMIT";
+  limit: number;
 }
 
 export interface TogglePlayerModeAction {
-	readonly category: 'TOGGLE_PLAYER_MODE';
+  readonly category: "TOGGLE_PLAYER_MODE";
 }
 
 export interface DetachAction {
-	readonly category: 'DETACH';
+  readonly category: "DETACH";
 }
 
 export interface StartRadioAction {
-	readonly category: 'START_RADIO';
-	seed: RadioSeed;
+  readonly category: "START_RADIO";
+  seed: RadioSeed;
 }
 
 export interface StopRadioAction {
-	readonly category: 'STOP_RADIO';
+  readonly category: "STOP_RADIO";
 }
 
 export interface ToggleRadioAction {
-	readonly category: 'TOGGLE_RADIO';
+  readonly category: "TOGGLE_RADIO";
 }
 
 export interface PlayStreamAction {
-	readonly category: 'PLAY_STREAM';
-	station: RadioStation;
+  readonly category: "PLAY_STREAM";
+  station: RadioStation;
 }

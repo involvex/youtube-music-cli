@@ -16,3 +16,29 @@ watch = false
 [run]
 compat = "bun"
 bun = true
+
+[fmt]
+sortImports = true
+sortPackageJson = true
+ignorePatterns = [
+  "dist",
+  "docs",
+  "node_modules",
+  ".claude",
+  ".gemini",
+  ".agent",
+  ".agents",
+  ".mcp",
+  ".mira",
+  ".kilo",
+  ".kilocode",
+]
+printWidth = 80
+tabWidth = 2
+useTabs = false
+semi = true
+singleAttributePerLine = true
+singleQuote = false
+trailingComma = "all"
+bracketSpacing = true
+arrowParens = "avoid"

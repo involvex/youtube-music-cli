@@ -1,140 +1,134 @@
 {
-	"name": "@involvex/youtube-music-cli",
-	"version": "0.3.13",
-	"description": "- A Commandline music player for youtube-music",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/involvex/youtube-music-cli.git"
-	},
-	"funding": "https://github.com/sponsors/involvex",
-	"license": "MIT",
-	"author": "involvex",
-	"type": "module",
-	"bin": {
-		"youtube-music-cli": "dist/source/cli.js",
-		"ymc": "dist/source/cli.js"
-	},
-	"files": [
-		"dist/source",
-		"dist/web",
-		"dist/tray-icon.ico",
-		"README.md",
-		"CHANGELOG.md",
-		"LICENSE",
-		".github/FUNDING.yml",
-		"assets/player-preview.gif"
-	],
-	"icon": "assets/icon2.PNG",
-	"sponsor": {
-		"url": "https://github.com/sponsors/involvex"
-	},
-	"homepage": "https://involvex.github.io/youtube-music-cli/",
-	"keywords": [
-		"cli",
-		"youtube",
-		"youtube-music",
-		"youtube-cli",
-		"youtube-music-cli",
-		"ink",
-		"cli-music"
-	],
-	"workspaces": [
-		"web"
-	],
-	"scripts": {
-		"prebuild": "bun run format && bun run lint:fix && bun run typecheck",
-		"build": "bun run build:bun && bun run build:node && bun run copy:tray-icon && bun run build:web",
-		"ci:build": "bun run build:bun && bun run build:node && bun run copy:tray-icon && bun run build:web",
-		"ci:quality": "bun run format:check && bun run lint && bun run typecheck",
-		"copy:tray-icon": "bun -e \"import{copyFileSync,existsSync,mkdirSync}from'fs';import path from'path';const src=path.join('assets','icon.ico');if(!existsSync(src))process.exit(0);mkdirSync('dist',{recursive:true});copyFileSync(src,path.join('dist','tray-icon.ico'))\"",
-		"build:bun": "bun build source/cli.tsx --outfile dist/source/cli.js --target bun --footer \"//Copyright (c) 2026 involvex\" --production",
-		"build:node": "bun build source/cli.tsx --outfile dist/source/cli.js --target node --footer \"//Copyright (c) 2026 involvex\" --production",
-		"build:win32": "bun build source/immersive-entry.tsx --compile --target bun-windows-x64 --outfile dist/ymc-win32.exe && bun run copy:tray-icon",
-		"build:exe": "bun compile --outfile dist/youtube-music-cli.exe --target=bun-windows-x64 --define PLATFORM='windows' --aot-allow-code-from-disk source/cli.tsx --asset assets/icon.ico --external electron",
-		"dev": "bun run --bun source/cli.tsx",
-		"dev:win32": "bun run --bun source/immersive-entry.tsx",
-		"dev:watch": "bun run --bun --watch source/cli.tsx",
-		"dev:win32:watch": "bun run --bun --watch source/immersive-entry.tsx",
-		"format": "prettier --write .",
-		"format:check": "prettier --check .",
-		"lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
-		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix --ignore-pattern dist",
-		"start": "bun run dist/source/cli.js",
-		"start:node": "node dist/source/cli.js",
-		"test": "bun test --check",
-		"typecheck": "bun check",
-		"changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
-		"clean": "rimraf dist",
-		"release": "powershell -File scripts/release.ps1",
-		"release:minor": "powershell -File scripts/release.ps1 -Bump minor",
-		"release:major": "powershell -File scripts/release.ps1 -Bump major",
-		"build:web": "cd web && bun run build",
-		"dev:web": "cd web && bun run dev",
-		"build:all": "bun run build && bun run build:win32 && bun run build:web && bun run build:exe",
-		"msix": "bun run build:exe && msix-packager-cli package --config ./msix-config.json --skip-build",
-		"sync:skills": "bun run scripts/sync-agent-skills.ts"
-	},
-	"prettier": "@vdemedes/prettier-config",
-	"dependencies": {
-		"@bun-win32/kernel32": "^3.0.0",
-		"@bun-win32/user32": "^5.0.0",
-		"@jellybrick/mpris-service": "^2.2.4",
-		"ansi-escapes": "^7.3.0",
-		"discord-rpc": "^4.0.1",
-		"ink": "8.0.0",
-		"ink-table": "^3.1.0",
-		"ink-text-input": "^6.0.0",
-		"meow": "^14.1.0",
-		"node-notifier": "^12.1.0",
-		"node-youtube-music": "^0.10.3",
-		"play-sound": "^1.1.6",
-		"react": "19.3.1",
-		"string-width": "^9.0.0",
-		"ws": "^8.23.0",
-		"yaml": "^2.9.1",
-		"youtubei.js": "^18.3.0"
-	},
-	"devDependencies": {
-		"@eslint/js": "^10.0.1",
-		"@tsconfig/bun": "^1.0.12",
-		"@types/bun": "^1.4.4",
-		"@types/node": "^26.2.0",
-		"@types/react": "^19.3.0",
-		"@types/ws": "^8.18.1",
-		"@vdemedes/prettier-config": "^2.0.1",
-		"bun-types": "^1.4.4",
-		"chalk": "^6.0.0",
-		"conventional-changelog-cli": "^5.0.0",
-		"eslint": "^10.15.0",
-		"eslint-plugin-react": "^7.37.5",
-		"eslint-plugin-react-hooks": "^7.1.1",
-		"globals": "^17.11.0",
-		"ink-testing-library": "^4.0.0",
-		"jiti": "^2.7.0",
-		"prettier": "^3.10.1",
-		"prettier-plugin-organize-imports": "^4.3.0",
-		"prettier-plugin-packagejson": "^3.1.0",
-		"prettier-plugin-sort-imports": "^1.8.11",
-		"react-devtools-core": "^8.0.0",
-		"rimraf": "^6.1.3",
-		"tsx": "^4.23.15",
-		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.72.2"
-	},
-	"engines": {
-		"node": ">=18.0"
-	},
-	"sponsors": "https://github.com/sponsors/involvex",
-	"overrides": {
-		"minimatch": "^11.0.1",
-		"react": "19.3.1",
-		"react-dom": "19.3.1"
-	},
-	"trustedDependencies": [
-		"unrs-resolver"
-	],
-	"patchedDependencies": {
-		"tr46@0.0.3": "patches/tr46@0.0.3.patch",
-		"whatwg-url@5.0.0": "patches/whatwg-url@5.0.0.patch"
-	}
+  "name": "@involvex/youtube-music-cli",
+  "version": "0.3.13",
+  "description": "- A Commandline music player for youtube-music",
+  "keywords": [
+    "cli",
+    "cli-music",
+    "ink",
+    "youtube",
+    "youtube-cli",
+    "youtube-music",
+    "youtube-music-cli"
+  ],
+  "homepage": "https://involvex.github.io/youtube-music-cli/",
+  "license": "MIT",
+  "author": "involvex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/involvex/youtube-music-cli.git"
+  },
+  "funding": "https://github.com/sponsors/involvex",
+  "sponsor": {
+    "url": "https://github.com/sponsors/involvex"
+  },
+  "bin": {
+    "ymc": "dist/source/cli.js",
+    "youtube-music-cli": "dist/source/cli.js"
+  },
+  "workspaces": [
+    "web"
+  ],
+  "files": [
+    "dist/source",
+    "dist/web",
+    "dist/tray-icon.ico",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    ".github/FUNDING.yml",
+    "assets/player-preview.gif"
+  ],
+  "type": "module",
+  "scripts": {
+    "prebuild": "bun run format && bun run lint:fix && bun run typecheck",
+    "build": "bun run build:bun && bun run build:node && bun run copy:tray-icon && bun run build:web",
+    "ci:build": "bun run build:bun && bun run build:node && bun run copy:tray-icon && bun run build:web",
+    "ci:quality": "bun run format:check && bun run lint && bun run typecheck",
+    "copy:tray-icon": "bun -e \"import{copyFileSync,existsSync,mkdirSync}from'fs';import path from'path';const src=path.join('assets','icon.ico');if(!existsSync(src))process.exit(0);mkdirSync('dist',{recursive:true});copyFileSync(src,path.join('dist','tray-icon.ico'))\"",
+    "build:bun": "bun build source/cli.tsx --outfile dist/source/cli.js --target bun --footer \"//Copyright (c) 2026 involvex\" --production",
+    "build:node": "bun build source/cli.tsx --outfile dist/source/cli.js --target node --footer \"//Copyright (c) 2026 involvex\" --production",
+    "build:win32": "bun build source/immersive-entry.tsx --compile --target bun-windows-x64 --outfile dist/ymc-win32.exe && bun run copy:tray-icon",
+    "build:exe": "bun compile --outfile dist/youtube-music-cli.exe --target=bun-windows-x64 --define PLATFORM='windows' --aot-allow-code-from-disk source/cli.tsx --asset assets/icon.ico --external electron",
+    "dev": "bun run --bun source/cli.tsx",
+    "dev:win32": "bun run --bun source/immersive-entry.tsx",
+    "dev:watch": "bun run --bun --watch source/cli.tsx",
+    "dev:win32:watch": "bun run --bun --watch source/immersive-entry.tsx",
+    "format": "bun fmt",
+    "format:check": "bun fmt --check .",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern dist",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix --ignore-pattern dist",
+    "start": "bun run dist/source/cli.js",
+    "start:node": "node dist/source/cli.js",
+    "test": "bun test --check",
+    "typecheck": "bun check",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
+    "clean": "rimraf dist",
+    "release": "powershell -File scripts/release.ps1",
+    "release:minor": "powershell -File scripts/release.ps1 -Bump minor",
+    "release:major": "powershell -File scripts/release.ps1 -Bump major",
+    "build:web": "cd web && bun run build",
+    "dev:web": "cd web && bun run dev",
+    "build:all": "bun run build && bun run build:win32 && bun run build:web && bun run build:exe",
+    "msix": "bun run build:exe && msix-packager-cli package --config ./msix-config.json --skip-build",
+    "sync:skills": "bun run scripts/sync-agent-skills.ts"
+  },
+  "dependencies": {
+    "@bun-win32/kernel32": "^3.0.0",
+    "@bun-win32/user32": "^5.0.0",
+    "@jellybrick/mpris-service": "^2.2.4",
+    "ansi-escapes": "^7.3.0",
+    "discord-rpc": "^4.0.1",
+    "ink": "8.0.0",
+    "ink-table": "^3.1.0",
+    "ink-text-input": "^6.0.0",
+    "meow": "^14.1.0",
+    "node-notifier": "^12.1.0",
+    "node-youtube-music": "^0.10.3",
+    "play-sound": "^1.1.6",
+    "react": "19.3.1",
+    "string-width": "^9.0.0",
+    "ws": "^8.23.0",
+    "yaml": "^2.9.1",
+    "youtubei.js": "^18.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tsconfig/bun": "^1.0.12",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.3.0",
+    "@types/ws": "^8.18.1",
+    "bun-types": "^1.4.4",
+    "chalk": "^6.0.0",
+    "conventional-changelog-cli": "^5.0.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.11.0",
+    "ink-testing-library": "^4.0.0",
+    "jiti": "^2.7.0",
+    "react-devtools-core": "^8.0.0",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "icon": "assets/icon2.PNG",
+  "engines": {
+    "node": ">=18.0"
+  },
+  "patchedDependencies": {
+    "tr46@0.0.3": "patches/tr46@0.0.3.patch",
+    "whatwg-url@5.0.0": "patches/whatwg-url@5.0.0.patch"
+  },
+  "sponsors": "https://github.com/sponsors/involvex",
+  "trustedDependencies": [
+    "unrs-resolver"
+  ]
 }

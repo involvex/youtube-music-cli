@@ -1,53 +1,53 @@
-import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
-import {expect, test} from 'bun:test';
+import { expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-test('loads and initializes a plugin from disk', async () => {
-	const testRoot = join(
-		tmpdir(),
-		'youtube-music-cli.tmp-test',
-		'plugin-loader',
-	);
-	rmSync(testRoot, {recursive: true, force: true});
-	mkdirSync(testRoot, {recursive: true});
-	const dir = mkdtempSync(join(testRoot, 'plugin-'));
-	const manifest = {
-		id: 'test-plugin',
-		name: 'Test Plugin',
-		version: '1.0.0',
-		description: 'Test plugin',
-		author: 'tester',
-		main: 'index.js',
-		permissions: ['player'],
-	};
+test("loads and initializes a plugin from disk", async () => {
+  const testRoot = join(
+    tmpdir(),
+    "youtube-music-cli.tmp-test",
+    "plugin-loader",
+  );
+  rmSync(testRoot, { recursive: true, force: true });
+  mkdirSync(testRoot, { recursive: true });
+  const dir = mkdtempSync(join(testRoot, "plugin-"));
+  const manifest = {
+    id: "test-plugin",
+    name: "Test Plugin",
+    version: "1.0.0",
+    description: "Test plugin",
+    author: "tester",
+    main: "index.js",
+    permissions: ["player"],
+  };
 
-	writeFileSync(join(dir, 'plugin.json'), JSON.stringify(manifest, null, 2));
+  writeFileSync(join(dir, "plugin.json"), JSON.stringify(manifest, null, 2));
 
-	const pluginSource = `
+  const pluginSource = `
 		export const manifest = ${JSON.stringify(manifest)};
 		export async function init(ctx){ ctx.logger.info('init called'); }
 		export default {manifest, init};
 	`;
-	writeFileSync(join(dir, 'index.js'), pluginSource);
+  writeFileSync(join(dir, "index.js"), pluginSource);
 
-	const {getPluginLoaderService, resetPluginLoaderService} =
-		await import('../source/services/plugin/plugin-loader.service.ts');
+  const { getPluginLoaderService, resetPluginLoaderService } =
+    await import("../source/services/plugin/plugin-loader.service.ts");
 
-	resetPluginLoaderService();
-	const loader = getPluginLoaderService();
+  resetPluginLoaderService();
+  const loader = getPluginLoaderService();
 
-	const instance = await loader.loadPlugin(dir);
-	expect(instance.manifest.id).toBe('test-plugin');
-	expect(instance.plugin.manifest.name).toBe('Test Plugin');
+  const instance = await loader.loadPlugin(dir);
+  expect(instance.manifest.id).toBe("test-plugin");
+  expect(instance.plugin.manifest.name).toBe("Test Plugin");
 
-	// Provide minimal context for hook call
-	const context = {
-		logger: {info: () => {}},
-		manifest: instance.manifest,
-	};
+  // Provide minimal context for hook call
+  const context = {
+    logger: { info: () => {} },
+    manifest: instance.manifest,
+  };
 
-	await loader.callHook(instance.plugin, 'init', context);
+  await loader.callHook(instance.plugin, "init", context);
 
-	expect(true).toBe(true);
+  expect(true).toBe(true);
 });

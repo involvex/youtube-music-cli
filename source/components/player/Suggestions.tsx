@@ -1,134 +1,147 @@
+import { Box, Text } from "ink";
 // Suggestions component
-import {useEffect, useState, useCallback, startTransition} from 'react';
-import {Box, Text} from 'ink';
-import {useYouTubeMusic} from '../../hooks/useYouTubeMusic.ts';
-import {usePlayer} from '../../hooks/usePlayer.ts';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import {useNavigation} from '../../hooks/useNavigation.ts';
-import type {Track} from '../../types/youtube-music.types.ts';
-import {truncate} from '../../utils/format.ts';
-import {getSmartRecommendations} from '../../services/youtube-music/smart-recommendations.service.ts';
+import { startTransition, useCallback, useEffect, useState } from "react";
+
+import { useKeyBinding } from "../../hooks/useKeyboard.ts";
+import { useNavigation } from "../../hooks/useNavigation.ts";
+import { usePlayer } from "../../hooks/usePlayer.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { useYouTubeMusic } from "../../hooks/useYouTubeMusic.ts";
+import { getSmartRecommendations } from "../../services/youtube-music/smart-recommendations.service.ts";
+import type { Track } from "../../types/youtube-music.types.ts";
+import { truncate } from "../../utils/format.ts";
+import { resolveKeybinding } from "../../utils/keybinding-resolver.ts";
 
 export default function Suggestions() {
-	const {theme} = useTheme();
-	const {dispatch} = useNavigation();
-	const {state: playerState, play, startRadio} = usePlayer();
-	const {isLoading: _isLoading} = useYouTubeMusic();
-	const [suggestions, setSuggestions] = useState<Track[]>([]);
-	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [isLoading, setIsLoading] = useState(false);
-	const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const { dispatch } = useNavigation();
+  const { state: playerState, play, startRadio } = usePlayer();
+  const { isLoading: _isLoading } = useYouTubeMusic();
+  const [suggestions, setSuggestions] = useState<Track[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-	useEffect(() => {
-		let active = true;
-		if (playerState.currentTrack) {
-			const currentTrack = playerState.currentTrack;
-			startTransition(() => {
-				setIsLoading(true);
-			});
-			void getSmartRecommendations(currentTrack).then(tracks => {
-				if (active) {
-					startTransition(() => {
-						setSuggestions(tracks);
-						setSelectedIndex(0);
-						setIsLoading(false);
-					});
-				}
-			});
-		}
-		return () => {
-			active = false;
-		};
-	}, [playerState.currentTrack]);
+  useEffect(() => {
+    let active = true;
+    if (playerState.currentTrack) {
+      const currentTrack = playerState.currentTrack;
+      startTransition(() => {
+        setIsLoading(true);
+      });
+      void getSmartRecommendations(currentTrack).then(tracks => {
+        if (active) {
+          startTransition(() => {
+            setSuggestions(tracks);
+            setSelectedIndex(0);
+            setIsLoading(false);
+          });
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [playerState.currentTrack]);
 
-	const navigateUp = useCallback(() => {
-		setSelectedIndex(prev => Math.max(0, prev - 1));
-	}, []);
+  const navigateUp = useCallback(() => {
+    setSelectedIndex(prev => Math.max(0, prev - 1));
+  }, []);
 
-	const navigateDown = useCallback(() => {
-		setSelectedIndex(prev => Math.min(suggestions.length - 1, prev + 1));
-	}, [suggestions.length]);
+  const navigateDown = useCallback(() => {
+    setSelectedIndex(prev => Math.min(suggestions.length - 1, prev + 1));
+  }, [suggestions.length]);
 
-	const playSelected = useCallback(() => {
-		const track = suggestions[selectedIndex];
-		if (track) {
-			play(track);
-		}
-	}, [selectedIndex, suggestions, play]);
+  const playSelected = useCallback(() => {
+    const track = suggestions[selectedIndex];
+    if (track) {
+      play(track);
+    }
+  }, [selectedIndex, suggestions, play]);
 
-	const startDiscovery = useCallback(() => {
-		void import('../../services/radio/discovery-queue.service.ts').then(
-			({DISCOVERY_RADIO_SEED}) => {
-				setStatusMessage('Starting Discovery Queue...');
-				void startRadio(DISCOVERY_RADIO_SEED).then(success => {
-					setStatusMessage(
-						success
-							? 'Discovery Queue started'
-							: 'No discovery tracks available',
-					);
-				});
-			},
-		);
-	}, [startRadio]);
+  const startDiscovery = useCallback(() => {
+    void import("../../services/radio/discovery-queue.service.ts").then(
+      ({ DISCOVERY_RADIO_SEED }) => {
+        setStatusMessage("Starting Discovery Queue...");
+        void startRadio(DISCOVERY_RADIO_SEED).then(success => {
+          setStatusMessage(
+            success
+              ? "Discovery Queue started"
+              : "No discovery tracks available",
+          );
+        });
+      },
+    );
+  }, [startRadio]);
 
-	useKeyBinding(resolveKeybinding('UP'), navigateUp);
-	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
-	useKeyBinding(resolveKeybinding('SELECT'), playSelected);
-	useKeyBinding(['d'], startDiscovery);
-	useKeyBinding(resolveKeybinding('BACK'), () => {
-		dispatch({category: 'GO_BACK'});
-	});
+  useKeyBinding(resolveKeybinding("UP"), navigateUp);
+  useKeyBinding(resolveKeybinding("DOWN"), navigateDown);
+  useKeyBinding(resolveKeybinding("SELECT"), playSelected);
+  useKeyBinding(["d"], startDiscovery);
+  useKeyBinding(resolveKeybinding("BACK"), () => {
+    dispatch({ category: "GO_BACK" });
+  });
 
-	if (isLoading) {
-		return <Text color={theme.colors.accent}>Loading suggestions...</Text>;
-	}
+  if (isLoading) {
+    return <Text color={theme.colors.accent}>Loading suggestions...</Text>;
+  }
 
-	if (suggestions.length === 0) {
-		return (
-			<Box flexDirection="column" gap={1}>
-				<Text color={theme.colors.dim}>No suggestions available</Text>
-				<Text color={theme.colors.dim}>
-					Press d to start Discovery Queue, Esc to go back
-				</Text>
-				{statusMessage ? (
-					<Text color={theme.colors.accent}>{statusMessage}</Text>
-				) : null}
-			</Box>
-		);
-	}
+  if (suggestions.length === 0) {
+    return (
+      <Box
+        flexDirection="column"
+        gap={1}
+      >
+        <Text color={theme.colors.dim}>No suggestions available</Text>
+        <Text color={theme.colors.dim}>
+          Press d to start Discovery Queue, Esc to go back
+        </Text>
+        {statusMessage ? (
+          <Text color={theme.colors.accent}>{statusMessage}</Text>
+        ) : null}
+      </Box>
+    );
+  }
 
-	return (
-		<Box flexDirection="column" gap={1}>
-			<Text bold color={theme.colors.primary}>
-				Suggestions based on: {playerState.currentTrack?.title}
-			</Text>
+  return (
+    <Box
+      flexDirection="column"
+      gap={1}
+    >
+      <Text
+        bold
+        color={theme.colors.primary}
+      >
+        Suggestions based on: {playerState.currentTrack?.title}
+      </Text>
 
-			{suggestions.map((track, index) => {
-				const isSelected = index === selectedIndex;
-				return (
-					<Box key={track.videoId} paddingX={1}>
-						<Text
-							backgroundColor={isSelected ? theme.colors.primary : undefined}
-							color={isSelected ? theme.colors.background : theme.colors.text}
-							bold={isSelected}
-						>
-							{index + 1}. {truncate(track.title, 40)} -{' '}
-							{track.artists?.map(a => a.name).join(', ')}
-						</Text>
-					</Box>
-				);
-			})}
+      {suggestions.map((track, index) => {
+        const isSelected = index === selectedIndex;
+        return (
+          <Box
+            key={track.videoId}
+            paddingX={1}
+          >
+            <Text
+              backgroundColor={isSelected ? theme.colors.primary : undefined}
+              color={isSelected ? theme.colors.background : theme.colors.text}
+              bold={isSelected}
+            >
+              {index + 1}. {truncate(track.title, 40)} -{" "}
+              {track.artists?.map(a => a.name).join(", ")}
+            </Text>
+          </Box>
+        );
+      })}
 
-			<Box marginTop={1}>
-				<Text color={theme.colors.dim}>
-					Arrows to navigate, Enter to play, d Discovery Queue, Esc to go back
-				</Text>
-			</Box>
-			{statusMessage ? (
-				<Text color={theme.colors.accent}>{statusMessage}</Text>
-			) : null}
-		</Box>
-	);
+      <Box marginTop={1}>
+        <Text color={theme.colors.dim}>
+          Arrows to navigate, Enter to play, d Discovery Queue, Esc to go back
+        </Text>
+      </Box>
+      {statusMessage ? (
+        <Text color={theme.colors.accent}>{statusMessage}</Text>
+      ) : null}
+    </Box>
+  );
 }

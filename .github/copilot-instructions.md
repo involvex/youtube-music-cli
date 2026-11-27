@@ -73,17 +73,16 @@ source/components/
 
 ### Code Quality
 
-- **Linting**: ESLint with flat config, extends XO and XO-React
-- **Formatting**: Prettier with `@vdemedes/prettier-config` and import organization plugins
-- **TypeScript**: Strict mode via `@sindresorhus/tsconfig`
+- **Linting**: ESLint flat config (`eslint.config.ts`)
+- **Formatting**: `bun fmt` via `bunfig.toml` `[fmt]` — Prettier is not used
+- **TypeScript**: Strict mode via `@tsconfig/bun`
 - **React Transform**: JSX uses automatic transform (`jsx: "react-jsx"`)
 
 ### Testing
 
-- **Test Runner**: AVA (configured for TypeScript modules)
+- **Test Runner**: `bun:test` under `tests/`
 - **TUI Testing**: `ink-testing-library` for asserting on terminal output
-- **Test Location**: `test.tsx` and other `.test.ts/tsx` files
-- **Single Test**: `bunx ava test.tsx --match "test name"` to run specific test
+- **Single Test**: `bun test tests/<file>.test.js -t "test name"`
 
 ## CLI Commands
 

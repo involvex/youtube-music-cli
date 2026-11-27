@@ -1,12 +1,12 @@
 {
-	"version": 1,
-	"hooks": {
-		"stop": [
-			{
-				"type": "prompt",
-				"loop_limit": 1,
-				"prompt": "If this session edited files under source/, tests/, web/, scripts/, or package.json and you have not already verified them, run once: bun run format && bun run lint && bun run typecheck && bun test. Keep the follow-up short. If verification already passed or no code changed, respond with exactly: NO_FOLLOWUP"
-			}
-		]
-	}
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "type": "prompt",
+        "loop_limit": 1,
+        "prompt": "If this session edited files under source/, tests/, web/, scripts/, or package.json and you have not already verified them, run once: bun run format && bun run lint && bun run typecheck && bun test. Keep the follow-up short. If verification already passed or no code changed, respond with exactly: NO_FOLLOWUP"
+      }
+    ]
+  }
 }

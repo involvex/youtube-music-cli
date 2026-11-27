@@ -1,26 +1,26 @@
 {
-	"extends": ["@tsconfig/bun"],
-	"compilerOptions": {
-		"target": "ES2022",
-		"lib": ["ES2023", "DOM", "DOM.Iterable"],
-		"outDir": "dist",
-		"module": "esnext",
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"forceConsistentCasingInFileNames": true,
-		"strict": true,
-		"resolveJsonModule": true,
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"jsx": "react-jsx",
-		"types": ["bun-types", "node", "bun"]
-	},
-	"include": [
-		"source",
-		"tests",
-		"test.tsx",
-		"eslint.config.ts",
-		"scripts/build-cli.ts",
-		"plugins"
-	]
+  "extends": ["@tsconfig/bun"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "outDir": "dist",
+    "module": "esnext",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "types": ["bun-types", "node", "bun"]
+  },
+  "include": [
+    "source",
+    "tests",
+    "test.tsx",
+    "eslint.config.ts",
+    "scripts/build-cli.ts",
+    "plugins"
+  ]
 }

@@ -1,1 +1,1 @@
-export {default} from './shell/QueuePanel';
+export { default } from "./shell/QueuePanel";

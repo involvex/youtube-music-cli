@@ -1,108 +1,108 @@
-export type ShellType = 'bash' | 'zsh' | 'powershell' | 'fish';
+export type ShellType = "bash" | "zsh" | "powershell" | "fish";
 
 export const COMMANDS = [
-	'play',
-	'search',
-	'playlist',
-	'sync',
-	'download',
-	'suggestions',
-	'radio',
-	'discover',
-	'pause',
-	'resume',
-	'skip',
-	'back',
-	'plugins',
-	'import',
-	'completions',
-	'logs',
-	'config',
-	'update',
-	'stats',
-	'smart-playlist',
-	'login',
-	'logout',
-	'whoami',
+  "play",
+  "search",
+  "playlist",
+  "sync",
+  "download",
+  "suggestions",
+  "radio",
+  "discover",
+  "pause",
+  "resume",
+  "skip",
+  "back",
+  "plugins",
+  "import",
+  "completions",
+  "logs",
+  "config",
+  "update",
+  "stats",
+  "smart-playlist",
+  "login",
+  "logout",
+  "whoami",
 ] as const;
 
-const SYNC_SUBCOMMANDS = ['list', 'search'];
-const SMART_PLAYLIST_SUBCOMMANDS = ['list', 'refresh'];
+const SYNC_SUBCOMMANDS = ["list", "search"];
+const SMART_PLAYLIST_SUBCOMMANDS = ["list", "refresh"];
 
 const PLUGINS_SUBCOMMANDS = [
-	'list',
-	'install',
-	'remove',
-	'uninstall',
-	'update',
-	'enable',
-	'disable',
+  "list",
+  "install",
+  "remove",
+  "uninstall",
+  "update",
+  "enable",
+  "disable",
 ];
 
-const IMPORT_SUBCOMMANDS = ['spotify', 'youtube'];
+const IMPORT_SUBCOMMANDS = ["spotify", "youtube"];
 
 const COMPLETIONS_SUBCOMMANDS: ShellType[] = [
-	'bash',
-	'zsh',
-	'powershell',
-	'fish',
+  "bash",
+  "zsh",
+  "powershell",
+  "fish",
 ];
 
-const LOGS_SUBCOMMANDS = ['--open', '--get-path', '--set-path'];
+const LOGS_SUBCOMMANDS = ["--open", "--get-path", "--set-path"];
 
-const CONFIG_SUBCOMMANDS = ['doctor', 'backup'];
+const CONFIG_SUBCOMMANDS = ["doctor", "backup"];
 
 const FLAGS = [
-	'--theme',
-	'--volume',
-	'--shuffle',
-	'--repeat',
-	'--headless',
-	'--win32',
-	'--web',
-	'--host',
-	'--port',
-	'--web-only',
-	'--web-auth',
-	'--cookies-file',
-	'--cookies-from-browser',
-	'--name',
-	'--help',
-	'--version',
-	'--open',
-	'--get-path',
-	'--set-path',
-	'--fix',
-	'--verbose',
-	'--share',
-	'--export',
+  "--theme",
+  "--volume",
+  "--shuffle",
+  "--repeat",
+  "--headless",
+  "--win32",
+  "--web",
+  "--host",
+  "--port",
+  "--web-only",
+  "--web-auth",
+  "--cookies-file",
+  "--cookies-from-browser",
+  "--name",
+  "--help",
+  "--version",
+  "--open",
+  "--get-path",
+  "--set-path",
+  "--fix",
+  "--verbose",
+  "--share",
+  "--export",
 ];
 
 export function generateCompletion(shell: ShellType): string {
-	switch (shell) {
-		case 'bash':
-			return generateBashCompletion();
-		case 'zsh':
-			return generateZshCompletion();
-		case 'powershell':
-			return generatePowerShellCompletion();
-		case 'fish':
-			return generateFishCompletion();
-	}
+  switch (shell) {
+    case "bash":
+      return generateBashCompletion();
+    case "zsh":
+      return generateZshCompletion();
+    case "powershell":
+      return generatePowerShellCompletion();
+    case "fish":
+      return generateFishCompletion();
+  }
 }
 
 function generateBashCompletion(): string {
-	const cmds = COMMANDS.join(' ');
-	const pluginsSubs = PLUGINS_SUBCOMMANDS.join(' ');
-	const importSubs = IMPORT_SUBCOMMANDS.join(' ');
-	const syncSubs = SYNC_SUBCOMMANDS.join(' ');
-	const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.join(' ');
-	const completionsSubs = COMPLETIONS_SUBCOMMANDS.join(' ');
-	const logsSubs = LOGS_SUBCOMMANDS.join(' ');
-	const configSubs = CONFIG_SUBCOMMANDS.join(' ');
-	const flags = FLAGS.join(' ');
+  const cmds = COMMANDS.join(" ");
+  const pluginsSubs = PLUGINS_SUBCOMMANDS.join(" ");
+  const importSubs = IMPORT_SUBCOMMANDS.join(" ");
+  const syncSubs = SYNC_SUBCOMMANDS.join(" ");
+  const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.join(" ");
+  const completionsSubs = COMPLETIONS_SUBCOMMANDS.join(" ");
+  const logsSubs = LOGS_SUBCOMMANDS.join(" ");
+  const configSubs = CONFIG_SUBCOMMANDS.join(" ");
+  const flags = FLAGS.join(" ");
 
-	return `# youtube-music-cli bash completion
+  return `# youtube-music-cli bash completion
 # Add to ~/.bashrc or ~/.bash_profile:
 #   source <(ymc completions bash)
 #   # or:
@@ -171,11 +171,11 @@ complete -F _ymc_completions ymc youtube-music-cli
 }
 
 function generateZshCompletion(): string {
-	const commandEntries = COMMANDS.map(
-		cmd => `        '${cmd}:${getCommandDescription(cmd)}'`,
-	).join('\n');
+  const commandEntries = COMMANDS.map(
+    cmd => `        '${cmd}:${getCommandDescription(cmd)}'`,
+  ).join("\n");
 
-	return `#compdef ymc youtube-music-cli
+  return `#compdef ymc youtube-music-cli
 # youtube-music-cli zsh completion
 # Add to your zsh config:
 #   source <(ymc completions zsh)
@@ -296,19 +296,19 @@ _ymc
 }
 
 function generatePowerShellCompletion(): string {
-	const cmds = COMMANDS.map(c => `'${c}'`).join(', ');
-	const pluginsSubs = PLUGINS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const importSubs = IMPORT_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const syncSubs = SYNC_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.map(c => `'${c}'`).join(
-		', ',
-	);
-	const completionsSubs = COMPLETIONS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const logsSubs = LOGS_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const configSubs = CONFIG_SUBCOMMANDS.map(c => `'${c}'`).join(', ');
-	const flags = FLAGS.map(f => `'${f}'`).join(', ');
+  const cmds = COMMANDS.map(c => `'${c}'`).join(", ");
+  const pluginsSubs = PLUGINS_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const importSubs = IMPORT_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const syncSubs = SYNC_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const smartPlaylistSubs = SMART_PLAYLIST_SUBCOMMANDS.map(c => `'${c}'`).join(
+    ", ",
+  );
+  const completionsSubs = COMPLETIONS_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const logsSubs = LOGS_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const configSubs = CONFIG_SUBCOMMANDS.map(c => `'${c}'`).join(", ");
+  const flags = FLAGS.map(f => `'${f}'`).join(", ");
 
-	return `# youtube-music-cli PowerShell completion
+  return `# youtube-music-cli PowerShell completion
 # Add to your PowerShell profile ($PROFILE):
 #   ymc completions powershell | Out-String | Invoke-Expression
 
@@ -418,47 +418,47 @@ Register-ArgumentCompleter -Native -CommandName @('ymc', 'youtube-music-cli') -S
 }
 
 function generateFishCompletion(): string {
-	const commandCompletions = COMMANDS.map(
-		cmd =>
-			`complete -c ymc -n '__fish_use_subcommand' -f -a '${cmd}' -d '${getCommandDescription(cmd)}'`,
-	).join('\n');
+  const commandCompletions = COMMANDS.map(
+    cmd =>
+      `complete -c ymc -n '__fish_use_subcommand' -f -a '${cmd}' -d '${getCommandDescription(cmd)}'`,
+  ).join("\n");
 
-	const pluginsCompletions = PLUGINS_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from plugins' -f -a '${sub}'`,
-	).join('\n');
+  const pluginsCompletions = PLUGINS_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from plugins' -f -a '${sub}'`,
+  ).join("\n");
 
-	const importCompletions = IMPORT_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from import' -f -a '${sub}'`,
-	).join('\n');
+  const importCompletions = IMPORT_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from import' -f -a '${sub}'`,
+  ).join("\n");
 
-	const syncCompletions = SYNC_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from sync' -f -a '${sub}'`,
-	).join('\n');
+  const syncCompletions = SYNC_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from sync' -f -a '${sub}'`,
+  ).join("\n");
 
-	const smartPlaylistCompletions = SMART_PLAYLIST_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from smart-playlist' -f -a '${sub}'`,
-	).join('\n');
+  const smartPlaylistCompletions = SMART_PLAYLIST_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from smart-playlist' -f -a '${sub}'`,
+  ).join("\n");
 
-	const completionsCompletions = COMPLETIONS_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from completions' -f -a '${sub}'`,
-	).join('\n');
+  const completionsCompletions = COMPLETIONS_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from completions' -f -a '${sub}'`,
+  ).join("\n");
 
-	const logsCompletions = LOGS_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from logs' -f -a '${sub}'`,
-	).join('\n');
+  const logsCompletions = LOGS_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from logs' -f -a '${sub}'`,
+  ).join("\n");
 
-	const configCompletions = CONFIG_SUBCOMMANDS.map(
-		sub =>
-			`complete -c ymc -n '__fish_seen_subcommand_from config' -f -a '${sub}'`,
-	).join('\n');
+  const configCompletions = CONFIG_SUBCOMMANDS.map(
+    sub =>
+      `complete -c ymc -n '__fish_seen_subcommand_from config' -f -a '${sub}'`,
+  ).join("\n");
 
-	return `# youtube-music-cli fish completion
+  return `# youtube-music-cli fish completion
 # Save to: ~/.config/fish/completions/ymc.fish
 #   ymc completions fish > ~/.config/fish/completions/ymc.fish
 
@@ -519,30 +519,30 @@ complete -c youtube-music-cli -w ymc
 }
 
 function getCommandDescription(cmd: string): string {
-	const descriptions: Record<string, string> = {
-		play: 'Play a track by ID or YouTube URL',
-		search: 'Search for tracks',
-		playlist: 'Play a playlist by ID',
-		sync: 'Sync a YouTube Music playlist to local config',
-		download: 'Download a track or saved playlist',
-		suggestions: 'Show music suggestions',
-		radio: 'Play a radio station by ID',
-		discover: 'Start a history-seeded Discovery Queue',
-		pause: 'Pause playback',
-		resume: 'Resume playback',
-		skip: 'Skip to next track',
-		back: 'Go to previous track',
-		plugins: 'Manage plugins',
-		import: 'Import playlists from Spotify or YouTube',
-		completions: 'Generate shell completion scripts',
-		logs: 'View and manage debug logs',
-		config: 'Manage configuration',
-		update: 'Check for updates and auto-update',
-		stats: 'Print listening statistics',
-		'smart-playlist': 'List or refresh history-based smart playlists',
-		login: 'Sign in to YouTube Music',
-		logout: 'Sign out and remove credentials',
-		whoami: 'Show current account status',
-	};
-	return descriptions[cmd] ?? cmd;
+  const descriptions: Record<string, string> = {
+    play: "Play a track by ID or YouTube URL",
+    search: "Search for tracks",
+    playlist: "Play a playlist by ID",
+    sync: "Sync a YouTube Music playlist to local config",
+    download: "Download a track or saved playlist",
+    suggestions: "Show music suggestions",
+    radio: "Play a radio station by ID",
+    discover: "Start a history-seeded Discovery Queue",
+    pause: "Pause playback",
+    resume: "Resume playback",
+    skip: "Skip to next track",
+    back: "Go to previous track",
+    plugins: "Manage plugins",
+    import: "Import playlists from Spotify or YouTube",
+    completions: "Generate shell completion scripts",
+    logs: "View and manage debug logs",
+    config: "Manage configuration",
+    update: "Check for updates and auto-update",
+    stats: "Print listening statistics",
+    "smart-playlist": "List or refresh history-based smart playlists",
+    login: "Sign in to YouTube Music",
+    logout: "Sign out and remove credentials",
+    whoami: "Show current account status",
+  };
+  return descriptions[cmd] ?? cmd;
 }

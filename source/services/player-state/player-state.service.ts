@@ -1,141 +1,142 @@
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 // Player state persistence service
-import {writeFile, readFile, mkdir, rename, unlink} from 'node:fs/promises';
-import {existsSync, mkdirSync, renameSync, writeFileSync} from 'node:fs';
-import {join} from 'node:path';
-import {CONFIG_DIR} from '../../utils/constants.ts';
-import {formatError, formatErrorData} from '../../utils/error.ts';
-import {logger} from '../logger/logger.service.ts';
-import type {Track} from '../../types/youtube-music.types.ts';
-import type {
-	PlaybackMode,
-	RadioStation,
-} from '../../types/radio-station.types.ts';
-import type {RadioSeed} from '../../types/radio.types.ts';
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
-const STATE_FILE = join(CONFIG_DIR, 'player-state.json');
+import type {
+  PlaybackMode,
+  RadioStation,
+} from "../../types/radio-station.types.ts";
+import type { RadioSeed } from "../../types/radio.types.ts";
+import type { Track } from "../../types/youtube-music.types.ts";
+import { CONFIG_DIR } from "../../utils/constants.ts";
+import { formatError, formatErrorData } from "../../utils/error.ts";
+import { logger } from "../logger/logger.service.ts";
+
+const STATE_FILE = join(CONFIG_DIR, "player-state.json");
 const SCHEMA_VERSION = 1;
 
 export interface PersistedPlayerState {
-	schemaVersion: number;
-	currentTrack: Track | null;
-	queue: Track[];
-	queuePosition: number;
-	progress: number; // Time position in seconds
-	volume: number;
-	shuffle: boolean;
-	repeat: 'off' | 'all' | 'one';
-	autoplay?: boolean;
-	sessionHistory?: string[];
-	explicitQueueLength?: number;
-	/** Whether playback was a YouTube track or a live/radio stream. */
-	playbackMode?: PlaybackMode;
-	/** Live/radio station being played, when playbackMode is 'stream'. */
-	currentStation?: RadioStation | null;
-	radioIsActive?: boolean;
-	radioSeed?: RadioSeed | null;
-	lastUpdated: string; // ISO timestamp
+  schemaVersion: number;
+  currentTrack: Track | null;
+  queue: Track[];
+  queuePosition: number;
+  progress: number; // Time position in seconds
+  volume: number;
+  shuffle: boolean;
+  repeat: "off" | "all" | "one";
+  autoplay?: boolean;
+  sessionHistory?: string[];
+  explicitQueueLength?: number;
+  /** Whether playback was a YouTube track or a live/radio stream. */
+  playbackMode?: PlaybackMode;
+  /** Live/radio station being played, when playbackMode is 'stream'. */
+  currentStation?: RadioStation | null;
+  radioIsActive?: boolean;
+  radioSeed?: RadioSeed | null;
+  lastUpdated: string; // ISO timestamp
 }
 
 const defaultState: PersistedPlayerState = {
-	schemaVersion: SCHEMA_VERSION,
-	currentTrack: null,
-	queue: [],
-	queuePosition: 0,
-	progress: 0,
-	volume: 70,
-	shuffle: false,
-	repeat: 'off',
-	autoplay: true,
-	playbackMode: 'youtube',
-	currentStation: null,
-	radioIsActive: false,
-	radioSeed: null,
-	lastUpdated: new Date().toISOString(),
+  schemaVersion: SCHEMA_VERSION,
+  currentTrack: null,
+  queue: [],
+  queuePosition: 0,
+  progress: 0,
+  volume: 70,
+  shuffle: false,
+  repeat: "off",
+  autoplay: true,
+  playbackMode: "youtube",
+  currentStation: null,
+  radioIsActive: false,
+  radioSeed: null,
+  lastUpdated: new Date().toISOString(),
 };
 
 let saveLock = Promise.resolve();
 
 function isRetryableError(err: NodeJS.ErrnoException): boolean {
-	return err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES';
+  return err.code === "EPERM" || err.code === "EBUSY" || err.code === "EACCES";
 }
 
 /**
  * Saves player state to disk
  */
 export async function savePlayerState(
-	state: Partial<PersistedPlayerState>,
+  state: Partial<PersistedPlayerState>,
 ): Promise<void> {
-	// Mutex: Wait for previous save to finish
-	const currentLock = saveLock;
-	let releaseLock: () => void = () => {};
-	const newLock = new Promise<void>(resolve => {
-		releaseLock = resolve;
-	});
-	saveLock = newLock;
+  // Mutex: Wait for previous save to finish
+  const currentLock = saveLock;
+  let releaseLock: () => void = () => {};
+  const newLock = new Promise<void>(resolve => {
+    releaseLock = resolve;
+  });
+  saveLock = newLock;
 
-	// Wait for the previous operation to complete
-	await currentLock.catch(() => {});
+  // Wait for the previous operation to complete
+  await currentLock.catch(() => {});
 
-	try {
-		// Ensure config directory exists
-		if (!existsSync(CONFIG_DIR)) {
-			await mkdir(CONFIG_DIR, {recursive: true});
-			logger.debug('PlayerStateService', 'Created config directory', {
-				path: CONFIG_DIR,
-			});
-		}
+  try {
+    // Ensure config directory exists
+    if (!existsSync(CONFIG_DIR)) {
+      await mkdir(CONFIG_DIR, { recursive: true });
+      logger.debug("PlayerStateService", "Created config directory", {
+        path: CONFIG_DIR,
+      });
+    }
 
-		// Merge with default state
-		const stateToSave: PersistedPlayerState = {
-			...defaultState,
-			...state,
-			schemaVersion: SCHEMA_VERSION,
-			lastUpdated: new Date().toISOString(),
-		};
+    // Merge with default state
+    const stateToSave: PersistedPlayerState = {
+      ...defaultState,
+      ...state,
+      schemaVersion: SCHEMA_VERSION,
+      lastUpdated: new Date().toISOString(),
+    };
 
-		// Write to temporary file first, then rename for atomic write
-		const tempFile = `${STATE_FILE}.tmp`;
-		await writeFile(tempFile, JSON.stringify(stateToSave, null, 2), 'utf8');
+    // Write to temporary file first, then rename for atomic write
+    const tempFile = `${STATE_FILE}.tmp`;
+    await writeFile(tempFile, JSON.stringify(stateToSave, null, 2), "utf8");
 
-		// Atomic rename - works on Windows since Node 10+
-		// On Windows, if target exists and is locked, remove first then rename
-		let attempts = 0;
-		const maxAttempts = 3;
-		while (true) {
-			try {
-				await rename(tempFile, STATE_FILE);
-				break;
-			} catch (error: unknown) {
-				const err = error as NodeJS.ErrnoException;
-				attempts++;
-				if (attempts >= maxAttempts || !isRetryableError(err)) {
-					throw error;
-				}
-				// On retry, try removing target first (Windows file locking)
-				try {
-					if (existsSync(STATE_FILE)) {
-						await unlink(STATE_FILE);
-					}
-				} catch {
-					// Ignore unlink errors during retry
-				}
-				// Wait before retry
-				await new Promise(resolve => setTimeout(resolve, 50 * attempts));
-			}
-		}
+    // Atomic rename - works on Windows since Node 10+
+    // On Windows, if target exists and is locked, remove first then rename
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (true) {
+      try {
+        await rename(tempFile, STATE_FILE);
+        break;
+      } catch (error: unknown) {
+        const err = error as NodeJS.ErrnoException;
+        attempts++;
+        if (attempts >= maxAttempts || !isRetryableError(err)) {
+          throw error;
+        }
+        // On retry, try removing target first (Windows file locking)
+        try {
+          if (existsSync(STATE_FILE)) {
+            await unlink(STATE_FILE);
+          }
+        } catch {
+          // Ignore unlink errors during retry
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 50 * attempts));
+      }
+    }
 
-		logger.debug('PlayerStateService', 'Saved player state', {
-			hasTrack: !!stateToSave.currentTrack,
-			queueLength: stateToSave.queue.length,
-			progress: stateToSave.progress,
-		});
-	} catch (error) {
-		logger.error('PlayerStateService', 'Failed to save player state', {
-			...formatErrorData(error),
-		});
-	} finally {
-		releaseLock();
-	}
+    logger.debug("PlayerStateService", "Saved player state", {
+      hasTrack: !!stateToSave.currentTrack,
+      queueLength: stateToSave.queue.length,
+      progress: stateToSave.progress,
+    });
+  } catch (error) {
+    logger.error("PlayerStateService", "Failed to save player state", {
+      ...formatErrorData(error),
+    });
+  } finally {
+    releaseLock();
+  }
 }
 
 /**
@@ -144,91 +145,91 @@ export async function savePlayerState(
  * async save.
  */
 export function savePlayerStateSync(
-	state: Partial<PersistedPlayerState>,
+  state: Partial<PersistedPlayerState>,
 ): void {
-	try {
-		if (!existsSync(CONFIG_DIR)) {
-			mkdirSync(CONFIG_DIR, {recursive: true});
-		}
+  try {
+    if (!existsSync(CONFIG_DIR)) {
+      mkdirSync(CONFIG_DIR, { recursive: true });
+    }
 
-		const stateToSave: PersistedPlayerState = {
-			...defaultState,
-			...state,
-			schemaVersion: SCHEMA_VERSION,
-			lastUpdated: new Date().toISOString(),
-		};
-		const tempFile = `${STATE_FILE}.exit.tmp`;
-		writeFileSync(tempFile, JSON.stringify(stateToSave, null, 2), 'utf8');
-		renameSync(tempFile, STATE_FILE);
-	} catch (error) {
-		logger.error('PlayerStateService', 'Failed to save player state on exit', {
-			...formatErrorData(error),
-		});
-	}
+    const stateToSave: PersistedPlayerState = {
+      ...defaultState,
+      ...state,
+      schemaVersion: SCHEMA_VERSION,
+      lastUpdated: new Date().toISOString(),
+    };
+    const tempFile = `${STATE_FILE}.exit.tmp`;
+    writeFileSync(tempFile, JSON.stringify(stateToSave, null, 2), "utf8");
+    renameSync(tempFile, STATE_FILE);
+  } catch (error) {
+    logger.error("PlayerStateService", "Failed to save player state on exit", {
+      ...formatErrorData(error),
+    });
+  }
 }
 
 /**
  * Loads player state from disk
  */
 export async function loadPlayerState(): Promise<PersistedPlayerState | null> {
-	try {
-		if (!existsSync(STATE_FILE)) {
-			logger.debug('PlayerStateService', 'No saved state file found');
-			return null;
-		}
+  try {
+    if (!existsSync(STATE_FILE)) {
+      logger.debug("PlayerStateService", "No saved state file found");
+      return null;
+    }
 
-		const data = await readFile(STATE_FILE, 'utf8');
-		const state = JSON.parse(data) as PersistedPlayerState;
+    const data = await readFile(STATE_FILE, "utf8");
+    const state = JSON.parse(data) as PersistedPlayerState;
 
-		// Validate schema version
-		if (state.schemaVersion !== SCHEMA_VERSION) {
-			logger.warn('PlayerStateService', 'Schema version mismatch', {
-				expected: SCHEMA_VERSION,
-				found: state.schemaVersion,
-			});
-			return null;
-		}
+    // Validate schema version
+    if (state.schemaVersion !== SCHEMA_VERSION) {
+      logger.warn("PlayerStateService", "Schema version mismatch", {
+        expected: SCHEMA_VERSION,
+        found: state.schemaVersion,
+      });
+      return null;
+    }
 
-		// Validate state structure
-		if (!state || typeof state !== 'object') {
-			logger.warn('PlayerStateService', 'Invalid state structure');
-			return null;
-		}
+    // Validate state structure
+    if (!state || typeof state !== "object") {
+      logger.warn("PlayerStateService", "Invalid state structure");
+      return null;
+    }
 
-		// Merge with default state to ensure no missing properties (e.g. volume or autoplay)
-		const mergedState = {
-			...defaultState,
-			...state,
-		};
+    // Merge with default state to ensure no missing properties (e.g. volume or autoplay)
+    const mergedState = {
+      ...defaultState,
+      ...state,
+    };
 
-		logger.info('PlayerStateService', 'Loaded player state', {
-			hasTrack: !!mergedState.currentTrack,
-			queueLength: mergedState.queue?.length ?? 0,
-			progress: mergedState.progress,
-			lastUpdated: mergedState.lastUpdated,
-		});
+    logger.info("PlayerStateService", "Loaded player state", {
+      hasTrack: !!mergedState.currentTrack,
+      queueLength: mergedState.queue?.length ?? 0,
+      progress: mergedState.progress,
+      lastUpdated: mergedState.lastUpdated,
+    });
 
-		return mergedState;
-	} catch (error) {
-		logger.error('PlayerStateService', 'Failed to load player state', {
-			...formatErrorData(error),
-		});
-		return null;
-	}
+    return mergedState;
+  } catch (error) {
+    logger.error("PlayerStateService", "Failed to load player state", {
+      ...formatErrorData(error),
+    });
+    return null;
+  }
 }
 
 /**
  * Clears saved player state
  */
 export async function clearPlayerState(): Promise<void> {
-	try {
-		if (existsSync(STATE_FILE)) {
-			await unlink(STATE_FILE);
-			logger.info('PlayerStateService', 'Cleared player state');
-		}
-	} catch (error) {
-		logger.error('PlayerStateService', 'Failed to clear player state', {
-			error: formatError(error),
-		});
-	}
+  try {
+    if (existsSync(STATE_FILE)) {
+      await unlink(STATE_FILE);
+      logger.info("PlayerStateService", "Cleared player state");
+    }
+  } catch (error) {
+    logger.error("PlayerStateService", "Failed to clear player state", {
+      error: formatError(error),
+    });
+  }
 }

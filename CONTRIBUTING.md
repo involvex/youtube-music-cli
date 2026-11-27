@@ -46,8 +46,11 @@ checks automatically before building:
 
 ### Formatting
 
+Formatting uses Bun's built-in formatter (`bun fmt`), configured in
+`bunfig.toml`. Prettier is not part of this project.
+
 ```bash
-bun run format       # Format code with Prettier
+bun run format       # Format with bun fmt
 bun run format:check # Check formatting without modifying
 ```
 
@@ -67,7 +70,7 @@ bun run typecheck # Type check via bun check
 ### Testing
 
 ```bash
-bun run test # Run prettier check + XO + AVA
+bun run test # Run bun:test suite
 ```
 
 ## Project Structure

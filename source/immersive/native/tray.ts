@@ -1,18 +1,19 @@
-import {existsSync, mkdtempSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
-import {spawn, type ChildProcess} from 'node:child_process';
-import path from 'node:path';
-import process from 'node:process';
-import {fileURLToPath} from 'node:url';
-import {logger} from '../../services/logger/logger.service.ts';
+import { type ChildProcess, spawn } from "node:child_process";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+import { logger } from "../../services/logger/logger.service.ts";
 
 export interface TrayIcon {
-	id: string;
-	icon: string;
-	tooltip: string;
+  id: string;
+  icon: string;
+  tooltip: string;
 }
 
-export type TrayAction = 'settings' | 'exit';
+export type TrayAction = "settings" | "exit";
 
 const TRAY_TOOLTIP_MAX = 63;
 
@@ -23,17 +24,17 @@ let trayIconPath: string | null = null;
 let trayScriptPath: string | null = null;
 
 function scheduleTrayIconApply(
-	iconPath?: string,
-	delaysMs = [250, 800, 1800],
+  iconPath?: string,
+  delaysMs = [250, 800, 1800],
 ): void {
-	for (const delay of delaysMs) {
-		setTimeout(() => {
-			if (!trayProcess || trayProcess.killed) {
-				return;
-			}
-			applyTrayIcon(iconPath);
-		}, delay);
-	}
+  for (const delay of delaysMs) {
+    setTimeout(() => {
+      if (!trayProcess || trayProcess.killed) {
+        return;
+      }
+      applyTrayIcon(iconPath);
+    }, delay);
+  }
 }
 
 const TRAY_DAEMON_SCRIPT = String.raw`
@@ -152,289 +153,289 @@ $stdinThread.Start()
 `;
 
 function findPackageRoot(startDir: string): string | null {
-	let dir = startDir;
-	for (let i = 0; i < 8; i++) {
-		if (existsSync(path.join(dir, 'package.json'))) {
-			return dir;
-		}
+  let dir = startDir;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(path.join(dir, "package.json"))) {
+      return dir;
+    }
 
-		const parent = path.dirname(dir);
-		if (parent === dir) {
-			break;
-		}
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      break;
+    }
 
-		dir = parent;
-	}
+    dir = parent;
+  }
 
-	return null;
+  return null;
 }
 
 export function parseTrayActionLine(line: string): TrayAction | null {
-	const trimmed = line.trim();
-	if (trimmed === 'ACTION:settings') {
-		return 'settings';
-	}
-	if (trimmed === 'ACTION:exit') {
-		return 'exit';
-	}
-	return null;
+  const trimmed = line.trim();
+  if (trimmed === "ACTION:settings") {
+    return "settings";
+  }
+  if (trimmed === "ACTION:exit") {
+    return "exit";
+  }
+  return null;
 }
 
 export function truncateTrayTooltip(tooltip: string): string {
-	if (tooltip.length <= TRAY_TOOLTIP_MAX) {
-		return tooltip;
-	}
+  if (tooltip.length <= TRAY_TOOLTIP_MAX) {
+    return tooltip;
+  }
 
-	return `${tooltip.slice(0, TRAY_TOOLTIP_MAX - 3)}...`;
+  return `${tooltip.slice(0, TRAY_TOOLTIP_MAX - 3)}...`;
 }
 
 export function resolveTrayIconPath(): string | null {
-	const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-	const packageRoot = findPackageRoot(moduleDir);
-	const distDir = path.join(moduleDir, '..', '..', '..');
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const packageRoot = findPackageRoot(moduleDir);
+  const distDir = path.join(moduleDir, "..", "..", "..");
 
-	const candidates = [
-		packageRoot ? path.join(packageRoot, 'assets', 'icon.ico') : null,
-		packageRoot ? path.join(packageRoot, 'dist', 'tray-icon.ico') : null,
-		path.join(distDir, 'tray-icon.ico'),
-		path.join(distDir, 'assets', 'icon.ico'),
-		path.join(path.dirname(process.execPath), 'tray-icon.ico'),
-		path.join(path.dirname(process.execPath), 'assets', 'icon.ico'),
-		path.join(process.cwd(), 'assets', 'icon.ico'),
-		path.join(process.cwd(), 'dist', 'tray-icon.ico'),
-	].filter((candidate): candidate is string => Boolean(candidate));
+  const candidates = [
+    packageRoot ? path.join(packageRoot, "assets", "icon.ico") : null,
+    packageRoot ? path.join(packageRoot, "dist", "tray-icon.ico") : null,
+    path.join(distDir, "tray-icon.ico"),
+    path.join(distDir, "assets", "icon.ico"),
+    path.join(path.dirname(process.execPath), "tray-icon.ico"),
+    path.join(path.dirname(process.execPath), "assets", "icon.ico"),
+    path.join(process.cwd(), "assets", "icon.ico"),
+    path.join(process.cwd(), "dist", "tray-icon.ico"),
+  ].filter((candidate): candidate is string => Boolean(candidate));
 
-	for (const candidate of candidates) {
-		const normalized = path.normalize(candidate);
-		if (existsSync(normalized)) {
-			return normalized;
-		}
-	}
+  for (const candidate of candidates) {
+    const normalized = path.normalize(candidate);
+    if (existsSync(normalized)) {
+      return normalized;
+    }
+  }
 
-	return null;
+  return null;
 }
 
 export function setTrayActionHandler(
-	handler: ((action: TrayAction) => void) | null,
+  handler: ((action: TrayAction) => void) | null,
 ): void {
-	trayActionHandler = handler;
+  trayActionHandler = handler;
 }
 
 function handleTrayStdout(chunk: Buffer | string): void {
-	const lines = chunk.toString().split(/\r?\n/);
-	for (const line of lines) {
-		const action = parseTrayActionLine(line);
-		if (action && trayActionHandler) {
-			trayActionHandler(action);
-		}
-	}
+  const lines = chunk.toString().split(/\r?\n/);
+  for (const line of lines) {
+    const action = parseTrayActionLine(line);
+    if (action && trayActionHandler) {
+      trayActionHandler(action);
+    }
+  }
 }
 
 function getTrayScriptPath(): string {
-	if (trayScriptPath) {
-		return trayScriptPath;
-	}
+  if (trayScriptPath) {
+    return trayScriptPath;
+  }
 
-	const dir = mkdtempSync(path.join(tmpdir(), 'ymc-tray-'));
-	trayScriptPath = path.join(dir, 'tray-daemon.ps1');
-	writeFileSync(trayScriptPath, TRAY_DAEMON_SCRIPT, 'utf8');
-	return trayScriptPath;
+  const dir = mkdtempSync(path.join(tmpdir(), "ymc-tray-"));
+  trayScriptPath = path.join(dir, "tray-daemon.ps1");
+  writeFileSync(trayScriptPath, TRAY_DAEMON_SCRIPT, "utf8");
+  return trayScriptPath;
 }
 
 function resetTrayDaemon(): void {
-	if (trayProcess && !trayProcess.killed) {
-		try {
-			trayProcess.kill();
-		} catch {
-			// Ignore kill errors during reset.
-		}
-	}
-	trayProcess = null;
+  if (trayProcess && !trayProcess.killed) {
+    try {
+      trayProcess.kill();
+    } catch {
+      // Ignore kill errors during reset.
+    }
+  }
+  trayProcess = null;
 }
 
 function sendTrayCommand(command: string): void {
-	if (!ensureTrayDaemon()) {
-		return;
-	}
+  if (!ensureTrayDaemon()) {
+    return;
+  }
 
-	if (!trayProcess || trayProcess.killed || !trayProcess.stdin?.writable) {
-		resetTrayDaemon();
-		if (!ensureTrayDaemon()) {
-			return;
-		}
-	}
+  if (!trayProcess || trayProcess.killed || !trayProcess.stdin?.writable) {
+    resetTrayDaemon();
+    if (!ensureTrayDaemon()) {
+      return;
+    }
+  }
 
-	const normalized = command.startsWith('ICON:')
-		? `ICON:${command.slice(5).replace(/\//g, '\\')}`
-		: command;
+  const normalized = command.startsWith("ICON:")
+    ? `ICON:${command.slice(5).replace(/\//g, "\\")}`
+    : command;
 
-	const stdin = trayProcess?.stdin;
-	if (!stdin?.writable) {
-		return;
-	}
+  const stdin = trayProcess?.stdin;
+  if (!stdin?.writable) {
+    return;
+  }
 
-	try {
-		stdin.write(`${normalized}\n`);
-	} catch {
-		resetTrayDaemon();
-	}
+  try {
+    stdin.write(`${normalized}\n`);
+  } catch {
+    resetTrayDaemon();
+  }
 }
 
 function sendTrayTooltip(tooltip: string): void {
-	sendTrayCommand(`TOOLTIP:${truncateTrayTooltip(tooltip)}`);
+  sendTrayCommand(`TOOLTIP:${truncateTrayTooltip(tooltip)}`);
 }
 
 function applyTrayIcon(iconPath?: string): void {
-	const resolved = iconPath || trayIconPath || resolveTrayIconPath();
-	if (!resolved) {
-		logger.warn(
-			'Tray',
-			'Tray icon file not found; using default application icon',
-		);
-		return;
-	}
+  const resolved = iconPath || trayIconPath || resolveTrayIconPath();
+  if (!resolved) {
+    logger.warn(
+      "Tray",
+      "Tray icon file not found; using default application icon",
+    );
+    return;
+  }
 
-	trayIconPath = resolved;
-	sendTrayCommand(`ICON:${resolved}`);
+  trayIconPath = resolved;
+  sendTrayCommand(`ICON:${resolved}`);
 }
 
 function ensureTrayDaemon(): boolean {
-	if (process.platform !== 'win32') {
-		return false;
-	}
+  if (process.platform !== "win32") {
+    return false;
+  }
 
-	if (trayProcess && !trayProcess.killed) {
-		return true;
-	}
+  if (trayProcess && !trayProcess.killed) {
+    return true;
+  }
 
-	try {
-		const scriptPath = getTrayScriptPath();
-		const spawned = spawn(
-			'powershell.exe',
-			[
-				'-NoProfile',
-				'-Sta',
-				'-WindowStyle',
-				'Hidden',
-				'-ExecutionPolicy',
-				'Bypass',
-				'-File',
-				scriptPath,
-			],
-			{
-				windowsHide: true,
-				stdio: ['pipe', 'pipe', 'pipe'],
-			},
-		);
+  try {
+    const scriptPath = getTrayScriptPath();
+    const spawned = spawn(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Sta",
+        "-WindowStyle",
+        "Hidden",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scriptPath,
+      ],
+      {
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
 
-		trayProcess = spawned;
+    trayProcess = spawned;
 
-		spawned.stdout?.on('data', handleTrayStdout);
-		spawned.stderr?.on('data', chunk => {
-			const message = chunk.toString().trim();
-			if (message) {
-				logger.warn('Tray', 'Tray daemon stderr', {message});
-			}
-		});
+    spawned.stdout?.on("data", handleTrayStdout);
+    spawned.stderr?.on("data", chunk => {
+      const message = chunk.toString().trim();
+      if (message) {
+        logger.warn("Tray", "Tray daemon stderr", { message });
+      }
+    });
 
-		spawned.on('close', code => {
-			if (code !== 0 && code !== null) {
-				logger.warn('Tray', 'Tray daemon exited', {code});
-			}
-			trayProcess = null;
-			currentTrayIcon = null;
-		});
+    spawned.on("close", code => {
+      if (code !== 0 && code !== null) {
+        logger.warn("Tray", "Tray daemon exited", { code });
+      }
+      trayProcess = null;
+      currentTrayIcon = null;
+    });
 
-		spawned.once('spawn', () => {
-			scheduleTrayIconApply();
-		});
+    spawned.once("spawn", () => {
+      scheduleTrayIconApply();
+    });
 
-		return true;
-	} catch (error) {
-		logger.error('Tray', 'Failed to start tray daemon', {
-			error: error instanceof Error ? error.message : String(error),
-		});
-		return false;
-	}
+    return true;
+  } catch (error) {
+    logger.error("Tray", "Failed to start tray daemon", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
 }
 
 export function createTrayIcon(icon: TrayIcon): boolean {
-	if (process.platform !== 'win32') {
-		return false;
-	}
+  if (process.platform !== "win32") {
+    return false;
+  }
 
-	currentTrayIcon = icon;
-	if (!ensureTrayDaemon()) {
-		return false;
-	}
+  currentTrayIcon = icon;
+  if (!ensureTrayDaemon()) {
+    return false;
+  }
 
-	const iconPath = icon.icon || resolveTrayIconPath();
-	if (iconPath) {
-		trayIconPath = iconPath;
-		logger.info('Tray', 'Creating tray icon', {iconPath});
-		scheduleTrayIconApply(iconPath);
-	} else {
-		logger.warn('Tray', 'Creating tray with default icon');
-		scheduleTrayIconApply();
-	}
+  const iconPath = icon.icon || resolveTrayIconPath();
+  if (iconPath) {
+    trayIconPath = iconPath;
+    logger.info("Tray", "Creating tray icon", { iconPath });
+    scheduleTrayIconApply(iconPath);
+  } else {
+    logger.warn("Tray", "Creating tray with default icon");
+    scheduleTrayIconApply();
+  }
 
-	sendTrayTooltip(icon.tooltip);
-	return true;
+  sendTrayTooltip(icon.tooltip);
+  return true;
 }
 
 export function updateTrayIcon(tooltip: string): boolean {
-	if (!currentTrayIcon) {
-		currentTrayIcon = {
-			id: 'youtube-music-cli',
-			icon: resolveTrayIconPath() ?? '',
-			tooltip,
-		};
-	}
+  if (!currentTrayIcon) {
+    currentTrayIcon = {
+      id: "youtube-music-cli",
+      icon: resolveTrayIconPath() ?? "",
+      tooltip,
+    };
+  }
 
-	currentTrayIcon.tooltip = tooltip;
+  currentTrayIcon.tooltip = tooltip;
 
-	if (!ensureTrayDaemon()) {
-		return false;
-	}
+  if (!ensureTrayDaemon()) {
+    return false;
+  }
 
-	sendTrayTooltip(tooltip);
-	return true;
+  sendTrayTooltip(tooltip);
+  return true;
 }
 
 export function removeTrayIcon(): void {
-	if (!currentTrayIcon && !trayProcess) {
-		return;
-	}
+  if (!currentTrayIcon && !trayProcess) {
+    return;
+  }
 
-	currentTrayIcon = null;
-	trayIconPath = null;
-	sendTrayCommand('EXIT');
+  currentTrayIcon = null;
+  trayIconPath = null;
+  sendTrayCommand("EXIT");
 
-	setTimeout(() => {
-		if (trayProcess && !trayProcess.killed) {
-			trayProcess.kill();
-			trayProcess = null;
-		}
-	}, 300);
+  setTimeout(() => {
+    if (trayProcess && !trayProcess.killed) {
+      trayProcess.kill();
+      trayProcess = null;
+    }
+  }, 300);
 }
 
 export function showBalloonTip(title: string, message: string): boolean {
-	if (!ensureTrayDaemon()) {
-		return false;
-	}
+  if (!ensureTrayDaemon()) {
+    return false;
+  }
 
-	const safeTitle = truncateTrayTooltip(title.replaceAll('|', ' '));
-	const safeBody = message.replaceAll('|', ' ');
-	const safeMessage =
-		safeBody.length > 255 ? `${safeBody.slice(0, 252)}...` : safeBody;
-	sendTrayCommand(`BALLOON:${safeTitle}|${safeMessage}`);
-	return true;
+  const safeTitle = truncateTrayTooltip(title.replaceAll("|", " "));
+  const safeBody = message.replaceAll("|", " ");
+  const safeMessage =
+    safeBody.length > 255 ? `${safeBody.slice(0, 252)}...` : safeBody;
+  sendTrayCommand(`BALLOON:${safeTitle}|${safeMessage}`);
+  return true;
 }
 
 export function minimizeToTray(): boolean {
-	return false;
+  return false;
 }
 
 export function restoreFromTray(): boolean {
-	return false;
+  return false;
 }

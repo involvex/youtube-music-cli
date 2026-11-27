@@ -4,82 +4,76 @@
 version: 2
 updates:
   # npm/bun dependencies
-  - package-ecosystem: 'bun'
-    directory: '/'
+  - package-ecosystem: "bun"
+    directory: "/"
     schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'UTC'
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     commit-message:
-      prefix: 'deps'
-      include: 'scope'
+      prefix: "deps"
+      include: "scope"
     labels:
-      - 'dependencies'
-      - 'automated'
+      - "dependencies"
+      - "automated"
     reviewers:
-      - 'involvex'
+      - "involvex"
     groups:
       # Group production dependencies
       production-deps:
-        dependency-type: 'production'
+        dependency-type: "production"
         update-types:
-          - 'minor'
-          - 'patch'
+          - "minor"
+          - "patch"
       # Group development dependencies
       dev-deps:
-        dependency-type: 'development'
+        dependency-type: "development"
         update-types:
-          - 'minor'
-          - 'patch'
+          - "minor"
+          - "patch"
       # TypeScript ecosystem
       typescript:
         patterns:
-          - 'typescript*'
-          - '@types/*'
-          - 'tsx'
+          - "typescript*"
+          - "@types/*"
+          - "tsx"
       # ESLint ecosystem
       eslint:
         patterns:
-          - 'eslint*'
-          - '@eslint/*'
-          - 'xo'
-      # Prettier ecosystem
-      prettier:
-        patterns:
-          - 'prettier*'
-          - '@vdemedes/prettier-config'
+          - "eslint*"
+          - "@eslint/*"
       # React ecosystem
       react:
         patterns:
-          - 'react*'
-          - '@types/react*'
-          - 'ink*'
+          - "react*"
+          - "@types/react*"
+          - "ink*"
       # YouTube/Audio dependencies
       youtube:
         patterns:
-          - 'youtube*'
-          - 'youtubei*'
-          - '@distube/*'
-          - 'node-youtube-music'
+          - "youtube*"
+          - "youtubei*"
+          - "@distube/*"
+          - "node-youtube-music"
     ignore:
       # Ignore major version updates for core dependencies (manual review)
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'ink'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ink"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: "weekly"
+      day: "monday"
     commit-message:
-      prefix: 'ci'
+      prefix: "ci"
     labels:
-      - 'ci'
-      - 'automated'
+      - "ci"
+      - "automated"

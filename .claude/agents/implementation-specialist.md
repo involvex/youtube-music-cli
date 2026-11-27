@@ -152,7 +152,7 @@ import {Button, Card, DeviceIcon} from '@syncstuff/ui';
 All code must pass before committing:
 
 ```bash
-bun run format      # Prettier formatting
+bun run format      # bun fmt (bunfig.toml [fmt])
 bun run lint:fix    # ESLint auto-fix
 bun run typecheck   # TypeScript validation
 ```
@@ -245,7 +245,7 @@ bun run typecheck   # TypeScript validation
 
 ### Import Organization
 
-Prettier auto-organizes imports:
+`bun fmt` sorts imports when enabled in `bunfig.toml`:
 
 1. External libraries
 2. Internal packages (@syncstuff/\*)

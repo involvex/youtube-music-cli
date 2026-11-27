@@ -183,15 +183,16 @@ Grep pattern: "dangerouslySetInnerHTML"
 }
 ```
 
-### ESLint/Prettier Adherence
+### ESLint / bun fmt Adherence
 
-**Target**: Zero lint errors, consistent formatting
+**Target**: Zero lint errors, consistent formatting (`bun fmt`)
 
 **Check**:
 
 ```bash
-bun run lint       # Should pass with no errors
-bun run typecheck  # Should pass with no errors
+bun run format:check # Should pass with no diffs
+bun run lint         # Should pass with no errors
+bun run typecheck    # Should pass with no errors
 ```
 
 ### Component Complexity

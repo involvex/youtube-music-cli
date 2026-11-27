@@ -1,22 +1,23 @@
-import process from 'node:process';
-import {startImmersiveApp} from './immersive/immersive-app.ts';
-import {parseCliFlags} from './parse-cli-flags.ts';
+import process from "node:process";
 
-const discoMode = process.env.DISCO_MODE === 'true';
+import { startImmersiveApp } from "./immersive/immersive-app.ts";
+import { parseCliFlags } from "./parse-cli-flags.ts";
+
+const discoMode = process.env.DISCO_MODE === "true";
 const flags = parseCliFlags();
 
-process.on('unhandledRejection', reason => {
-	const message =
-		reason instanceof Error ? reason.message : String(reason ?? 'unknown');
-	console.error(`Playback error: ${message}`);
+process.on("unhandledRejection", reason => {
+  const message =
+    reason instanceof Error ? reason.message : String(reason ?? "unknown");
+  console.error(`Playback error: ${message}`);
 });
 
 void startImmersiveApp({
-	flags,
-	discoMode,
+  flags,
+  discoMode,
 }).catch(error => {
-	const message =
-		error instanceof Error ? error.message : String(error ?? 'unknown');
-	console.error(`Immersive mode failed: ${message}`);
-	process.exit(1);
+  const message =
+    error instanceof Error ? error.message : String(error ?? "unknown");
+  console.error(`Immersive mode failed: ${message}`);
+  process.exit(1);
 });

@@ -1,121 +1,121 @@
 /* Mini player route — compact low-footprint /mini view */
 
 .mini-shell {
-	display: flex;
-	flex-direction: column;
-	min-height: 100vh;
-	background: var(--bg-void);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-void);
 }
 
 .mini-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: var(--space-2) var(--space-3);
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
 }
 
 .mini-brand {
-	font-family: var(--font-mono);
-	font-size: var(--text-xs);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
 }
 
 .mini-header__actions {
-	display: flex;
-	gap: var(--space-2);
+  display: flex;
+  gap: var(--space-2);
 }
 
 .mini-link {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	font-size: var(--text-xs);
-	color: var(--fg-muted);
-	padding: var(--space-1) var(--space-2);
-	border-radius: var(--radius-sm);
-	border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
 }
 
 .mini-link:hover {
-	color: var(--fg);
-	background: var(--bg-raised);
-	border-color: var(--border);
+  color: var(--fg);
+  background: var(--bg-raised);
+  border-color: var(--border);
 }
 
 .mini-stage {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-4);
-	padding: var(--space-4);
-	min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-height: 0;
 }
 
 .mini-stage .now-playing__art {
-	width: min(48vw, 180px);
+  width: min(48vw, 180px);
 }
 
 .mini-stage .now-playing__title {
-	font-size: var(--text-lg);
+  font-size: var(--text-lg);
 }
 
 .mini-empty {
-	text-align: center;
-	color: var(--fg-muted);
+  text-align: center;
+  color: var(--fg-muted);
 }
 
 .mini-empty a {
-	color: var(--signal);
-	text-decoration: underline;
+  color: var(--signal);
+  text-decoration: underline;
 }
 
 .mini-transport {
-	padding: var(--space-3) var(--space-4);
-	border-top: 1px solid var(--border);
-	background: var(--bg-panel);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .mini-loading {
-	font-family: var(--font-mono);
-	font-size: var(--text-xs);
-	color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
 }
 
 .mini-footer {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-2);
-	padding: var(--space-2);
-	border-top: 1px solid var(--border);
-	background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
 }
 
 .mini-pip {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: var(--danger);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
 }
 
 .mini-pip--ok {
-	background: var(--ok);
+  background: var(--ok);
 }
 
 .mini-footer__label {
-	font-family: var(--font-mono);
-	font-size: 10px;
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
 }

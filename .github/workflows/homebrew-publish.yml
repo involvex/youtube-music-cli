@@ -7,7 +7,7 @@ on:
         description: Release tag (vX.Y.Z)
         required: true
   workflow_run:
-    workflows: ['Publish to npm']
+    workflows: ["Publish to npm"]
     types:
       - completed
 

@@ -1,17 +1,18 @@
-import {usePlayer} from '../../hooks/usePlayer.ts';
-import NowPlaying from '../player/NowPlaying.tsx';
-import PlayerControls from '../player/PlayerControls.tsx';
-import QueueList from '../player/QueueList.tsx';
-import {Box} from 'ink';
+import { Box } from "ink";
+
+import { usePlayer } from "../../hooks/usePlayer.ts";
+import NowPlaying from "../player/NowPlaying.tsx";
+import PlayerControls from "../player/PlayerControls.tsx";
+import QueueList from "../player/QueueList.tsx";
 
 export default function PlayerLayout() {
-	const {state: playerState} = usePlayer();
+  const { state: playerState } = usePlayer();
 
-	return (
-		<Box flexDirection="column">
-			<NowPlaying />
-			<PlayerControls />
-			{playerState.queue.length > 0 && <QueueList />}
-		</Box>
-	);
+  return (
+    <Box flexDirection="column">
+      <NowPlaying />
+      <PlayerControls />
+      {playerState.queue.length > 0 && <QueueList />}
+    </Box>
+  );
 }

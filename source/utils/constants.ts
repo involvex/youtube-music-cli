@@ -1,187 +1,187 @@
-import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
-import {dirname, resolve} from 'node:path';
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 declare const VERSION: string | undefined;
 
 function loadAppVersion(): string {
-	if (typeof VERSION !== 'undefined') {
-		return VERSION;
-	}
-	let dir = dirname(fileURLToPath(import.meta.url));
-	for (let i = 0; i < 5; i++) {
-		try {
-			const content = readFileSync(resolve(dir, 'package.json'), 'utf8');
-			const raw: unknown = JSON.parse(content);
-			if (typeof raw !== 'object' || raw === null) {
-				continue;
-			}
-			const record = raw as Record<string, unknown>;
-			const version = record['version'];
-			const name = record['name'];
-			// Rebuild a fresh object so AOT does not treat package.json as untyped.
-			const pkg = {
-				version: typeof version === 'string' ? version : '',
-				name: typeof name === 'string' ? name : '',
-			};
-			if (pkg.version && pkg.name.includes('youtube-music-cli')) {
-				return pkg.version;
-			}
-		} catch {
-			/* ignore */
-		}
+  if (typeof VERSION !== "undefined") {
+    return VERSION;
+  }
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    try {
+      const content = readFileSync(resolve(dir, "package.json"), "utf8");
+      const raw: unknown = JSON.parse(content);
+      if (typeof raw !== "object" || raw === null) {
+        continue;
+      }
+      const record = raw as Record<string, unknown>;
+      const version = record["version"];
+      const name = record["name"];
+      // Rebuild a fresh object so AOT does not treat package.json as untyped.
+      const pkg = {
+        version: typeof version === "string" ? version : "",
+        name: typeof name === "string" ? name : "",
+      };
+      if (pkg.version && pkg.name.includes("youtube-music-cli")) {
+        return pkg.version;
+      }
+    } catch {
+      /* ignore */
+    }
 
-		const parent = dirname(dir);
-		if (parent === dir) break;
-		dir = parent;
-	}
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
 
-	return '0.0.0';
+  return "0.0.0";
 }
 
 // Application constants
-export const APP_NAME = '@involvex/youtube-music-cli';
+export const APP_NAME = "@involvex/youtube-music-cli";
 export const APP_VERSION = loadAppVersion();
-export const GITHUB_REPO_URL = 'https://github.com/involvex/youtube-music-cli';
+export const GITHUB_REPO_URL = "https://github.com/involvex/youtube-music-cli";
 
 // Config directory
 export const CONFIG_DIR =
-	process.platform === 'win32'
-		? `${process.env['USERPROFILE']}\\.youtube-music-cli`
-		: `${process.env['HOME']}/.youtube-music-cli`;
+  process.platform === "win32"
+    ? `${process.env["USERPROFILE"]}\\.youtube-music-cli`
+    : `${process.env["HOME"]}/.youtube-music-cli`;
 
 export const CONFIG_FILE = `${CONFIG_DIR}/config.json`;
 
 // View types
 export const VIEW = {
-	PLAYER: 'player',
-	SEARCH: 'search',
-	SEARCH_HISTORY: 'search_history',
-	PLAYLISTS: 'playlists',
-	ARTIST: 'artist',
-	ALBUM: 'album',
-	HELP: 'help',
-	SUGGESTIONS: 'suggestions',
-	SETTINGS: 'settings',
-	CONFIG: 'config',
-	PLUGINS: 'plugins',
-	LYRICS: 'lyrics',
-	KEYBINDINGS: 'keybindings',
-	LOGIN: 'login',
-	TRENDING: 'trending',
-	EXPLORE: 'explore',
-	IMPORT: 'import',
-	EXPORT_PLAYLISTS: 'export_playlists',
-	HISTORY: 'history',
-	GENRES: 'genres',
-	NEW_RELEASES: 'new_releases',
-	FAVORITES: 'favorites',
-	ACCOUNT_LIBRARY: 'account_library',
-	HOME: 'home',
-	AI_CHAT: 'ai_chat',
-	AI_PLAYLIST: 'ai_playlist',
-	SMART_PLAYLISTS: 'smart_playlists',
-	AI_RECOMMENDATIONS: 'ai_recommendations',
-	STATS: 'stats',
-	RADIO: 'radio',
-	LIVE_STREAMS: 'live_streams',
-	MOOD_RADIO: 'mood_radio',
-	OFFLINE: 'offline',
+  PLAYER: "player",
+  SEARCH: "search",
+  SEARCH_HISTORY: "search_history",
+  PLAYLISTS: "playlists",
+  ARTIST: "artist",
+  ALBUM: "album",
+  HELP: "help",
+  SUGGESTIONS: "suggestions",
+  SETTINGS: "settings",
+  CONFIG: "config",
+  PLUGINS: "plugins",
+  LYRICS: "lyrics",
+  KEYBINDINGS: "keybindings",
+  LOGIN: "login",
+  TRENDING: "trending",
+  EXPLORE: "explore",
+  IMPORT: "import",
+  EXPORT_PLAYLISTS: "export_playlists",
+  HISTORY: "history",
+  GENRES: "genres",
+  NEW_RELEASES: "new_releases",
+  FAVORITES: "favorites",
+  ACCOUNT_LIBRARY: "account_library",
+  HOME: "home",
+  AI_CHAT: "ai_chat",
+  AI_PLAYLIST: "ai_playlist",
+  SMART_PLAYLISTS: "smart_playlists",
+  AI_RECOMMENDATIONS: "ai_recommendations",
+  STATS: "stats",
+  RADIO: "radio",
+  LIVE_STREAMS: "live_streams",
+  MOOD_RADIO: "mood_radio",
+  OFFLINE: "offline",
 } as const;
 
 // Search types
 export const SEARCH_TYPE = {
-	ALL: 'all',
-	SONGS: 'songs',
-	ALBUMS: 'albums',
-	ARTISTS: 'artists',
-	PLAYLISTS: 'playlists',
+  ALL: "all",
+  SONGS: "songs",
+  ALBUMS: "albums",
+  ARTISTS: "artists",
+  PLAYLISTS: "playlists",
 } as const;
 
 // Keybindings
 export const KEYBINDINGS = {
-	// Global
-	QUIT: ['q'],
-	HELP: ['?'],
-	SEARCH: ['/'],
-	PLAYLISTS: ['shift+p'],
-	FAVORITES_VIEW: ['shift+f'],
-	ACCOUNT_LIBRARY: ['shift+l'],
-	HOME: ['ctrl+h'],
-	TOGGLE_FAVORITE: ['f'],
-	SUGGESTIONS: ['g'],
-	HISTORY: ['shift+h'],
-	SETTINGS: [','],
-	PLUGINS: ['p'],
-	DETACH: ['shift+q'],
-	RESUME_BACKGROUND: ['shift+r'],
-	AI_CHAT: ['a'],
-	AI_PLAYLIST: ['ctrl+shift+p'],
-	SMART_PLAYLISTS: ['ctrl+shift+m'],
-	AI_RECOMMENDATIONS: ['ctrl+shift+a'],
-	STATS_VIEW: ['o'],
+  // Global
+  QUIT: ["q"],
+  HELP: ["?"],
+  SEARCH: ["/"],
+  PLAYLISTS: ["shift+p"],
+  FAVORITES_VIEW: ["shift+f"],
+  ACCOUNT_LIBRARY: ["shift+l"],
+  HOME: ["ctrl+h"],
+  TOGGLE_FAVORITE: ["f"],
+  SUGGESTIONS: ["g"],
+  HISTORY: ["shift+h"],
+  SETTINGS: [","],
+  PLUGINS: ["p"],
+  DETACH: ["shift+q"],
+  RESUME_BACKGROUND: ["shift+r"],
+  AI_CHAT: ["a"],
+  AI_PLAYLIST: ["ctrl+shift+p"],
+  SMART_PLAYLISTS: ["ctrl+shift+m"],
+  AI_RECOMMENDATIONS: ["ctrl+shift+a"],
+  STATS_VIEW: ["o"],
 
-	// Radio
-	TOGGLE_RADIO: ['shift+x'],
-	RADIO_STREAMS: ['shift+i'],
-	LIVE_STREAMS: ['shift+v'],
-	MOOD_RADIO: ['shift+t'],
-	OFFLINE_QUEUE: ['shift+o'],
-	REFRESH_NETWORK: ['ctrl+r'],
+  // Radio
+  TOGGLE_RADIO: ["shift+x"],
+  RADIO_STREAMS: ["shift+i"],
+  LIVE_STREAMS: ["shift+v"],
+  MOOD_RADIO: ["shift+t"],
+  OFFLINE_QUEUE: ["shift+o"],
+  REFRESH_NETWORK: ["ctrl+r"],
 
-	// Player
-	PLAY_PAUSE: [' '],
-	NEXT: ['n', 'right'],
-	PREVIOUS: ['b', 'left'],
-	VOLUME_UP: ['=', '+'], // '=' (no shift) or '+' (shift+=) both trigger volume up
-	VOLUME_DOWN: ['-'], // '-' triggers volume down
-	VOLUME_FINE_UP: ['ctrl+='], // Fine-grained +1 step (Ctrl+= to avoid conflict with '+')
-	VOLUME_FINE_DOWN: ['shift+-'], // Fine-grained -1 step
-	SHUFFLE: ['shift+s'],
-	REPEAT: ['r'],
-	AUTOPLAY_TOGGLE: ['shift+a'],
-	GAPLESS_TOGGLE: ['shift+g'],
-	CROSSFADE_CYCLE: ['shift+c'],
-	EQUALIZER_CYCLE: ['shift+e'],
-	SEEK_FORWARD: ['shift+right'],
-	SEEK_BACKWARD: ['shift+left'],
-	SPEED_UP: ['>'],
-	SPEED_DOWN: ['<'],
-	AB_LOOP_A: ['{'],
-	AB_LOOP_B: ['}'],
-	AB_LOOP_CLEAR: ['|'],
+  // Player
+  PLAY_PAUSE: [" "],
+  NEXT: ["n", "right"],
+  PREVIOUS: ["b", "left"],
+  VOLUME_UP: ["=", "+"], // '=' (no shift) or '+' (shift+=) both trigger volume up
+  VOLUME_DOWN: ["-"], // '-' triggers volume down
+  VOLUME_FINE_UP: ["ctrl+="], // Fine-grained +1 step (Ctrl+= to avoid conflict with '+')
+  VOLUME_FINE_DOWN: ["shift+-"], // Fine-grained -1 step
+  SHUFFLE: ["shift+s"],
+  REPEAT: ["r"],
+  AUTOPLAY_TOGGLE: ["shift+a"],
+  GAPLESS_TOGGLE: ["shift+g"],
+  CROSSFADE_CYCLE: ["shift+c"],
+  EQUALIZER_CYCLE: ["shift+e"],
+  SEEK_FORWARD: ["shift+right"],
+  SEEK_BACKWARD: ["shift+left"],
+  SPEED_UP: [">"],
+  SPEED_DOWN: ["<"],
+  AB_LOOP_A: ["{"],
+  AB_LOOP_B: ["}"],
+  AB_LOOP_CLEAR: ["|"],
 
-	// New Views Shortcuts (Optional, we'll map them later if needed)
-	GENRES: ['shift+m'],
-	NEW_RELEASES: ['shift+n'],
+  // New Views Shortcuts (Optional, we'll map them later if needed)
+  GENRES: ["shift+m"],
+  NEW_RELEASES: ["shift+n"],
 
-	// Navigation
-	UP: ['up', 'k'],
-	DOWN: ['down', 'j'],
-	SELECT: ['enter', 'return'],
-	BACK: ['escape'],
+  // Navigation
+  UP: ["up", "k"],
+  DOWN: ["down", "j"],
+  SELECT: ["enter", "return"],
+  BACK: ["escape"],
 
-	// Search
-	CLEAR_SEARCH: ['escape'],
-	INCREASE_RESULTS: [']'],
-	DECREASE_RESULTS: ['['],
-	TOGGLE_SUBTITLES: ['u'],
-	SEARCH_FILTER_ARTIST: ['ctrl+a'],
-	SEARCH_FILTER_ALBUM: ['ctrl+l'],
-	SEARCH_FILTER_YEAR: ['ctrl+y'],
-	SEARCH_FILTER_DURATION: ['ctrl+d'],
+  // Search
+  CLEAR_SEARCH: ["escape"],
+  INCREASE_RESULTS: ["]"],
+  DECREASE_RESULTS: ["["],
+  TOGGLE_SUBTITLES: ["u"],
+  SEARCH_FILTER_ARTIST: ["ctrl+a"],
+  SEARCH_FILTER_ALBUM: ["ctrl+l"],
+  SEARCH_FILTER_YEAR: ["ctrl+y"],
+  SEARCH_FILTER_DURATION: ["ctrl+d"],
 
-	// Queue
-	ADD_TO_QUEUE: ['w'],
-	PLAY_NEXT: ['y'],
+  // Queue
+  ADD_TO_QUEUE: ["w"],
+  PLAY_NEXT: ["y"],
 
-	// Playlist
-	ADD_TO_PLAYLIST: ['a'],
-	REMOVE_FROM_PLAYLIST: ['d'],
-	CREATE_PLAYLIST: ['c'],
-	CREATE_MIX: ['m'],
-	DELETE_PLAYLIST: ['D'],
-	DOWNLOAD: ['shift+d'],
+  // Playlist
+  ADD_TO_PLAYLIST: ["a"],
+  REMOVE_FROM_PLAYLIST: ["d"],
+  CREATE_PLAYLIST: ["c"],
+  CREATE_MIX: ["m"],
+  DELETE_PLAYLIST: ["D"],
+  DOWNLOAD: ["shift+d"],
 } as const;
 
 // Default volume
@@ -192,11 +192,11 @@ export const MAX_QUEUE_SIZE = 1000;
 
 // Themes
 export const THEMES = {
-	DARK: 'dark',
-	LIGHT: 'light',
-	MIDNIGHT: 'midnight',
-	MATRIX: 'matrix',
-	CUSTOM: 'custom',
+  DARK: "dark",
+  LIGHT: "light",
+  MIDNIGHT: "midnight",
+  MATRIX: "matrix",
+  CUSTOM: "custom",
 } as const;
 
 // Update intervals
@@ -204,4 +204,4 @@ export const PROGRESS_UPDATE_INTERVAL = 100; // ms
 export const STATUS_UPDATE_INTERVAL = 1000; // ms
 
 // Default theme
-export const DEFAULT_THEME = 'dark' as const;
+export const DEFAULT_THEME = "dark" as const;

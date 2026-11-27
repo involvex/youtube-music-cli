@@ -1,119 +1,119 @@
-@import './tokens.css';
-@import './layout.css';
+@import "./tokens.css";
+@import "./layout.css";
 
 * {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html {
-	color-scheme: dark;
+  color-scheme: dark;
 }
 
-html[data-theme='light'] {
-	color-scheme: light;
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
-	font-family: var(--font-ui);
-	background-color: var(--bg-void);
-	color: var(--fg);
-	min-height: 100vh;
-	line-height: 1.5;
-	-webkit-font-smoothing: antialiased;
+  font-family: var(--font-ui);
+  background-color: var(--bg-void);
+  color: var(--fg);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
-	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 button {
-	cursor: pointer;
-	border: none;
-	background: none;
-	font-family: inherit;
-	color: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-	outline: none;
-	box-shadow: var(--focus-ring);
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 input,
 select {
-	font-family: inherit;
-	color: inherit;
+  font-family: inherit;
+  color: inherit;
 }
 
 .sr-only {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @keyframes trackFadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(8px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .track-fade-in {
-	animation: trackFadeIn var(--dur-slow) var(--ease-out) forwards;
+  animation: trackFadeIn var(--dur-slow) var(--ease-out) forwards;
 }
 
 @keyframes syncPulse {
-	0%,
-	100% {
-		opacity: 0.4;
-	}
-	50% {
-		opacity: 1;
-	}
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .sync-pip--connecting {
-	animation: syncPulse 1.2s ease-in-out infinite;
+  animation: syncPulse 1.2s ease-in-out infinite;
 }
 
 @keyframes spin {
-	to {
-		transform: rotate(360deg);
-	}
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spin {
-	animation: spin 0.8s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.track-fade-in {
-		animation: none;
-		opacity: 1;
-	}
+  .track-fade-in {
+    animation: none;
+    opacity: 1;
+  }
 
-	.sync-pip--connecting {
-		animation: none;
-		opacity: 0.7;
-	}
+  .sync-pip--connecting {
+    animation: none;
+    opacity: 0.7;
+  }
 
-	* {
-		transition-duration: 0.01ms !important;
-	}
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

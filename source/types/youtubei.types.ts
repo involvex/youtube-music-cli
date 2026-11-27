@@ -2,68 +2,68 @@
 // These interfaces provide proper typing for the dynamic responses from the YouTube API
 
 export interface VideoSearchResult {
-	id: string;
-	video_id?: string;
-	title:
-		| {
-				text: string;
-		  }
-		| string;
-	author?:
-		| {
-				name: string;
-		  }
-		| string;
-	channel_id?: string;
-	channel?: {
-		id: string;
-	};
-	duration?:
-		| {
-				seconds: number;
-		  }
-		| number;
-	type?: string;
+  id: string;
+  video_id?: string;
+  title:
+    | {
+        text: string;
+      }
+    | string;
+  author?:
+    | {
+        name: string;
+      }
+    | string;
+  channel_id?: string;
+  channel?: {
+    id: string;
+  };
+  duration?:
+    | {
+        seconds: number;
+      }
+    | number;
+  type?: string;
 }
 
 export interface PlaylistSearchResult {
-	id: string;
-	title:
-		| {
-				text: string;
-		  }
-		| string;
-	author?:
-		| {
-				name: string;
-		  }
-		| string;
+  id: string;
+  title:
+    | {
+        text: string;
+      }
+    | string;
+  author?:
+    | {
+        name: string;
+      }
+    | string;
 }
 
 export interface ChannelSearchResult {
-	id: string;
-	channelId?: string;
-	author?:
-		| {
-				name: string;
-		  }
-		| string;
-	name?: string;
+  id: string;
+  channelId?: string;
+  author?:
+    | {
+        name: string;
+      }
+    | string;
+  name?: string;
 }
 
 export interface SearchResponse {
-	videos?: VideoSearchResult[];
-	playlists?: PlaylistSearchResult[];
-	channels?: ChannelSearchResult[];
-	[key: string]: unknown;
+  videos?: VideoSearchResult[];
+  playlists?: PlaylistSearchResult[];
+  channels?: ChannelSearchResult[];
+  [key: string]: unknown;
 }
 
 export interface RelatedContent {
-	id: string;
-	title?:
-		| {
-				text: string;
-		  }
-		| string;
-	[key: string]: unknown;
+  id: string;
+  title?:
+    | {
+        text: string;
+      }
+    | string;
+  [key: string]: unknown;
 }

@@ -1,180 +1,194 @@
+import { Box, Text } from "ink";
 // Plugins layout - main plugin management view
-import {useState, useCallback} from 'react';
-import {Box, Text} from 'ink';
-import {useTheme} from '../../hooks/useTheme.ts';
-import {usePlugins} from '../../stores/plugins.store.tsx';
-import {useNavigation} from '../../hooks/useNavigation.ts';
-import {useKeyBinding} from '../../hooks/useKeyboard.ts';
-import {resolveKeybinding} from '../../utils/keybinding-resolver.ts';
-import PluginsList from '../plugins/PluginsList.tsx';
-import PluginInstallDialog from '../plugins/PluginInstallDialog.tsx';
+import { useCallback, useState } from "react";
 
-type ViewMode = 'list' | 'install' | 'details';
+import { useKeyBinding } from "../../hooks/useKeyboard.ts";
+import { useNavigation } from "../../hooks/useNavigation.ts";
+import { useTheme } from "../../hooks/useTheme.ts";
+import { usePlugins } from "../../stores/plugins.store.tsx";
+import { resolveKeybinding } from "../../utils/keybinding-resolver.ts";
+import PluginInstallDialog from "../plugins/PluginInstallDialog.tsx";
+import PluginsList from "../plugins/PluginsList.tsx";
+
+type ViewMode = "list" | "install" | "details";
 
 export default function PluginsLayout() {
-	const {theme} = useTheme();
-	const {dispatch: navDispatch} = useNavigation();
-	const {
-		state,
-		dispatch,
-		enablePlugin,
-		disablePlugin,
-		uninstallPlugin,
-		updatePlugin,
-	} = usePlugins();
-	const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const { theme } = useTheme();
+  const { dispatch: navDispatch } = useNavigation();
+  const {
+    state,
+    dispatch,
+    enablePlugin,
+    disablePlugin,
+    uninstallPlugin,
+    updatePlugin,
+  } = usePlugins();
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
-	const {installedPlugins, selectedIndex, isLoading, error, lastAction} = state;
+  const { installedPlugins, selectedIndex, isLoading, error, lastAction } =
+    state;
 
-	// Navigation
-	const navigateUp = useCallback(() => {
-		if (viewMode === 'list') {
-			dispatch({
-				type: 'SET_SELECTED',
-				index: Math.max(0, selectedIndex - 1),
-			});
-		}
-	}, [viewMode, selectedIndex, dispatch]);
+  // Navigation
+  const navigateUp = useCallback(() => {
+    if (viewMode === "list") {
+      dispatch({
+        type: "SET_SELECTED",
+        index: Math.max(0, selectedIndex - 1),
+      });
+    }
+  }, [viewMode, selectedIndex, dispatch]);
 
-	const navigateDown = useCallback(() => {
-		if (viewMode === 'list') {
-			dispatch({
-				type: 'SET_SELECTED',
-				index: Math.min(installedPlugins.length - 1, selectedIndex + 1),
-			});
-		}
-	}, [viewMode, selectedIndex, installedPlugins.length, dispatch]);
+  const navigateDown = useCallback(() => {
+    if (viewMode === "list") {
+      dispatch({
+        type: "SET_SELECTED",
+        index: Math.min(installedPlugins.length - 1, selectedIndex + 1),
+      });
+    }
+  }, [viewMode, selectedIndex, installedPlugins.length, dispatch]);
 
-	// Actions
-	const togglePlugin = useCallback(async () => {
-		const plugin = installedPlugins[selectedIndex];
-		if (!plugin) return;
+  // Actions
+  const togglePlugin = useCallback(async () => {
+    const plugin = installedPlugins[selectedIndex];
+    if (!plugin) return;
 
-		if (plugin.enabled) {
-			await disablePlugin(plugin.manifest.id);
-		} else {
-			await enablePlugin(plugin.manifest.id);
-		}
-	}, [installedPlugins, selectedIndex, enablePlugin, disablePlugin]);
+    if (plugin.enabled) {
+      await disablePlugin(plugin.manifest.id);
+    } else {
+      await enablePlugin(plugin.manifest.id);
+    }
+  }, [installedPlugins, selectedIndex, enablePlugin, disablePlugin]);
 
-	const removePlugin = useCallback(async () => {
-		const plugin = installedPlugins[selectedIndex];
-		if (!plugin) return;
+  const removePlugin = useCallback(async () => {
+    const plugin = installedPlugins[selectedIndex];
+    if (!plugin) return;
 
-		await uninstallPlugin(plugin.manifest.id);
-	}, [installedPlugins, selectedIndex, uninstallPlugin]);
+    await uninstallPlugin(plugin.manifest.id);
+  }, [installedPlugins, selectedIndex, uninstallPlugin]);
 
-	const handleUpdate = useCallback(async () => {
-		const plugin = installedPlugins[selectedIndex];
-		if (!plugin) return;
+  const handleUpdate = useCallback(async () => {
+    const plugin = installedPlugins[selectedIndex];
+    if (!plugin) return;
 
-		await updatePlugin(plugin.manifest.id);
-	}, [installedPlugins, selectedIndex, updatePlugin]);
+    await updatePlugin(plugin.manifest.id);
+  }, [installedPlugins, selectedIndex, updatePlugin]);
 
-	const openInstall = useCallback(() => {
-		setViewMode('install');
-	}, []);
+  const openInstall = useCallback(() => {
+    setViewMode("install");
+  }, []);
 
-	const closeInstall = useCallback(() => {
-		setViewMode('list');
-	}, []);
+  const closeInstall = useCallback(() => {
+    setViewMode("list");
+  }, []);
 
-	// Key bindings
-	useKeyBinding(resolveKeybinding('UP'), navigateUp);
-	useKeyBinding(resolveKeybinding('DOWN'), navigateDown);
-	useKeyBinding(['e'], togglePlugin);
-	useKeyBinding(['r'], removePlugin);
-	useKeyBinding(['u'], handleUpdate);
-	useKeyBinding(['i'], openInstall);
-	// Advertised in the footer as Esc=Back. The install dialog (when open)
-	// registers its own BACK handler later, so LIFO dispatch lets it win.
-	useKeyBinding(resolveKeybinding('BACK'), () => {
-		if (viewMode === 'list') {
-			navDispatch({category: 'GO_BACK'});
-		} else {
-			closeInstall();
-		}
-	});
+  // Key bindings
+  useKeyBinding(resolveKeybinding("UP"), navigateUp);
+  useKeyBinding(resolveKeybinding("DOWN"), navigateDown);
+  useKeyBinding(["e"], togglePlugin);
+  useKeyBinding(["r"], removePlugin);
+  useKeyBinding(["u"], handleUpdate);
+  useKeyBinding(["i"], openInstall);
+  // Advertised in the footer as Esc=Back. The install dialog (when open)
+  // registers its own BACK handler later, so LIFO dispatch lets it win.
+  useKeyBinding(resolveKeybinding("BACK"), () => {
+    if (viewMode === "list") {
+      navDispatch({ category: "GO_BACK" });
+    } else {
+      closeInstall();
+    }
+  });
 
-	// Show install dialog
-	if (viewMode === 'install') {
-		return <PluginInstallDialog onClose={closeInstall} />;
-	}
+  // Show install dialog
+  if (viewMode === "install") {
+    return <PluginInstallDialog onClose={closeInstall} />;
+  }
 
-	// Get selected plugin details
-	const selectedPlugin = installedPlugins[selectedIndex];
+  // Get selected plugin details
+  const selectedPlugin = installedPlugins[selectedIndex];
 
-	return (
-		<Box flexDirection="column" gap={1}>
-			{/* Header */}
-			<Box
-				borderStyle="double"
-				borderColor={theme.colors.secondary}
-				paddingX={1}
-			>
-				<Text bold color={theme.colors.primary}>
-					Plugin Manager
-				</Text>
-			</Box>
+  return (
+    <Box
+      flexDirection="column"
+      gap={1}
+    >
+      {/* Header */}
+      <Box
+        borderStyle="double"
+        borderColor={theme.colors.secondary}
+        paddingX={1}
+      >
+        <Text
+          bold
+          color={theme.colors.primary}
+        >
+          Plugin Manager
+        </Text>
+      </Box>
 
-			{/* Loading indicator */}
-			{isLoading && (
-				<Box paddingX={1}>
-					<Text color={theme.colors.warning}>Loading...</Text>
-				</Box>
-			)}
+      {/* Loading indicator */}
+      {isLoading && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.warning}>Loading...</Text>
+        </Box>
+      )}
 
-			{/* Error message */}
-			{error && (
-				<Box paddingX={1}>
-					<Text color={theme.colors.error}>Error: {error}</Text>
-				</Box>
-			)}
+      {/* Error message */}
+      {error && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.error}>Error: {error}</Text>
+        </Box>
+      )}
 
-			{/* Success message */}
-			{lastAction && !error && (
-				<Box paddingX={1}>
-					<Text color={theme.colors.success}>✓ {lastAction}</Text>
-				</Box>
-			)}
+      {/* Success message */}
+      {lastAction && !error && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.success}>✓ {lastAction}</Text>
+        </Box>
+      )}
 
-			{/* Plugins list */}
-			<PluginsList plugins={installedPlugins} selectedIndex={selectedIndex} />
+      {/* Plugins list */}
+      <PluginsList
+        plugins={installedPlugins}
+        selectedIndex={selectedIndex}
+      />
 
-			{/* Selected plugin details */}
-			{selectedPlugin && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor={theme.colors.dim}
-					paddingX={1}
-					marginTop={1}
-				>
-					<Text bold color={theme.colors.secondary}>
-						{selectedPlugin.manifest.name}
-					</Text>
-					<Text color={theme.colors.dim}>
-						{selectedPlugin.manifest.description}
-					</Text>
-					<Text color={theme.colors.dim}>
-						Author: {selectedPlugin.manifest.author}
-					</Text>
-					<Text color={theme.colors.dim}>
-						Permissions: {selectedPlugin.manifest.permissions.join(', ')}
-					</Text>
-				</Box>
-			)}
+      {/* Selected plugin details */}
+      {selectedPlugin && (
+        <Box
+          flexDirection="column"
+          borderStyle="single"
+          borderColor={theme.colors.dim}
+          paddingX={1}
+          marginTop={1}
+        >
+          <Text
+            bold
+            color={theme.colors.secondary}
+          >
+            {selectedPlugin.manifest.name}
+          </Text>
+          <Text color={theme.colors.dim}>
+            {selectedPlugin.manifest.description}
+          </Text>
+          <Text color={theme.colors.dim}>
+            Author: {selectedPlugin.manifest.author}
+          </Text>
+          <Text color={theme.colors.dim}>
+            Permissions: {selectedPlugin.manifest.permissions.join(", ")}
+          </Text>
+        </Box>
+      )}
 
-			{/* Shortcuts */}
-			<Box marginTop={1}>
-				<Text color={theme.colors.dim}>
-					<Text color={theme.colors.text}>i</Text>=Install{' '}
-					<Text color={theme.colors.text}>e</Text>=Enable/Disable{' '}
-					<Text color={theme.colors.text}>r</Text>=Remove{' '}
-					<Text color={theme.colors.text}>u</Text>=Update{' '}
-					<Text color={theme.colors.text}>Esc</Text>=Back
-				</Text>
-			</Box>
-		</Box>
-	);
+      {/* Shortcuts */}
+      <Box marginTop={1}>
+        <Text color={theme.colors.dim}>
+          <Text color={theme.colors.text}>i</Text>=Install{" "}
+          <Text color={theme.colors.text}>e</Text>=Enable/Disable{" "}
+          <Text color={theme.colors.text}>r</Text>=Remove{" "}
+          <Text color={theme.colors.text}>u</Text>=Update{" "}
+          <Text color={theme.colors.text}>Esc</Text>=Back
+        </Text>
+      </Box>
+    </Box>
+  );
 }

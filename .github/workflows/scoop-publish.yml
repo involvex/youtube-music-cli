@@ -5,7 +5,7 @@ on:
     types: [created]
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:

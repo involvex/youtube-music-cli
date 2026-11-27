@@ -1,325 +1,325 @@
-import {getConfigService} from '../../services/config/config.service.ts';
-import {logger} from '../../services/logger/logger.service.ts';
-import type {RadioSeed} from '../../types/radio.types.ts';
+import { getConfigService } from "../../services/config/config.service.ts";
+import { logger } from "../../services/logger/logger.service.ts";
+import type { RadioSeed } from "../../types/radio.types.ts";
 import type {
-	Album,
-	Artist,
-	Playlist,
-	SearchResponse,
-	SearchResult,
-	Track,
-} from '../../types/youtube-music.types.ts';
-import {formatTime, truncate} from '../../utils/format.ts';
+  Album,
+  Artist,
+  Playlist,
+  SearchResponse,
+  SearchResult,
+  Track,
+} from "../../types/youtube-music.types.ts";
+import { formatTime, truncate } from "../../utils/format.ts";
 
 export interface ImmersiveMusicService {
-	search(
-		query: string,
-		options?: {type?: string; limit?: number},
-	): Promise<SearchResponse>;
-	getSuggestions(trackId: string): Promise<Track[]>;
-	getReleaseTracks(browseId: string): Promise<Track[]>;
-	getPlaylist(playlistId: string): Promise<Playlist>;
+  search(
+    query: string,
+    options?: { type?: string; limit?: number },
+  ): Promise<SearchResponse>;
+  getSuggestions(trackId: string): Promise<Track[]>;
+  getReleaseTracks(browseId: string): Promise<Track[]>;
+  getPlaylist(playlistId: string): Promise<Playlist>;
 }
 
 export type PlaySearchResult =
-	{ok: true; tracks: Track[]} | {ok: false; message: string};
+  { ok: true; tracks: Track[] } | { ok: false; message: string };
 
 export type CreateMixResult =
-	| {ok: true; tracks: Track[]; playlistName: string}
-	| {ok: false; message: string};
+  | { ok: true; tracks: Track[]; playlistName: string }
+  | { ok: false; message: string };
 
 export function loadPlaylists(): Playlist[] {
-	return getConfigService().get('playlists');
+  return getConfigService().get("playlists");
 }
 
 export function savePlaylists(playlists: Playlist[]): void {
-	getConfigService().set('playlists', playlists);
+  getConfigService().set("playlists", playlists);
 }
 
 export function createSavedPlaylist(name: string, tracks: Track[]): Playlist {
-	const playlist: Playlist = {
-		playlistId: Date.now().toString(),
-		name,
-		tracks: tracks.map(track => ({...track})),
-	};
-	const playlists = [...loadPlaylists(), playlist];
-	savePlaylists(playlists);
-	return playlist;
+  const playlist: Playlist = {
+    playlistId: Date.now().toString(),
+    name,
+    tracks: tracks.map(track => ({ ...track })),
+  };
+  const playlists = [...loadPlaylists(), playlist];
+  savePlaylists(playlists);
+  return playlist;
 }
 
-export type AddTrackToPlaylistResult = 'added' | 'duplicate' | 'missing';
+export type AddTrackToPlaylistResult = "added" | "duplicate" | "missing";
 
 export function addTrackToSavedPlaylist(
-	playlistId: string,
-	track: Track,
-	force = false,
+  playlistId: string,
+  track: Track,
+  force = false,
 ): AddTrackToPlaylistResult {
-	const playlists = loadPlaylists();
-	const playlistIndex = playlists.findIndex(
-		playlist => playlist.playlistId === playlistId,
-	);
-	if (playlistIndex === -1) {
-		return 'missing';
-	}
+  const playlists = loadPlaylists();
+  const playlistIndex = playlists.findIndex(
+    playlist => playlist.playlistId === playlistId,
+  );
+  if (playlistIndex === -1) {
+    return "missing";
+  }
 
-	const playlist = playlists[playlistIndex]!;
-	const isDuplicate = playlist.tracks.some(
-		existing => existing.videoId === track.videoId,
-	);
-	if (isDuplicate && !force) {
-		return 'duplicate';
-	}
+  const playlist = playlists[playlistIndex]!;
+  const isDuplicate = playlist.tracks.some(
+    existing => existing.videoId === track.videoId,
+  );
+  if (isDuplicate && !force) {
+    return "duplicate";
+  }
 
-	const updatedPlaylists = [...playlists];
-	updatedPlaylists[playlistIndex] = {
-		...playlist,
-		tracks: [...playlist.tracks, {...track}],
-	};
-	savePlaylists(updatedPlaylists);
-	return 'added';
+  const updatedPlaylists = [...playlists];
+  updatedPlaylists[playlistIndex] = {
+    ...playlist,
+    tracks: [...playlist.tracks, { ...track }],
+  };
+  savePlaylists(updatedPlaylists);
+  return "added";
 }
 
 export function removeTrackFromSavedPlaylist(
-	playlistId: string,
-	trackIndex: number,
+  playlistId: string,
+  trackIndex: number,
 ): boolean {
-	const playlists = loadPlaylists();
-	const playlistIndex = playlists.findIndex(
-		playlist => playlist.playlistId === playlistId,
-	);
-	if (playlistIndex === -1) {
-		return false;
-	}
+  const playlists = loadPlaylists();
+  const playlistIndex = playlists.findIndex(
+    playlist => playlist.playlistId === playlistId,
+  );
+  if (playlistIndex === -1) {
+    return false;
+  }
 
-	const playlist = playlists[playlistIndex]!;
-	if (trackIndex < 0 || trackIndex >= playlist.tracks.length) {
-		return false;
-	}
+  const playlist = playlists[playlistIndex]!;
+  if (trackIndex < 0 || trackIndex >= playlist.tracks.length) {
+    return false;
+  }
 
-	const updatedTracks = [...playlist.tracks];
-	updatedTracks.splice(trackIndex, 1);
-	const updatedPlaylists = [...playlists];
-	updatedPlaylists[playlistIndex] = {
-		...playlist,
-		tracks: updatedTracks,
-	};
-	savePlaylists(updatedPlaylists);
-	return true;
+  const updatedTracks = [...playlist.tracks];
+  updatedTracks.splice(trackIndex, 1);
+  const updatedPlaylists = [...playlists];
+  updatedPlaylists[playlistIndex] = {
+    ...playlist,
+    tracks: updatedTracks,
+  };
+  savePlaylists(updatedPlaylists);
+  return true;
 }
 
 export function trackFromSearchResult(result: SearchResult): Track | null {
-	if (result.type !== 'song') {
-		return null;
-	}
+  if (result.type !== "song") {
+    return null;
+  }
 
-	return result.data as Track;
+  return result.data as Track;
 }
 
 export function dedupeTracks(tracks: Track[]): Track[] {
-	const unique: Track[] = [];
-	const seen = new Set<string>();
-	for (const track of tracks) {
-		if (!track?.videoId || seen.has(track.videoId)) continue;
-		seen.add(track.videoId);
-		unique.push(track);
-	}
-	return unique;
+  const unique: Track[] = [];
+  const seen = new Set<string>();
+  for (const track of tracks) {
+    if (!track?.videoId || seen.has(track.videoId)) continue;
+    seen.add(track.videoId);
+    unique.push(track);
+  }
+  return unique;
 }
 
 export async function playSearchResult(
-	result: SearchResult,
-	musicService: ImmersiveMusicService,
+  result: SearchResult,
+  musicService: ImmersiveMusicService,
 ): Promise<PlaySearchResult> {
-	if (result.type === 'song') {
-		return {ok: true, tracks: [result.data as Track]};
-	}
+  if (result.type === "song") {
+    return { ok: true, tracks: [result.data as Track] };
+  }
 
-	if (result.type === 'artist') {
-		const artistName =
-			'name' in result.data ? (result.data as Artist).name : '';
-		if (!artistName) {
-			return {ok: false, message: 'Artist name missing'};
-		}
+  if (result.type === "artist") {
+    const artistName =
+      "name" in result.data ? (result.data as Artist).name : "";
+    if (!artistName) {
+      return { ok: false, message: "Artist name missing" };
+    }
 
-		try {
-			const response = await musicService.search(artistName, {
-				type: 'songs',
-				limit: 20,
-			});
-			const tracks = response.results
-				.filter(item => item.type === 'song')
-				.map(item => item.data as Track);
-			if (tracks.length === 0) {
-				return {ok: false, message: `No songs found for ${artistName}`};
-			}
-			return {ok: true, tracks};
-		} catch (error) {
-			logger.error('PlaybackActions', 'Failed to play artist', {error});
-			return {ok: false, message: 'Failed to load artist songs'};
-		}
-	}
+    try {
+      const response = await musicService.search(artistName, {
+        type: "songs",
+        limit: 20,
+      });
+      const tracks = response.results
+        .filter(item => item.type === "song")
+        .map(item => item.data as Track);
+      if (tracks.length === 0) {
+        return { ok: false, message: `No songs found for ${artistName}` };
+      }
+      return { ok: true, tracks };
+    } catch (error) {
+      logger.error("PlaybackActions", "Failed to play artist", { error });
+      return { ok: false, message: "Failed to load artist songs" };
+    }
+  }
 
-	if (result.type === 'album') {
-		const album = result.data as Album;
-		if (!album.albumId) {
-			return {ok: false, message: 'Album ID missing'};
-		}
+  if (result.type === "album") {
+    const album = result.data as Album;
+    if (!album.albumId) {
+      return { ok: false, message: "Album ID missing" };
+    }
 
-		try {
-			const tracks = await musicService.getReleaseTracks(album.albumId);
-			if (tracks.length === 0) {
-				return {ok: false, message: `No tracks found in ${album.name}`};
-			}
-			return {ok: true, tracks};
-		} catch (error) {
-			logger.error('PlaybackActions', 'Failed to play album', {error});
-			return {ok: false, message: 'Failed to load album tracks'};
-		}
-	}
+    try {
+      const tracks = await musicService.getReleaseTracks(album.albumId);
+      if (tracks.length === 0) {
+        return { ok: false, message: `No tracks found in ${album.name}` };
+      }
+      return { ok: true, tracks };
+    } catch (error) {
+      logger.error("PlaybackActions", "Failed to play album", { error });
+      return { ok: false, message: "Failed to load album tracks" };
+    }
+  }
 
-	if (result.type === 'playlist') {
-		const playlist = result.data as Playlist;
-		if (playlist.tracks.length > 0) {
-			return {ok: true, tracks: playlist.tracks};
-		}
+  if (result.type === "playlist") {
+    const playlist = result.data as Playlist;
+    if (playlist.tracks.length > 0) {
+      return { ok: true, tracks: playlist.tracks };
+    }
 
-		if (!playlist.playlistId) {
-			return {ok: false, message: 'Playlist ID missing'};
-		}
+    if (!playlist.playlistId) {
+      return { ok: false, message: "Playlist ID missing" };
+    }
 
-		try {
-			const loaded = await musicService.getPlaylist(playlist.playlistId);
-			if (loaded.tracks.length === 0) {
-				return {ok: false, message: `No tracks in ${loaded.name}`};
-			}
-			return {ok: true, tracks: loaded.tracks};
-		} catch (error) {
-			logger.error('PlaybackActions', 'Failed to play playlist', {error});
-			return {ok: false, message: 'Failed to load playlist'};
-		}
-	}
+    try {
+      const loaded = await musicService.getPlaylist(playlist.playlistId);
+      if (loaded.tracks.length === 0) {
+        return { ok: false, message: `No tracks in ${loaded.name}` };
+      }
+      return { ok: true, tracks: loaded.tracks };
+    } catch (error) {
+      logger.error("PlaybackActions", "Failed to play playlist", { error });
+      return { ok: false, message: "Failed to load playlist" };
+    }
+  }
 
-	return {ok: false, message: 'Unsupported result type'};
+  return { ok: false, message: "Unsupported result type" };
 }
 
 /**
  * Artist and album search results start endless radio; songs still use mix.
  */
 export function radioSeedFromSearchResult(
-	result: SearchResult,
+  result: SearchResult,
 ): RadioSeed | null {
-	if (result.type === 'artist') {
-		const artist = result.data as Artist;
-		if (!artist.name?.trim()) {
-			return null;
-		}
-		return {type: 'artist', id: artist.name, name: artist.name};
-	}
+  if (result.type === "artist") {
+    const artist = result.data as Artist;
+    if (!artist.name?.trim()) {
+      return null;
+    }
+    return { type: "artist", id: artist.name, name: artist.name };
+  }
 
-	if (result.type === 'album') {
-		const album = result.data as Album;
-		if (!album.albumId) {
-			return null;
-		}
-		return {
-			type: 'album',
-			id: album.albumId,
-			name: album.name || 'Album Radio',
-		};
-	}
+  if (result.type === "album") {
+    const album = result.data as Album;
+    if (!album.albumId) {
+      return null;
+    }
+    return {
+      type: "album",
+      id: album.albumId,
+      name: album.name || "Album Radio",
+    };
+  }
 
-	return null;
+  return null;
 }
 
 export async function createMixFromResult(
-	result: SearchResult,
-	musicService: ImmersiveMusicService,
+  result: SearchResult,
+  musicService: ImmersiveMusicService,
 ): Promise<CreateMixResult> {
-	let playlistName = 'Dynamic mix';
-	const collectedTracks: Track[] = [];
+  let playlistName = "Dynamic mix";
+  const collectedTracks: Track[] = [];
 
-	if (result.type === 'song') {
-		const selectedTrack = result.data as Track;
-		playlistName = `Mix for ${selectedTrack.title || 'selected track'}`;
-		collectedTracks.push(selectedTrack);
+  if (result.type === "song") {
+    const selectedTrack = result.data as Track;
+    playlistName = `Mix for ${selectedTrack.title || "selected track"}`;
+    collectedTracks.push(selectedTrack);
 
-		try {
-			const suggestions = await musicService.getSuggestions(
-				selectedTrack.videoId,
-			);
-			collectedTracks.push(...suggestions);
-		} catch (error) {
-			logger.error('PlaybackActions', 'Failed to fetch song suggestions', {
-				error,
-			});
-		}
-	} else if (result.type === 'artist' || result.type === 'album') {
-		return {
-			ok: false,
-			message: 'Use radio for artists and albums',
-		};
-	} else {
-		return {
-			ok: false,
-			message: 'Mix is only supported for songs',
-		};
-	}
+    try {
+      const suggestions = await musicService.getSuggestions(
+        selectedTrack.videoId,
+      );
+      collectedTracks.push(...suggestions);
+    } catch (error) {
+      logger.error("PlaybackActions", "Failed to fetch song suggestions", {
+        error,
+      });
+    }
+  } else if (result.type === "artist" || result.type === "album") {
+    return {
+      ok: false,
+      message: "Use radio for artists and albums",
+    };
+  } else {
+    return {
+      ok: false,
+      message: "Mix is only supported for songs",
+    };
+  }
 
-	const uniqueTracks = dedupeTracks(collectedTracks);
-	if (uniqueTracks.length === 0) {
-		return {ok: false, message: 'No similar tracks found for mix'};
-	}
+  const uniqueTracks = dedupeTracks(collectedTracks);
+  if (uniqueTracks.length === 0) {
+    return { ok: false, message: "No similar tracks found for mix" };
+  }
 
-	createSavedPlaylist(playlistName, uniqueTracks);
-	return {ok: true, tracks: uniqueTracks, playlistName};
+  createSavedPlaylist(playlistName, uniqueTracks);
+  return { ok: true, tracks: uniqueTracks, playlistName };
 }
 
 export function getSearchResultLabel(result: SearchResult): string {
-	const data = result.data;
-	if (result.type === 'song' && 'title' in data) {
-		return (data as Track).title;
-	}
-	if ('name' in data) {
-		return (data as Album | Artist | Playlist).name;
-	}
-	return 'Unknown';
+  const data = result.data;
+  if (result.type === "song" && "title" in data) {
+    return (data as Track).title;
+  }
+  if ("name" in data) {
+    return (data as Album | Artist | Playlist).name;
+  }
+  return "Unknown";
 }
 
-export function getSearchResultPrefix(type: SearchResult['type']): string {
-	switch (type) {
-		case 'song':
-			return '♪';
-		case 'album':
-			return '◎';
-		case 'artist':
-			return '★';
-		case 'playlist':
-			return '≡';
-		default:
-			return '?';
-	}
+export function getSearchResultPrefix(type: SearchResult["type"]): string {
+  switch (type) {
+    case "song":
+      return "♪";
+    case "album":
+      return "◎";
+    case "artist":
+      return "★";
+    case "playlist":
+      return "≡";
+    default:
+      return "?";
+  }
 }
 
 export function formatSearchResultLine(
-	result: SearchResult,
-	maxWidth: number,
+  result: SearchResult,
+  maxWidth: number,
 ): string {
-	const prefix = getSearchResultPrefix(result.type);
-	const typeTag = result.type.toUpperCase().padEnd(8);
-	const title = getSearchResultLabel(result);
-	let extra = '';
+  const prefix = getSearchResultPrefix(result.type);
+  const typeTag = result.type.toUpperCase().padEnd(8);
+  const title = getSearchResultLabel(result);
+  let extra = "";
 
-	if (result.type === 'song' && 'title' in result.data) {
-		const track = result.data as Track;
-		const artist = track.artists.map(entry => entry.name).join(', ');
-		if (artist) {
-			extra += ` · ${truncate(artist, 22)}`;
-		}
+  if (result.type === "song" && "title" in result.data) {
+    const track = result.data as Track;
+    const artist = track.artists.map(entry => entry.name).join(", ");
+    if (artist) {
+      extra += ` · ${truncate(artist, 22)}`;
+    }
 
-		if (track.duration) {
-			extra += ` · ${formatTime(track.duration)}`;
-		}
-	}
+    if (track.duration) {
+      extra += ` · ${formatTime(track.duration)}`;
+    }
+  }
 
-	return truncate(`${prefix} ${typeTag} ${title}${extra}`, maxWidth);
+  return truncate(`${prefix} ${typeTag} ${title}${extra}`, maxWidth);
 }

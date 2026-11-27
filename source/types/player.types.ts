@@ -1,111 +1,111 @@
+import type {
+  AddToQueueAction,
+  ClearQueueAction,
+  NextAction,
+  PauseAction,
+  PlayAction,
+  PlayNextAction,
+  PlayStreamAction,
+  PreviousAction,
+  RemoveFromQueueAction,
+  RestoreStateAction,
+  ResumeAction,
+  SeekAction,
+  SetDurationAction,
+  SetErrorAction,
+  SetLoadingAction,
+  SetQueueAction,
+  SetQueuePositionAction,
+  SetSpeedAction,
+  SetVolumeAction,
+  StartRadioAction,
+  StopAction,
+  StopRadioAction,
+  TickAction,
+  ToggleAutoplayAction,
+  TogglePlayPauseAction,
+  ToggleRepeatAction,
+  ToggleShuffleAction,
+  UpdateProgressAction,
+  VolumeDownAction,
+  VolumeFineDownAction,
+  VolumeFineUpAction,
+  VolumeUpAction,
+} from "./actions.ts";
+import type {
+  PlaybackMode,
+  RadioStation,
+  StreamNowPlaying,
+} from "./radio-station.types.ts";
 // Player store type definitions
-import type {RadioSeed} from './radio.types.ts';
-import type {
-	PlaybackMode,
-	RadioStation,
-	StreamNowPlaying,
-} from './radio-station.types.ts';
-import type {Track} from './youtube-music.types.ts';
-import type {
-	PlayAction,
-	PauseAction,
-	ResumeAction,
-	TogglePlayPauseAction,
-	StopAction,
-	NextAction,
-	PreviousAction,
-	SeekAction,
-	SetVolumeAction,
-	VolumeUpAction,
-	VolumeDownAction,
-	VolumeFineUpAction,
-	VolumeFineDownAction,
-	ToggleShuffleAction,
-	ToggleRepeatAction,
-	ToggleAutoplayAction,
-	SetQueueAction,
-	AddToQueueAction,
-	PlayNextAction,
-	RemoveFromQueueAction,
-	ClearQueueAction,
-	SetQueuePositionAction,
-	UpdateProgressAction,
-	SetDurationAction,
-	TickAction,
-	SetLoadingAction,
-	SetErrorAction,
-	RestoreStateAction,
-	SetSpeedAction,
-	StartRadioAction,
-	StopRadioAction,
-	PlayStreamAction,
-} from './actions.ts';
+import type { RadioSeed } from "./radio.types.ts";
+import type { Track } from "./youtube-music.types.ts";
 
 export interface PlayerState {
-	currentTrack: Track | null;
-	isPlaying: boolean;
-	volume: number;
-	speed: number;
-	progress: number;
-	duration: number;
-	queue: Track[];
-	queuePosition: number;
-	/** Shuffled play order (queue indices); null when shuffle is off. */
-	playbackOrder: number[] | null;
-	repeat: 'off' | 'all' | 'one';
-	shuffle: boolean;
-	autoplay: boolean;
-	isLoading: boolean;
-	error: string | null;
-	playRequestId: number;
-	abLoop: {a: number | null; b: number | null};
-	subtitle: string | null;
-	radioIsActive: boolean;
-	radioSeed: RadioSeed | null;
-	explicitQueueLength: number;
-	playbackMode: PlaybackMode;
-	currentStation: RadioStation | null;
-	streamNowPlaying: StreamNowPlaying | null;
-	/** Whether the current track is served from a local download or YouTube. */
-	mediaSource: 'local' | 'youtube' | null;
+  currentTrack: Track | null;
+  isPlaying: boolean;
+  volume: number;
+  speed: number;
+  progress: number;
+  duration: number;
+  queue: Track[];
+  queuePosition: number;
+  /** Shuffled play order (queue indices); null when shuffle is off. */
+  playbackOrder: number[] | null;
+  repeat: "off" | "all" | "one";
+  shuffle: boolean;
+  autoplay: boolean;
+  isLoading: boolean;
+  error: string | null;
+  playRequestId: number;
+  abLoop: { a: number | null; b: number | null };
+  subtitle: string | null;
+  radioIsActive: boolean;
+  radioSeed: RadioSeed | null;
+  explicitQueueLength: number;
+  playbackMode: PlaybackMode;
+  currentStation: RadioStation | null;
+  streamNowPlaying: StreamNowPlaying | null;
+  /** Whether the current track is served from a local download or YouTube. */
+  mediaSource: "local" | "youtube" | null;
 }
 
 export type PlayerAction =
-	| PlayAction
-	| PauseAction
-	| ResumeAction
-	| TogglePlayPauseAction
-	| StopAction
-	| NextAction
-	| PreviousAction
-	| SeekAction
-	| SetVolumeAction
-	| VolumeUpAction
-	| VolumeDownAction
-	| VolumeFineUpAction
-	| VolumeFineDownAction
-	| ToggleShuffleAction
-	| ToggleRepeatAction
-	| ToggleAutoplayAction
-	| SetQueueAction
-	| AddToQueueAction
-	| PlayNextAction
-	| RemoveFromQueueAction
-	| ClearQueueAction
-	| SetQueuePositionAction
-	| UpdateProgressAction
-	| SetDurationAction
-	| TickAction
-	| SetLoadingAction
-	| SetErrorAction
-	| import('./actions.ts').SetMediaSourceAction
-	| RestoreStateAction
-	| SetSpeedAction
-	| SetSpeedAction
-	| import('./actions.ts').SetABLoopAction
-	| import('./actions.ts').SetSubtitleAction
-	| import('./actions.ts').SetStreamNowPlayingAction
-	| StartRadioAction
-	| StopRadioAction
-	| import('./actions.ts').ToggleRadioAction
-	| PlayStreamAction;
+  | PlayAction
+  | PauseAction
+  | ResumeAction
+  | TogglePlayPauseAction
+  | StopAction
+  | NextAction
+  | PreviousAction
+  | SeekAction
+  | SetVolumeAction
+  | VolumeUpAction
+  | VolumeDownAction
+  | VolumeFineUpAction
+  | VolumeFineDownAction
+  | ToggleShuffleAction
+  | ToggleRepeatAction
+  | ToggleAutoplayAction
+  | SetQueueAction
+  | AddToQueueAction
+  | PlayNextAction
+  | RemoveFromQueueAction
+  | ClearQueueAction
+  | SetQueuePositionAction
+  | UpdateProgressAction
+  | SetDurationAction
+  | TickAction
+  | SetLoadingAction
+  | SetErrorAction
+  | import("./actions.ts").SetMediaSourceAction
+  | RestoreStateAction
+  | SetSpeedAction
+  | SetSpeedAction
+  | import("./actions.ts").SetABLoopAction
+  | import("./actions.ts").SetSubtitleAction
+  | import("./actions.ts").SetStreamNowPlayingAction
+  | StartRadioAction
+  | StopRadioAction
+  | import("./actions.ts").ToggleRadioAction
+  | PlayStreamAction;

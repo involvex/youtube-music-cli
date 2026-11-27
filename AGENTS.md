@@ -23,8 +23,8 @@ This file provides guidance for AI agents operating in this repository.
 
 | Command                | Description                                           |
 | ---------------------- | ----------------------------------------------------- |
-| `bun run format`       | Format code with Prettier                             |
-| `bun run format:check` | Check formatting without modifying                    |
+| `bun run format`       | Format code with `bun fmt` (config in `bunfig.toml`)  |
+| `bun run format:check` | Check formatting without modifying (`bun fmt --check`) |
 | `bun run lint`         | Lint code with ESLint                                 |
 | `bun run lint:fix`     | Fix linting issues automatically                      |
 | `bun run typecheck`    | Type check via `bun check` (no emit)                  |
@@ -50,24 +50,19 @@ bun test tests/player-service-mpv-args.test.js -t "gapless playback"
 
 - **ESM Modules**: Project uses `"type": "module"` - all imports use ES syntax
 - **Bun Runtime**: Use Bun as the runtime and package manager (`bun run`)
-- **Strict TypeScript**: Project uses `@sindresorhus/tsconfig` with strict mode enabled
+- **Strict TypeScript**: Project uses `@tsconfig/bun` with strict mode enabled
 
 ### Imports & Module Organization
 
 - **Extensions Required**: Include `.ts`/`.tsx` extensions in imports (compiler rewrites them)
-- **Organized Imports**: Prettier organizes imports automatically via plugins:
-  - `prettier-plugin-organize-imports`
-  - `prettier-plugin-sort-imports`
-  - `prettier-plugin-packagejson`
-- **Import Order**: Groups: React → external libs → internal services/types → relative paths
+- **Organized Imports**: `bun fmt` sorts imports and `package.json` when `sortImports` / `sortPackageJson` are enabled in `bunfig.toml`
+- **Import Order**: Prefer React → external libs → internal services/types → relative paths
 
 ### Formatting
 
-- **Config**: Uses `@vdemedes/prettier-config`
-- **Line Length**: Default Prettier settings (80 chars typical)
-- **Quotes**: Single quotes for JS/TS, double for JSX attributes
-- **Semicolons**: Yes (trailing)
-- **Trailing Commas**: ES5 style
+- **Tool**: `bun fmt` only — Prettier is not used; do not reintroduce it
+- **Config**: `[fmt]` in `bunfig.toml` (`printWidth` 80, 2-space indent, semicolons, double quotes, trailing commas `all`, arrow parens `avoid`)
+- **Check**: `bun run format:check` / `bun fmt --check .`
 - **No Comments**: Avoid adding comments unless necessary
 
 ### Naming Conventions
