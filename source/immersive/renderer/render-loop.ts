@@ -70,12 +70,14 @@ export class RenderLoop {
 	}
 
 	private render(): void {
-		const rows: string[] = new Array(this.frameBuffer.height);
+		const height = this.frameBuffer.height;
+		const width = this.frameBuffer.width;
+		const rows: string[] = new Array(height);
 
-		for (let y = 0; y < this.frameBuffer.height; y++) {
+		for (let y = 0; y < height; y++) {
 			let row = '';
 
-			for (let x = 0; x < this.frameBuffer.width; x++) {
+			for (let x = 0; x < width; x++) {
 				const cell = this.frameBuffer.getCell(x, y);
 				if (!cell) continue;
 

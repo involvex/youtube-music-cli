@@ -197,17 +197,22 @@ export function parseRichsyncBody(rawBody: string): RichsyncLine[] {
 	if (!Array.isArray(parsed)) return [];
 
 	const lines: RichsyncLine[] = [];
-	for (const raw of parsed as Array<Record<string, unknown>>) {
-		const start = raw.ts;
-		const end = raw.te;
+	for (const item of parsed) {
+		if (typeof item !== 'object' || item === null) continue;
+		const raw = item as Record<string, unknown>;
+		const start = raw['ts'];
+		const end = raw['te'];
 		if (typeof start !== 'number' || typeof end !== 'number') continue;
 
-		const text = typeof raw.x === 'string' ? raw.x : '';
+		const text = typeof raw['x'] === 'string' ? raw['x'] : '';
 		const words: RichsyncWord[] = [];
-		if (Array.isArray(raw.l)) {
-			for (const rawWord of raw.l as Array<Record<string, unknown>>) {
-				const label = rawWord.c;
-				const offset = rawWord.o;
+		const wordList = raw['l'];
+		if (Array.isArray(wordList)) {
+			for (const wordItem of wordList) {
+				if (typeof wordItem !== 'object' || wordItem === null) continue;
+				const rawWord = wordItem as Record<string, unknown>;
+				const label = rawWord['c'];
+				const offset = rawWord['o'];
 				if (typeof label !== 'string' || typeof offset !== 'number') {
 					continue;
 				}
@@ -216,6 +221,7 @@ export function parseRichsyncBody(rawBody: string): RichsyncLine[] {
 		}
 
 		if (!text && words.length === 0) continue;
+		// Fresh object for AOT — do not retain JSON.parse shapes in the hot path.
 		lines.push({start, end, text, words});
 	}
 

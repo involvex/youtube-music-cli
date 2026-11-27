@@ -69,6 +69,79 @@ function scoreInstance(entry: InstanceHealth): number {
 	return successRate + recentBoost;
 }
 
+function readOptionalNumber(
+	record: Record<string, unknown>,
+	key: string,
+): number | undefined {
+	const value = record[key];
+	return typeof value === 'number' && Number.isFinite(value)
+		? value
+		: undefined;
+}
+
+function parseInstanceHealth(value: unknown): InstanceHealth | null {
+	if (typeof value !== 'object' || value === null) {
+		return null;
+	}
+	const record = value as Record<string, unknown>;
+	const url = record['url'];
+	const successCount = record['successCount'];
+	const failureCount = record['failureCount'];
+	if (
+		typeof url !== 'string' ||
+		typeof successCount !== 'number' ||
+		typeof failureCount !== 'number'
+	) {
+		return null;
+	}
+
+	const entry: InstanceHealth = {
+		url,
+		successCount,
+		failureCount,
+	};
+	const lastSuccessAt = readOptionalNumber(record, 'lastSuccessAt');
+	const lastFailureAt = readOptionalNumber(record, 'lastFailureAt');
+	const lastLatencyMs = readOptionalNumber(record, 'lastLatencyMs');
+	if (lastSuccessAt !== undefined) entry.lastSuccessAt = lastSuccessAt;
+	if (lastFailureAt !== undefined) entry.lastFailureAt = lastFailureAt;
+	if (lastLatencyMs !== undefined) entry.lastLatencyMs = lastLatencyMs;
+	return entry;
+}
+
+function parsePersistedHealth(value: unknown): PersistedHealth | null {
+	if (typeof value !== 'object' || value === null) {
+		return null;
+	}
+	const record = value as Record<string, unknown>;
+	if (record['schemaVersion'] !== SCHEMA_VERSION) {
+		return null;
+	}
+	if (!Array.isArray(record['instances'])) {
+		return null;
+	}
+
+	const instances: InstanceHealth[] = [];
+	for (const item of record['instances']) {
+		const entry = parseInstanceHealth(item);
+		if (entry) {
+			instances.push(entry);
+		}
+	}
+
+	const updatedAt = readOptionalNumber(record, 'updatedAt') ?? Date.now();
+	const discoveredAt = readOptionalNumber(record, 'discoveredAt');
+	const state: PersistedHealth = {
+		schemaVersion: SCHEMA_VERSION,
+		updatedAt,
+		instances,
+	};
+	if (discoveredAt !== undefined) {
+		state.discoveredAt = discoveredAt;
+	}
+	return state;
+}
+
 export function parseInvidiousDiscoveryPayload(payload: unknown): string[] {
 	if (!Array.isArray(payload)) {
 		return [];
@@ -239,17 +312,10 @@ class InvidiousHealthService {
 			if (!existsSync(this.healthFilePath)) {
 				return null;
 			}
-			const parsed = JSON.parse(
+			const raw: unknown = JSON.parse(
 				readFileSync(this.healthFilePath, 'utf8'),
-			) as PersistedHealth;
-			if (
-				!parsed ||
-				parsed.schemaVersion !== SCHEMA_VERSION ||
-				!Array.isArray(parsed.instances)
-			) {
-				return null;
-			}
-			return parsed;
+			);
+			return parsePersistedHealth(raw);
 		} catch {
 			return null;
 		}

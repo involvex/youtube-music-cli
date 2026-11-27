@@ -1,6 +1,6 @@
 import process from 'node:process';
-import type {FrameBuffer} from './renderer/frame-buffer.ts';
-import type {BrailleCanvas} from './renderer/braille-canvas.ts';
+import {FrameBuffer} from './renderer/frame-buffer.ts';
+import {BrailleCanvas} from './renderer/braille-canvas.ts';
 import {RenderLoop} from './renderer/render-loop.ts';
 import {AudioCollector} from './visualizer/audio-collector.ts';
 import {DiscoEngine} from './visualizer/disco-engine.ts';
@@ -275,48 +275,18 @@ export class ImmersiveEngine {
 
 		await this.options.bootScreen?.();
 
-		let Fb: typeof import('./renderer/frame-buffer.ts').FrameBuffer;
-		let Bc: typeof import('./renderer/braille-canvas.ts').BrailleCanvas;
-		let Rl: typeof import('./renderer/render-loop.ts').RenderLoop;
-		let Ac: typeof import('./visualizer/audio-collector.ts').AudioCollector;
-		let De: typeof import('./visualizer/disco-engine.ts').DiscoEngine;
-		let Dps: typeof import('./effects/particle-system.ts').DiscoParticleSystem;
-
-		try {
-			const frameBufferModule = await import('./renderer/frame-buffer.ts');
-			const brailleCanvasModule = await import('./renderer/braille-canvas.ts');
-			const renderLoopModule = await import('./renderer/render-loop.ts');
-			const audioCollectorModule =
-				await import('./visualizer/audio-collector.ts');
-			const discoEngineModule = await import('./visualizer/disco-engine.ts');
-			const particleSystemModule = await import('./effects/particle-system.ts');
-
-			Fb = frameBufferModule.FrameBuffer;
-			Bc = brailleCanvasModule.BrailleCanvas;
-			Rl = renderLoopModule.RenderLoop;
-			Ac = audioCollectorModule.AudioCollector;
-			De = discoEngineModule.DiscoEngine;
-			Dps = particleSystemModule.DiscoParticleSystem;
-		} catch (error) {
-			this.isRunning = false;
-			showCursor();
-			exitAltBuffer();
-			console.error(
-				`Failed to load immersive mode modules: ${error instanceof Error ? error.message : String(error)}`,
-			);
-			throw error;
-		}
-
 		const state = this.options.getState?.();
-		const fb = new Fb(this.effectiveWidth, this.effectiveHeight);
-		const canvas = new Bc(fb);
-		const loop = new Rl(fb, {targetFps: this.options.targetFps ?? 30});
-		const audio = new Ac(256);
+		// Construct from static imports so bun compile AOT can prove FrameBuffer /
+		// particle shapes in the render loop (dynamic import() loses the layout).
+		const fb = new FrameBuffer(this.effectiveWidth, this.effectiveHeight);
+		const canvas = new BrailleCanvas(fb);
+		const loop = new RenderLoop(fb, {targetFps: this.options.targetFps ?? 30});
+		const audio = new AudioCollector(256);
 		const hybrid = new HybridAudioSource(audio.getFrequencyBinCount());
-		const disco = new De({
+		const disco = new DiscoEngine({
 			enabled: state?.isDiscoMode ?? this.options.discoMode,
 		});
-		const particles = new Dps({
+		const particles = new DiscoParticleSystem({
 			spawnRate: 10,
 			colors: [
 				[255, 100, 100],

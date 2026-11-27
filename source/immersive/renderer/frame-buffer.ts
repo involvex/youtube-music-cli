@@ -28,22 +28,36 @@ export class FrameBuffer {
 	}
 
 	clear(): void {
-		for (let y = 0; y < this.height; y++) {
-			for (let x = 0; x < this.width; x++) {
+		const height = this.height;
+		const width = this.width;
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
 				this.cells[y]![x] = {char: ' ', fg: null, bg: null};
 			}
 		}
 	}
 
 	setCell(x: number, y: number, cell: Cell): void {
-		if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-			this.cells[y]![x] = cell;
+		const px = typeof x === 'number' ? x : -1;
+		const py = typeof y === 'number' ? y : -1;
+		if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+			this.cells[py]![px] = {
+				char: typeof cell?.char === 'string' ? cell.char : ' ',
+				fg: cell?.fg ?? null,
+				bg: cell?.bg ?? null,
+				bold: cell?.bold,
+				dim: cell?.dim,
+				italic: cell?.italic,
+				underline: cell?.underline,
+			};
 		}
 	}
 
 	getCell(x: number, y: number): Cell | null {
-		if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-			return this.cells[y]![x] ?? null;
+		const px = typeof x === 'number' ? x : -1;
+		const py = typeof y === 'number' ? y : -1;
+		if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+			return this.cells[py]![px] ?? null;
 		}
 		return null;
 	}
@@ -56,9 +70,12 @@ export class FrameBuffer {
 		bg?: RGB | null,
 		options?: {bold?: boolean; dim?: boolean},
 	): void {
-		for (let i = 0; i < text.length; i++) {
-			this.setCell(x + i, y, {
-				char: text[i] ?? ' ',
+		const startX = typeof x === 'number' ? x : 0;
+		const row = typeof y === 'number' ? y : 0;
+		const content = typeof text === 'string' ? text : '';
+		for (let i = 0; i < content.length; i++) {
+			this.setCell(startX + i, row, {
+				char: content[i] ?? ' ',
 				fg: fg ?? null,
 				bg: bg ?? null,
 				bold: options?.bold,

@@ -25,8 +25,12 @@ export interface ParticleConfig {
 	colors: RGB[];
 }
 
+function asFiniteNumber(value: unknown, fallback: number): number {
+	return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 export class ParticleSystem {
-	private particles: Particle[] = [];
+	protected particles: Particle[] = [];
 	protected config: ParticleConfig;
 	private timeSinceLastSpawn = 0;
 
@@ -50,7 +54,8 @@ export class ParticleSystem {
 	}
 
 	update(deltaTime: number): void {
-		const dt = deltaTime / 16.67;
+		const dtMs = asFiniteNumber(deltaTime, 0);
+		const dt = dtMs / 16.67;
 
 		for (let i = this.particles.length - 1; i >= 0; i--) {
 			const p = this.particles[i]!;
@@ -62,7 +67,7 @@ export class ParticleSystem {
 			p.x += p.vx * dt;
 			p.y += p.vy * dt;
 
-			p.life -= deltaTime;
+			p.life -= dtMs;
 			p.size *= p.decay;
 
 			if (p.life <= 0 || p.size < 0.1) {
@@ -70,7 +75,7 @@ export class ParticleSystem {
 			}
 		}
 
-		this.timeSinceLastSpawn += deltaTime;
+		this.timeSinceLastSpawn += dtMs;
 		const spawnInterval = 1000 / this.config.spawnRate;
 
 		if (
@@ -83,11 +88,15 @@ export class ParticleSystem {
 	}
 
 	spawn(x?: number, y?: number, count = 1): void {
-		for (let i = 0; i < count; i++) {
+		const spawnCount = Math.max(0, Math.floor(asFiniteNumber(count, 1)));
+		const posFallbackX = typeof x === 'number' && Number.isFinite(x);
+		const posFallbackY = typeof y === 'number' && Number.isFinite(y);
+
+		for (let i = 0; i < spawnCount; i++) {
 			if (this.particles.length >= this.config.maxParticles) break;
 
-			const posX = x ?? Math.random() * 100;
-			const posY = y ?? Math.random() * 100;
+			const posX = posFallbackX ? x! : Math.random() * 100;
+			const posY = posFallbackY ? y! : Math.random() * 100;
 			const velMag =
 				this.config.initialVelocity.min +
 				Math.random() *
@@ -116,19 +125,22 @@ export class ParticleSystem {
 	}
 
 	spawnBurst(x: number, y: number, count: number, color?: RGB): void {
+		const originX = asFiniteNumber(x, 0);
+		const originY = asFiniteNumber(y, 0);
+		const burstCount = Math.max(0, Math.floor(asFiniteNumber(count, 0)));
 		const burstColor =
 			color ??
 			this.config.colors[Math.floor(Math.random() * this.config.colors.length)];
 
-		for (let i = 0; i < count; i++) {
+		for (let i = 0; i < burstCount; i++) {
 			if (this.particles.length >= this.config.maxParticles) break;
 
-			const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+			const angle = (i / burstCount) * Math.PI * 2 + Math.random() * 0.5;
 			const velMag = 3 + Math.random() * 5;
 
 			this.particles.push({
-				x,
-				y,
+				x: originX,
+				y: originY,
 				vx: Math.cos(angle) * velMag,
 				vy: Math.sin(angle) * velMag,
 				life: 500 + Math.random() * 500,
@@ -167,29 +179,32 @@ export class DiscoParticleSystem extends ParticleSystem {
 	}
 
 	override update(deltaTime: number): void {
-		this.hueOffset = (this.hueOffset + deltaTime * 0.1) % 360;
-		super.update(deltaTime);
+		const dtMs = asFiniteNumber(deltaTime, 0);
+		this.hueOffset = (this.hueOffset + dtMs * 0.1) % 360;
+		super.update(dtMs);
 	}
 
 	spawnWithDiscoColor(x: number, y: number, intensity: number): void {
+		const originX = asFiniteNumber(x, 0);
+		const originY = asFiniteNumber(y, 0);
+		const level = Math.min(1, Math.max(0, asFiniteNumber(intensity, 0)));
 		const hue = (this.hueOffset + Math.random() * 60) % 360;
 		const color = this.hslToRgb(hue / 360, 0.8, 0.6);
 
-		const count = Math.floor(1 + intensity * 5);
+		const count = Math.floor(1 + level * 5);
 		const burstColor = color ?? [255, 255, 255];
 
 		for (let i = 0; i < count; i++) {
-			if (Math.random() > intensity) continue;
+			if (Math.random() > level) continue;
 
 			const angle = Math.random() * Math.PI * 2;
-			const velMag = 2 + Math.random() * 4 * intensity;
+			const velMag = 2 + Math.random() * 4 * level;
 
-			const particles = (this as unknown as {particles: Particle[]}).particles;
-			if (particles.length >= this.config.maxParticles) break;
+			if (this.particles.length >= this.config.maxParticles) break;
 
-			particles.push({
-				x,
-				y,
+			this.particles.push({
+				x: originX,
+				y: originY,
 				vx: Math.cos(angle) * velMag,
 				vy: Math.sin(angle) * velMag - 2,
 				life: 500 + Math.random() * 500,

@@ -12,11 +12,19 @@ function loadAppVersion(): string {
 	for (let i = 0; i < 5; i++) {
 		try {
 			const content = readFileSync(resolve(dir, 'package.json'), 'utf8');
-			const pkg = JSON.parse(content) as {version?: string; name?: string};
-			if (
-				typeof pkg.version === 'string' &&
-				pkg.name?.includes('youtube-music-cli')
-			) {
+			const raw: unknown = JSON.parse(content);
+			if (typeof raw !== 'object' || raw === null) {
+				continue;
+			}
+			const record = raw as Record<string, unknown>;
+			const version = record['version'];
+			const name = record['name'];
+			// Rebuild a fresh object so AOT does not treat package.json as untyped.
+			const pkg = {
+				version: typeof version === 'string' ? version : '',
+				name: typeof name === 'string' ? name : '',
+			};
+			if (pkg.version && pkg.name.includes('youtube-music-cli')) {
 				return pkg.version;
 			}
 		} catch {

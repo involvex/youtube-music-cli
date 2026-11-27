@@ -219,6 +219,10 @@ class PlayerService {
 	private eventCallback: PlayerEventCallback | null = null;
 	private ipcConnectRetries = 0;
 	private readonly maxIpcRetries = 10;
+	/** Reconnect must fail fast — pause/resume should not block ~5s on a dead pipe. */
+	private readonly maxIpcReconnectAttempts = 4;
+	private readonly ipcReconnectRetryDelayMs =
+		process.platform === 'win32' ? 100 : 75;
 	private ipcConnectGeneration = 0;
 	private ipcConnectPending: Promise<void> | null = null;
 	private ipcConnectAbort: ((error: Error) => void) | null = null;
@@ -338,13 +342,20 @@ class PlayerService {
 	/**
 	 * Connect to mpv IPC socket and optionally load a URL via loadfile
 	 */
-	private async connectIpc(urlToLoad?: string): Promise<void> {
+	private async connectIpc(
+		urlToLoad?: string,
+		options: {maxAttempts?: number; retryDelayMs?: number} = {},
+	): Promise<void> {
 		if (!isValidIpcPipePath(this.ipcPath)) {
 			throw new Error('IPC path not set');
 		}
 
 		const pipePath = normalizeIpcPipePath(this.ipcPath);
 		const generation = this.ipcConnectGeneration;
+		const maxAttempts = options.maxAttempts ?? this.maxIpcRetries * 2;
+		const retryDelayMs =
+			options.retryDelayMs ?? (process.platform === 'win32' ? 250 : 200);
+		this.ipcConnectRetries = 0;
 		let settled = false;
 
 		return new Promise<void>((resolve, reject) => {
@@ -374,20 +385,15 @@ class PlayerService {
 					return;
 				}
 
-				const maxRetries = this.maxIpcRetries * 2;
-				if (this.ipcConnectRetries < maxRetries) {
+				if (this.ipcConnectRetries < maxAttempts) {
 					this.ipcConnectRetries++;
-					this.scheduleIpcTimer(
-						process.platform === 'win32' ? 250 : 200,
-						generation,
-						attemptConnect,
-					);
+					this.scheduleIpcTimer(retryDelayMs, generation, attemptConnect);
 					return;
 				}
 
 				rejectOnce(
 					new Error(
-						`Failed to connect to IPC socket after ${maxRetries} attempts`,
+						`Failed to connect to IPC socket after ${maxAttempts} attempts`,
 					),
 				);
 			};
@@ -1114,7 +1120,12 @@ class PlayerService {
 				});
 				// Observe properties only — never loadfile on reconnect (that
 				// restarts the track and feels like a random stop on Windows).
-				await this.connectIpc();
+				// Keep the retry budget short so pause/resume stay responsive
+				// when the pipe is gone (full connect allows mpv startup lag).
+				await this.connectIpc(undefined, {
+					maxAttempts: this.maxIpcReconnectAttempts,
+					retryDelayMs: this.ipcReconnectRetryDelayMs,
+				});
 				logger.info('PlayerService', 'IPC reconnect succeeded');
 				return true;
 			} catch (error) {
