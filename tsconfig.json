@@ -1,11 +1,17 @@
 {
-	"extends": ["@sindresorhus/tsconfig", "@tsconfig/bun"],
+	"extends": ["@tsconfig/bun"],
 	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"outDir": "dist",
 		"module": "esnext",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"resolveJsonModule": true,
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
-		"emitDeclarationOnly": true,
 		"jsx": "react-jsx",
 		"types": ["bun-types", "node"]
 	},

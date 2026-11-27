@@ -50,7 +50,7 @@
 		"build:bun": "bun build source/cli.tsx --outfile dist/source/cli.js --target bun --footer \"//Copyright (c) 2026 involvex\" --production",
 		"build:node": "bun build source/cli.tsx --outfile dist/source/cli.js --target node --footer \"//Copyright (c) 2026 involvex\" --production",
 		"build:win32": "bun build source/immersive-entry.tsx --compile --target bun-windows-x64 --outfile dist/ymc-win32.exe && bun run copy:tray-icon",
-		"compile": "bun scripts/build-cli.ts",
+		"build:exe": "bun compile --outfile dist/youtube-music-cli.exe --target=bun-windows-x64 --define PLATFORM='windows' --aot-allow-code-from-disk source/cli.tsx --asset assets/icon.ico --external electron",
 		"dev": "bun run --bun source/cli.tsx",
 		"dev:win32": "bun run --bun source/immersive-entry.tsx",
 		"dev:watch": "bun run --bun --watch source/cli.tsx",
@@ -70,8 +70,8 @@
 		"release:major": "powershell -File scripts/release.ps1 -Bump major",
 		"build:web": "cd web && bun run build",
 		"dev:web": "cd web && bun run dev",
-		"build:all": "bun run build && bun run build:win32 && bun run build:web",
-		"msix": "bun run compile && msix-packager-cli package --config ./msix-config.json --skip-build",
+		"build:all": "bun run build && bun run build:win32 && bun run build:web && bun run build:exe",
+		"msix": "bun run build:exe && msix-packager-cli package --config ./msix-config.json --skip-build",
 		"sync:skills": "bun run scripts/sync-agent-skills.ts"
 	},
 	"prettier": "@vdemedes/prettier-config",
@@ -96,7 +96,6 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@sindresorhus/tsconfig": "^8.1.0",
 		"@tsconfig/bun": "^1.0.12",
 		"@types/bun": "^1.4.4",
 		"@types/node": "^26.2.0",
